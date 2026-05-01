@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Prospect {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Identité
+  name  String
+  phone String @unique
+  email String?
+  age   Int?
+
+  // Réponses formulaire Facebook (8 questions de qualification)
+  qualifObjectif     String? // Q1: Objectif principal
+  qualifDelai        String? // Q2: Délai souhaité
+  qualifFrein        String? // Q3: Principal frein actuel
+  qualifExperience   String? // Q4: Expérience sportive
+  qualifDisponible   String? // Q5: Disponibilité hebdo
+  qualifSante        String? // Q6: Problèmes de santé / blessures
+  qualifMotivation   String? // Q7: Niveau de motivation sur 10
+  qualifBudget       String? // Q8: Budget pour investir dans sa santé
+
+  // Données onboarding collectées par Sheed (ManyChat)
+  weight        Float?
+  height        Float?
+  availableDays String? // JSON: ["lundi","mercredi","vendredi"]
+  nutritionInfo String? // Description des habitudes alimentaires
+  photosReceived Boolean @default(false)
+  onboardingDone Boolean @default(false)
+
+  // Statut dans le pipeline
+  status ProspectStatus @default(LEAD)
+
+  // Identifiant ManyChat
+  manychatId String?
+
+  // Notes libres du coach
+  notes String?
+
+  // Relations
+  challengeParticipants ChallengeParticipant[]
+  coachingClient        CoachingClient?
+  summaries             AISummary[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ProspectStatus {
+  LEAD           // Formulaire Facebook rempli, pas encore contacté
+  ONBOARDING     // En cours de onboarding avec Sheed (WhatsApp)
+  CHALLENGE      // Dans un groupe Reboot 40+
+  CALL_SCHEDULED // Appel de sélection planifié (Calendly)
+  CLIENT         // Accompagnement individuel 3000€ signé
+  DECLINED       // Profil non retenu
+  GHOST          // N'a pas répondu après relances
+}
+
+model ChallengeGroup {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  name      String      // "Reboot 40+ — Semaine 18"
+  startDate DateTime
+  endDate   DateTime
+  status    GroupStatus @default(UPCOMING)
+  maxSize   Int         @default(10)
+
+  // Contenu éducatif envoyé (notes hebdo du coach)
+  coachNotes String?
+
+  participants ChallengeParticipant[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+enum GroupStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+}
+
+model ChallengeParticipant {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  prospect   Prospect       @relation(fields: [prospectId], references: [id])
+  prospectId String
+
+  group   ChallengeGroup @relation(fields: [groupId], references: [id])
+  groupId String
+
+  // Checklist 7 jours (séance reçue et validée)
+  day1Done Boolean @default(false)
+  day2Done Boolean @default(false)
+  day3Done Boolean @default(false)
+  day4Done Boolean @default(false)
+  day5Done Boolean @default(false)
+  day6Done Boolean @default(false)
+  day7Done Boolean @default(false)
+
+  // Suivi engagement
+  engagementScore Int?    // 0 à 10
+  isSerious       Boolean @default(false) // Profil sérieux → proposer appel
+  coachNotes      String?
+
+  @@unique([prospectId, groupId])
+}
+
+model CoachingClient {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+  prospectId String   @unique
+
+  contractStart DateTime
+  contractEnd   DateTime
+  priceEur      Int      @default(3000)
+
+  // Objectifs définis en début d'accompagnement
+  objectives String?
+
+  // Suivi progression
+  progressNotes String?
+  isActive      Boolean @default(true)
+}
+
+model AISummary {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+  prospectId String
+
+  // Type de résumé généré
+  type    SummaryType @default(ONBOARDING)
+
+  // Contenu généré par Claude
+  content String
+
+  @@index([prospectId])
+}
+
+enum SummaryType {
+  ONBOARDING     // Résumé dossier avant 1er contact coach
+  PRE_CALL       // Résumé avant appel de sélection
+  CHALLENGE_WEEK // Bilan de semaine challenge
+}
