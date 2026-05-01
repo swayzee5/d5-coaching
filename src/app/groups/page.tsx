@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { GroupStatus } from "@prisma/client";
 import { formatDateShort, challengeProgress } from "@/lib/utils";
+
+type GroupStatus = "UPCOMING" | "ACTIVE" | "COMPLETED";
 import Link from "next/link";
 
 async function getGroups() {

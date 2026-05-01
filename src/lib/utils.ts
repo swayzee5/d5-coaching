@@ -1,4 +1,11 @@
-import { ProspectStatus } from "@prisma/client";
+export type ProspectStatus =
+  | "LEAD"
+  | "ONBOARDING"
+  | "CHALLENGE"
+  | "CALL_SCHEDULED"
+  | "CLIENT"
+  | "DECLINED"
+  | "GHOST";
 
 export function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString("fr-FR", {

@@ -4,7 +4,6 @@ import {
   generateOnboardingSummary,
   generatePreCallSummary,
 } from "@/lib/claude";
-import { SummaryType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
     const summary = await db.aISummary.create({
       data: {
         prospectId,
-        type: type as SummaryType,
+        type: String(type),
         content,
       },
     });

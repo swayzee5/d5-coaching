@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
-import { ProspectStatus, GroupStatus } from "@prisma/client";
-import { formatDateShort, statusLabel, statusColor, challengeProgress } from "@/lib/utils";
+import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
 
 async function getDashboardData() {
@@ -14,7 +13,7 @@ async function getDashboardData() {
     db.prospect.count(),
     db.prospect.groupBy({ by: ["status"], _count: { id: true } }),
     db.challengeGroup.findMany({
-      where: { status: { in: [GroupStatus.ACTIVE, GroupStatus.UPCOMING] } },
+      where: { status: { in: ["ACTIVE", "UPCOMING"] } },
       include: {
         participants: {
           include: { prospect: { select: { name: true } } },

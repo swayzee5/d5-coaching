@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChallengeGroup, GroupStatus } from "@prisma/client";
+import { ChallengeGroup } from "@prisma/client";
+
+type GroupStatus = "UPCOMING" | "ACTIVE" | "COMPLETED";
 
 type Props = {
   group: ChallengeGroup;

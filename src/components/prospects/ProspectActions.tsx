@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Prospect, ProspectStatus } from "@prisma/client";
-import { statusLabel } from "@/lib/utils";
+import { Prospect } from "@prisma/client";
+import { statusLabel, ProspectStatus } from "@/lib/utils";
 
 const STATUSES: ProspectStatus[] = [
   "LEAD",

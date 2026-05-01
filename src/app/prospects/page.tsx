@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
-import { ProspectStatus } from "@prisma/client";
-import { formatDate, statusLabel, statusColor } from "@/lib/utils";
+import { formatDate, statusLabel, statusColor, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
 
 const ALL_STATUSES: ProspectStatus[] = [
