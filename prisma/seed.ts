@@ -1,4 +1,4 @@
-import { PrismaClient, ProspectStatus } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const db = new PrismaClient();
 
@@ -18,7 +18,7 @@ async function main() {
       nutritionInfo: "Mange souvent au restaurant midi pour le boulot, dîner maison équilibré, manque de régularité le week-end",
       photosReceived: true,
       onboardingDone: true,
-      status: "CHALLENGE" as ProspectStatus,
+      status: "CHALLENGE",
       qualifObjectif: "Perdre 12kg et retrouver de l'énergie pour mes enfants",
       qualifDelai: "6 mois",
       qualifFrein: "Manque de temps entre le travail et la famille",
@@ -40,7 +40,7 @@ async function main() {
       nutritionInfo: "Mange beaucoup en déplacement, alcool les week-ends, petit-déjeuner souvent sauté",
       photosReceived: true,
       onboardingDone: true,
-      status: "CALL_SCHEDULED" as ProspectStatus,
+      status: "CALL_SCHEDULED",
       qualifObjectif: "Regagner confiance, perdre du ventre",
       qualifDelai: "4 mois avant vacances d'été",
       qualifFrein: "Voyages pro fréquents",
@@ -61,7 +61,7 @@ async function main() {
       nutritionInfo: "Cuisine maison, plutôt sain mais portions trop grandes",
       photosReceived: false,
       onboardingDone: true,
-      status: "CHALLENGE" as ProspectStatus,
+      status: "CHALLENGE",
       qualifObjectif: "Prise de masse musculaire, reprendre la forme après burn-out",
       qualifDelai: "Pas de délai précis, dans la durée",
       qualifFrein: "Fatigue mentale, manque de motivation seul",
@@ -78,7 +78,7 @@ async function main() {
       age: 49,
       weight: 79,
       height: 172,
-      status: "ONBOARDING" as ProspectStatus,
+      status: "ONBOARDING",
       onboardingDone: false,
       photosReceived: false,
       qualifObjectif: "Tonifier, garder la forme après 45 ans",
@@ -90,7 +90,7 @@ async function main() {
       name: "Karim Mansouri",
       phone: "+33612345005",
       age: 43,
-      status: "LEAD" as ProspectStatus,
+      status: "LEAD",
       onboardingDone: false,
       photosReceived: false,
     },
@@ -104,7 +104,7 @@ async function main() {
       nutritionInfo: "Régime méditerranéen, peu de sucres, discipline alimentaire déjà bonne",
       photosReceived: true,
       onboardingDone: true,
-      status: "CLIENT" as ProspectStatus,
+      status: "CLIENT",
       qualifObjectif: "Maintenir niveau et travailler endurance cardio",
       qualifDelai: "Programme 6 mois renouvelable",
       qualifFrein: "Âge, récupération plus lente",
