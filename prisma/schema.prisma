@@ -36,8 +36,9 @@ model Prospect {
   // LEAD | ONBOARDING | CHALLENGE | CALL_SCHEDULED | CLIENT | DECLINED | GHOST
   status String @default("LEAD")
 
-  manychatId String?
-  notes String?
+  manychatId   String?
+  sessionToken String? @unique
+  notes        String?
 
   challengeParticipants ChallengeParticipant[]
   coachingClient        CoachingClient?
