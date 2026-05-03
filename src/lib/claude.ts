@@ -124,6 +124,39 @@ Direct, actionnable, pas de jargon.`;
   return content.type === "text" ? content.text : "";
 }
 
+/**
+ * Génère une notification 1-phrase pour le coach quand un prospect est qualifié.
+ * Conçu pour être envoyé directement sur le WhatsApp personnel du coach.
+ */
+export async function generateCoachNotificationSummary(
+  prospect: Prospect
+): Promise<string> {
+  const prompt = `Résume ce prospect en UNE SEULE phrase naturelle (max 30 mots) pour que le coach intervienne immédiatement. Format : prénom, contexte clé, objectif, disponibilité, signal de motivation.
+
+Données :
+- Nom : ${prospect.name}
+- Objectif : ${prospect.qualifObjectif ?? "?"}
+- Frein principal : ${prospect.qualifFrein ?? "?"}
+- Expérience sportive : ${prospect.qualifExperience ?? "?"}
+- Disponibilité : ${prospect.qualifDisponible ?? "?"}
+- Motivation (sur 10) : ${prospect.qualifMotivation ?? "?"}
+- Budget : ${prospect.qualifBudget ?? "?"}
+
+Exemple de format attendu : "Mohamed, cadre 44 ans, objectif -10kg avant l'été, dispo lundi/mercredi matin, motivation 9/10 — budget OK."
+
+Réponds uniquement avec la phrase, sans introduction ni ponctuation finale superflue.`;
+
+  const message = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 100,
+    system: "Tu génères des résumés ultra-courts pour un coach sportif.",
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const content = message.content[0];
+  return content.type === "text" ? content.text.trim() : "";
+}
+
 export async function generateChallengeWeekSummary(
   group: ChallengeGroup & {
     participants: (ChallengeParticipant & { prospect: Prospect })[];
