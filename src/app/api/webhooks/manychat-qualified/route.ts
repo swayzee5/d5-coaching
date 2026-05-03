@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateCoachNotificationSummary } from "@/lib/claude";
+import { normalizePhone } from "@/lib/utils";
 
 /**
  * Zapier → POST /api/webhooks/manychat-qualified
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const phone = body.phone ? String(body.phone).trim() : undefined;
+    const phone = body.phone ? normalizePhone(String(body.phone).trim()) : undefined;
     const manychatId = body.manychat_id ? String(body.manychat_id) : undefined;
 
     // Recherche du prospect par téléphone en priorité, sinon par manychatId

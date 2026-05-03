@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { normalizePhone } from "@/lib/utils";
 
 /**
  * Zapier → POST /api/webhooks/facebook-lead
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "phone requis" }, { status: 400 });
     }
 
-    const phone = String(body.phone).trim();
+    const phone = normalizePhone(String(body.phone).trim());
     const name = body.full_name ? String(body.full_name).trim() : "Inconnu";
 
     // Enrichit les notes avec la situation pro si fournie

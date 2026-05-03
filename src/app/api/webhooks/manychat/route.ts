@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateOnboardingSummary } from "@/lib/claude";
+import { normalizePhone } from "@/lib/utils";
 
 /**
  * Webhook ManyChat → reçoit les données onboarding collectées par Sheed.
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "phone requis" }, { status: 400 });
     }
 
-    const phone = String(body.phone).trim();
+    const phone = normalizePhone(String(body.phone).trim());
     const name = body.name ? String(body.name).trim() : "Inconnu";
 
     const data = {

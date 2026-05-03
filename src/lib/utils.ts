@@ -48,6 +48,23 @@ export function statusColor(status: ProspectStatus): string {
   return colors[status];
 }
 
+/**
+ * Normalise un numéro de téléphone au format E.164 (+XXXXXXXXXXX).
+ * Gère les cas français : 06... → +336..., 07... → +337...
+ * Supprime espaces, tirets, points.
+ */
+export function normalizePhone(raw: string, defaultCountryCode = "33"): string {
+  let n = raw.replace(/[\s\-.() ]/g, "");
+  // Déjà en E.164
+  if (n.startsWith("+")) return n;
+  // Préfixe 00XX → +XX
+  if (n.startsWith("00")) return `+${n.slice(2)}`;
+  // Numéro local français 0X → +33X
+  if (n.startsWith("0")) return `+${defaultCountryCode}${n.slice(1)}`;
+  // Pas de préfixe reconnu → on préfixe naïvement
+  return `+${defaultCountryCode}${n}`;
+}
+
 export function parseAvailableDays(raw: string | null): string[] {
   if (!raw) return [];
   try {
