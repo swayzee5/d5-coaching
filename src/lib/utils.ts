@@ -22,8 +22,8 @@ export function formatDateShort(date: Date | string): string {
   });
 }
 
-export function statusLabel(status: ProspectStatus): string {
-  const labels: Record<ProspectStatus, string> = {
+export function statusLabel(status: string): string {
+  const labels: Record<string, string> = {
     LEAD: "Lead",
     ONBOARDING: "Onboarding",
     CHALLENGE: "Challenge",
@@ -32,11 +32,11 @@ export function statusLabel(status: ProspectStatus): string {
     DECLINED: "Refusé",
     GHOST: "Ghost",
   };
-  return labels[status];
+  return labels[status] ?? status;
 }
 
-export function statusColor(status: ProspectStatus): string {
-  const colors: Record<ProspectStatus, string> = {
+export function statusColor(status: string): string {
+  const colors: Record<string, string> = {
     LEAD: "bg-blue-500/20 text-blue-300 border-blue-500/30",
     ONBOARDING: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
     CHALLENGE: "bg-purple-500/20 text-purple-300 border-purple-500/30",
@@ -45,7 +45,7 @@ export function statusColor(status: ProspectStatus): string {
     DECLINED: "bg-red-500/20 text-red-300 border-red-500/30",
     GHOST: "bg-gray-500/20 text-gray-400 border-gray-500/30",
   };
-  return colors[status];
+  return colors[status] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30";
 }
 
 export function parseAvailableDays(raw: string | null): string[] {
