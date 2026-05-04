@@ -32,7 +32,7 @@ async function getDashboardData() {
 
   const byStatus = Object.fromEntries(
     statusCounts.map((s) => [s.status, s._count.id])
-  ) as Partial<Record<ProspectStatus, number>>;
+  ) as Record<string, number>;
 
   return {
     totalProspects,
