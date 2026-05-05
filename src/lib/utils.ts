@@ -51,7 +51,8 @@ export function statusColor(status: string): string {
 export function parseAvailableDays(raw: string | null): string[] {
   if (!raw) return [];
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [String(parsed)];
   } catch {
     return raw.split(",").map((d) => d.trim());
   }
