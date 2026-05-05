@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
+import { createProgram } from "./programmes/actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Fiche client — D5 CRM" };
@@ -11,15 +12,7 @@ export const metadata: Metadata = { title: "Fiche client — D5 CRM" };
 function fmt(val: unknown, unit: string): string {
   const n = Number(val);
   if (isNaN(n) || val === null || val === undefined) return "—";
-  return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)} ${unit}`;
-}
-
-function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(date));
+  return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)} ${unit}`;
 }
 
 function formatShort(date: Date | string): string {
@@ -50,7 +43,17 @@ export default async function AppClientDetailPage({
 }: {
   params: { id: string };
 }) {
-  const client = await getClient(params.id);
+  const [client, programs] = await Promise.all([
+    getClient(params.id),
+    db.trainingProgram.findMany({
+      where: { clientId: params.id },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      include: {
+        _count: { select: { sessions: true } },
+      },
+    }),
+  ]);
+
   if (!client) notFound();
 
   const latest = client.progressEntries[0] ?? null;
@@ -62,7 +65,6 @@ export default async function AppClientDetailPage({
       ? Number(latest.weightKg) - Number(prevWeight.weightKg)
       : null;
 
-  // Serialize for client component
   const serializedFiles = client.nutritionFiles.map((f) => ({
     id: f.id,
     name: f.name,
@@ -71,6 +73,8 @@ export default async function AppClientDetailPage({
     fileSize: f.fileSize,
     uploadedAt: f.uploadedAt.toISOString(),
   }));
+
+  const createProgramAction = createProgram.bind(null, client.id);
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
@@ -222,6 +226,95 @@ export default async function AppClientDetailPage({
           <h2 className="font-semibold text-white mb-4">Plans nutrition</h2>
           <NutritionUpload clientId={client.id} files={serializedFiles} />
         </div>
+      </div>
+
+      {/* Programmes d'entraînement */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h2 className="font-semibold text-white mb-4">Programmes d&apos;entraînement</h2>
+
+        {programs.length > 0 && (
+          <div className="space-y-2 mb-5">
+            {programs.map((prog) => (
+              <Link
+                key={prog.id}
+                href={`/app-clients/${client.id}/programmes/${prog.id}`}
+                className="flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-medium text-white">{prog.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {prog._count.sessions} séance{prog._count.sessions !== 1 ? "s" : ""}
+                    {prog.weeksDuration ? ` · ${prog.weeksDuration} semaines` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 text-xs rounded-full ${
+                      prog.isActive
+                        ? "bg-green-500/10 text-green-400"
+                        : "bg-gray-700/50 text-gray-500"
+                    }`}
+                  >
+                    {prog.isActive ? "Actif" : "Inactif"}
+                  </span>
+                  <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Créer un programme */}
+        <details className="group">
+          <summary className="cursor-pointer list-none">
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 border-dashed rounded-lg text-sm text-gray-400 hover:text-gray-200 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Créer un nouveau programme
+            </div>
+          </summary>
+          <form action={createProgramAction} className="mt-3 space-y-3 p-4 bg-gray-800/30 rounded-lg border border-gray-800">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Nom du programme *</label>
+              <input
+                name="name"
+                required
+                placeholder="ex: Programme Force — 8 semaines"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Durée (semaines)</label>
+                <input
+                  type="number"
+                  name="weeksDuration"
+                  min={1}
+                  max={52}
+                  placeholder="ex: 8"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Date de début</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-colors"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Créer le programme
+            </button>
+          </form>
+        </details>
       </div>
     </div>
   );
