@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
       name,
       phone: phone ?? undefined,
       email: body.email ? String(body.email) : undefined,
-      age: body.age ? Number(body.age) : undefined,
-      weight: body.weight ? Number(body.weight) : undefined,
-      height: body.height ? Number(body.height) : undefined,
+      age: body.age && !isNaN(Number(body.age)) ? Number(body.age) : undefined,
+      weight: body.weight && !isNaN(Number(body.weight)) ? Number(body.weight) : undefined,
+      height: body.height && !isNaN(Number(body.height)) ? Number(body.height) : undefined,
       availableDays: body.available_days
         ? JSON.stringify(body.available_days)
         : undefined,

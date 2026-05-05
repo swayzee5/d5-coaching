@@ -13,7 +13,7 @@ model Prospect {
   updatedAt DateTime @updatedAt
 
   name  String
-  phone String? @unique
+  phone String @unique
   email String?
   age   Int?
 
