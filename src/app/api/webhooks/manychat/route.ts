@@ -11,62 +11,54 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const phone = body.phone ? String(body.phone).trim() : null;
-    const name = body.name ? String(body.name).trim() : "Inconnu";
-    const manychatId = body.manychat_id ? String(body.manychat_id) : null;
-
-    if (!phone && !manychatId) {
-      return NextResponse.json({ error: "phone ou manychat_id requis" }, { status: 400 });
+    if (!body.phone) {
+      return NextResponse.json({ error: "phone requis" }, { status: 400 });
     }
+
+    const phone = String(body.phone).trim();
+    const name = body.name ? String(body.name).trim() : "Inconnu";
+
+    const safeInt = (v: unknown) => {
+      const n = Number(v);
+      return v && !isNaN(n) ? n : undefined;
+    };
+    const safeFloat = (v: unknown) => {
+      const n = Number(v);
+      return v && !isNaN(n) ? n : undefined;
+    };
 
     const data = {
       name,
-      phone: phone ?? undefined,
+      phone,
       email: body.email ? String(body.email) : undefined,
-      age: body.age && !isNaN(Number(body.age)) ? Number(body.age) : undefined,
-      weight: body.weight && !isNaN(Number(body.weight)) ? Number(body.weight) : undefined,
-      height: body.height && !isNaN(Number(body.height)) ? Number(body.height) : undefined,
+      age: safeInt(body.age),
+      weight: safeFloat(body.weight),
+      height: safeFloat(body.height),
       availableDays: body.available_days
         ? JSON.stringify(body.available_days)
         : undefined,
-      nutritionInfo: body.nutrition_info ?? undefined,
+      nutritionInfo: body.nutrition_info ? String(body.nutrition_info) : undefined,
       photosReceived: Boolean(body.photos_received),
       onboardingDone: true,
-      manychatId: manychatId ?? undefined,
+      manychatId: body.manychat_id ? String(body.manychat_id) : undefined,
       status: "ONBOARDING" as const,
-      qualifObjectif: body.qualif_objectif ?? undefined,
-      qualifDelai: body.qualif_delai ?? undefined,
-      qualifFrein: body.qualif_frein ?? undefined,
-      qualifExperience: body.qualif_experience ?? undefined,
-      qualifDisponible: body.qualif_disponible ?? undefined,
-      qualifSante: body.qualif_sante ?? undefined,
-      qualifMotivation: body.qualif_motivation ?? undefined,
-      qualifBudget: body.qualif_budget ?? undefined,
+      qualifObjectif: body.qualif_objectif ? String(body.qualif_objectif) : undefined,
+      qualifDelai: body.qualif_delai ? String(body.qualif_delai) : undefined,
+      qualifFrein: body.qualif_frein ? String(body.qualif_frein) : undefined,
+      qualifExperience: body.qualif_experience ? String(body.qualif_experience) : undefined,
+      qualifDisponible: body.qualif_disponible ? String(body.qualif_disponible) : undefined,
+      qualifSante: body.qualif_sante ? String(body.qualif_sante) : undefined,
+      qualifMotivation: body.qualif_motivation ? String(body.qualif_motivation) : undefined,
+      qualifBudget: body.qualif_budget ? String(body.qualif_budget) : undefined,
     };
 
+    const existing = await db.prospect.findUnique({ where: { phone } });
     let prospect;
-
-    // Cherche d'abord par téléphone, puis par manychat_id
-    if (phone) {
-      const existing = await db.prospect.findUnique({ where: { phone } });
-      if (existing) {
-        prospect = await db.prospect.update({
-          where: { phone },
-          data: { ...data, status: undefined, onboardingDone: true },
-        });
-      } else {
-        prospect = await db.prospect.create({ data });
-      }
-    } else if (manychatId) {
-      const existing = await db.prospect.findFirst({ where: { manychatId } });
-      if (existing) {
-        prospect = await db.prospect.update({
-          where: { id: existing.id },
-          data: { ...data, status: undefined, onboardingDone: true },
-        });
-      } else {
-        prospect = await db.prospect.create({ data });
-      }
+    if (existing) {
+      prospect = await db.prospect.update({
+        where: { phone },
+        data: { ...data, status: undefined, onboardingDone: true },
+      });
     } else {
       prospect = await db.prospect.create({ data });
     }
@@ -75,11 +67,7 @@ export async function POST(req: NextRequest) {
       try {
         const content = await generateOnboardingSummary(prospect);
         await db.aISummary.create({
-          data: {
-            prospectId: prospect.id,
-            type: "ONBOARDING",
-            content,
-          },
+          data: { prospectId: prospect.id, type: "ONBOARDING", content },
         });
       } catch {
         // Résumé IA non bloquant
