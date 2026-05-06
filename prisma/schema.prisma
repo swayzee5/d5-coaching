@@ -123,8 +123,6 @@ model AISummary {
 
 // =============================================================
 // APP CLIENTE D5 — tables partagées avec d5-clients-app
-// Ces modèles sont créés via db/schema.sql dans l'app cliente
-// Prisma les lit/écrit via @@map sur les noms de tables réels
 // =============================================================
 
 model AppClient {
@@ -143,8 +141,9 @@ model AppClient {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  progressEntries AppProgressEntry[]
-  nutritionFiles  AppNutritionFile[]
+  progressEntries  AppProgressEntry[]
+  nutritionFiles   AppNutritionFile[]
+  trainingPrograms TrainingProgram[]
 
   @@map("clients")
 }
@@ -184,4 +183,74 @@ model AppNutritionFile {
 
   @@index([clientId])
   @@map("nutrition_files")
+}
+
+model ExerciseLibrary {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?
+  muscles      String[]
+  vimeoVideoId String?  @map("vimeo_video_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  sessionExercises SessionExercise[]
+
+  @@map("exercise_library")
+}
+
+model TrainingProgram {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  name          String
+  description   String?
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  weeksDuration Int?      @map("weeks_duration")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  client   AppClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sessions TrainingSession[]
+
+  @@index([clientId])
+  @@map("training_programs")
+}
+
+model TrainingSession {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  programId       String   @map("program_id") @db.Uuid
+  name            String
+  dayOfWeek       Int?     @map("day_of_week")
+  orderIndex      Int      @default(0) @map("order_index")
+  durationMinutes Int?     @map("duration_minutes")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercises SessionExercise[]
+
+  @@index([programId])
+  @@map("training_sessions")
+}
+
+model SessionExercise {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId         String   @map("session_id") @db.Uuid
+  libraryExerciseId String?  @map("library_exercise_id") @db.Uuid
+  name              String
+  sets              Int?
+  reps              String?
+  restSeconds       Int?     @map("rest_seconds")
+  vimeoVideoId      String?  @map("vimeo_video_id")
+  orderIndex        Int      @default(0) @map("order_index")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  session         TrainingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  libraryExercise ExerciseLibrary? @relation(fields: [libraryExerciseId], references: [id])
+
+  @@index([sessionId])
+  @@map("exercises")
 }

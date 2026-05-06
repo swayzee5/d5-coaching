@@ -42,10 +42,19 @@ const nav = [
   },
   {
     href: "/app-clients",
-    label: "App D5 — Clients",
+    label: "App D5 — Clients",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/exercices",
+    label: "Bibliothèque exercices",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -56,7 +65,6 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 shrink-0 flex flex-col bg-gray-900 border-r border-gray-800 h-screen">
-      {/* Logo */}
       <div className="px-5 py-6 border-b border-gray-800">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-brand-500 flex items-center justify-center shrink-0">
@@ -69,7 +77,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {nav.map((item) => {
           const active =
@@ -94,7 +101,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Pied de page */}
       <div className="px-5 py-4 border-t border-gray-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center">
