@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const nav = [
@@ -60,46 +61,20 @@ const nav = [
   },
 ];
 
-function D5Logo() {
-  return (
-    <svg viewBox="0 0 108 68" className="h-10 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* d */}
-      <circle cx="23" cy="26" r="15" stroke="white" strokeWidth="5.5" />
-      <rect x="32" y="7" width="5.5" height="34" rx="2.75" fill="white" />
-      {/* 5 — top bar */}
-      <rect x="46" y="7" width="25" height="5.5" rx="2.75" fill="white" />
-      {/* 5 — body */}
-      <path
-        d="M48.5 12.5 L48.5 23 Q48.5 41 61 41 Q73.5 41 73.5 30 Q73.5 19 61 19 L48.5 19"
-        stroke="white"
-        strokeWidth="5.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* coaching */}
-      <text
-        x="54"
-        y="60"
-        textAnchor="middle"
-        fill="white"
-        fontSize="9"
-        fontFamily="system-ui, -apple-system, sans-serif"
-        letterSpacing="2"
-        fontWeight="300"
-      >
-        coaching
-      </text>
-    </svg>
-  );
-}
-
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="w-60 shrink-0 flex flex-col bg-gray-900 border-r border-gray-800 h-screen">
       <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-center">
-        <D5Logo />
+        <Image
+          src="https://raw.githubusercontent.com/swayzee5/d5-coaching/main/Logo%20D5.PNG"
+          alt="D5 Coaching"
+          width={120}
+          height={80}
+          className="object-contain brightness-0 invert"
+          priority
+        />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
