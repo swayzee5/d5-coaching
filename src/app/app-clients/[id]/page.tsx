@@ -5,6 +5,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
 import { createProgram } from "./programmes/actions";
+import {
+  archiveClient,
+  unarchiveClient,
+  blockClient,
+  unblockClient,
+  deleteClient,
+} from "./actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Fiche client — D5 CRM" };
@@ -50,12 +57,15 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   }));
 
   const createProgramAction = createProgram.bind(null, client.id);
+  const archiveAction = client.isActive ? archiveClient.bind(null, client.id) : unarchiveClient.bind(null, client.id);
+  const blockAction = client.isBlocked ? unblockClient.bind(null, client.id) : blockClient.bind(null, client.id);
+  const deleteAction = deleteClient.bind(null, client.id);
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
       <div>
         <Link href="/app-clients" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← App Clients</Link>
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex items-start justify-between mt-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
               <span className="text-base font-black text-brand-400">{client.firstName[0]}{client.lastName[0]}</span>
@@ -65,13 +75,42 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               <p className="text-gray-400 text-sm">{client.email}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            {client.isRebootOnly && <span className="px-3 py-1 bg-brand-500/10 text-brand-400 text-xs font-semibold rounded-full">Reboot only</span>}
-            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${client.isActive ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-              {client.isActive ? "Actif" : "Inactif"}
-            </span>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {client.isBlocked && <span className="px-2.5 py-1 bg-orange-500/10 text-orange-400 text-xs font-semibold rounded-full">Accès bloqué</span>}
+            {!client.isActive && <span className="px-2.5 py-1 bg-gray-500/10 text-gray-400 text-xs font-semibold rounded-full">Archivé</span>}
+            {client.isActive && !client.isBlocked && <span className="px-2.5 py-1 bg-green-500/10 text-green-400 text-xs font-semibold rounded-full">Actif</span>}
+            {client.isRebootOnly && <span className="px-2.5 py-1 bg-brand-500/10 text-brand-400 text-xs font-semibold rounded-full">Reboot only</span>}
           </div>
         </div>
+      </div>
+
+      {/* Actions client */}
+      <div className="flex gap-2 flex-wrap">
+        <form action={archiveAction}>
+          <button type="submit" className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors border ${
+            client.isActive
+              ? "border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
+              : "border-green-700/40 text-green-400 hover:bg-green-500/10"
+          }`}>
+            {client.isActive ? "📂 Archiver" : "✅ Réactiver"}
+          </button>
+        </form>
+        <form action={blockAction}>
+          <button type="submit" className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors border ${
+            client.isBlocked
+              ? "border-green-700/40 text-green-400 hover:bg-green-500/10"
+              : "border-orange-700/40 text-orange-400 hover:bg-orange-500/10"
+          }`}>
+            {client.isBlocked ? "🔓 Débloquer l'accès" : "🔒 Bloquer l'accès"}
+          </button>
+        </form>
+        <form action={deleteAction} onSubmit={(e) => {
+          if (!confirm(`Supprimer définitivement ${client.firstName} ${client.lastName} ? Cette action est irréversible.`)) e.preventDefault();
+        }}>
+          <button type="submit" className="px-4 py-2 rounded-lg text-xs font-semibold border border-red-700/40 text-red-400 hover:bg-red-500/10 transition-colors">
+            🗑️ Supprimer
+          </button>
+        </form>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
