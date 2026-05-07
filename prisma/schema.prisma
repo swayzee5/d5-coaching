@@ -33,7 +33,6 @@ model Prospect {
   photosReceived Boolean @default(false)
   onboardingDone Boolean @default(false)
 
-  // LEAD | ONBOARDING | CHALLENGE | CALL_SCHEDULED | CLIENT | DECLINED | GHOST
   status String @default("LEAD")
 
   manychatId String?
@@ -54,7 +53,6 @@ model ChallengeGroup {
   name      String
   startDate DateTime
   endDate   DateTime
-  // UPCOMING | ACTIVE | COMPLETED
   status  String @default("UPCOMING")
   maxSize Int    @default(10)
 
@@ -114,7 +112,6 @@ model AISummary {
   prospect   Prospect @relation(fields: [prospectId], references: [id])
   prospectId String
 
-  // ONBOARDING | PRE_CALL | CHALLENGE_WEEK
   type    String @default("ONBOARDING")
   content String
 
@@ -136,6 +133,7 @@ model AppClient {
   gender          String?
   objectives      String?
   isActive        Boolean   @default(true) @map("is_active")
+  isBlocked       Boolean   @default(false) @map("is_blocked")
   isRebootOnly    Boolean   @default(false) @map("is_reboot_only")
   rebootStartDate DateTime? @map("reboot_start_date") @db.Date
   createdAt       DateTime  @default(now()) @map("created_at")
