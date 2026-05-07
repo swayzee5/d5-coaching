@@ -20,13 +20,13 @@ async function sendWelcomeEmail(params: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "D5 Coaching <onboarding@resend.dev>",
+        from: "D5 Coaching <noreply@d5coaching-distance.com>",
         to: params.email,
-        subject: "Bienvenue sur l’app D5 Coaching ! 💪",
+        subject: "Bienvenue sur l'app D5 Coaching ! 💪",
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f0f0f;color:#fff;padding:40px;border-radius:12px;">
             <div style="text-align:center;margin-bottom:32px;">
-              <div style="display:inline-block;background:#d4af37;color:#000;font-weight:900;font-size:20px;padding:12px 24px;border-radius:8px;letter-spacing:2px;">D5</div>
+              <div style="display:inline-block;background:#E8920A;color:#000;font-weight:900;font-size:20px;padding:12px 24px;border-radius:8px;letter-spacing:2px;">D5</div>
               <p style="color:#999;margin-top:8px;font-size:14px;">Coaching Distance</p>
             </div>
             <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;">Bonjour ${params.firstName} 👋</h1>
@@ -35,7 +35,7 @@ async function sendWelcomeEmail(params: {
               <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Email</p>
               <p style="margin:0 0 20px;font-size:16px;color:#fff;font-weight:600;">${params.email}</p>
               <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Mot de passe temporaire</p>
-              <p style="margin:0;font-size:22px;color:#d4af37;font-weight:700;letter-spacing:3px;">${params.password}</p>
+              <p style="margin:0;font-size:22px;color:#E8920A;font-weight:700;letter-spacing:3px;">${params.password}</p>
             </div>
             <p style="color:#aaa;font-size:14px;line-height:1.6;">Connecte-toi et change ton mot de passe depuis ton profil dès ta première connexion.</p>
             <div style="border-top:1px solid #222;margin-top:32px;padding-top:20px;text-align:center;">
