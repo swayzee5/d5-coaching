@@ -85,21 +85,21 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
       </div>
 
       {/* Actions client */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-3 flex-wrap p-4 bg-gray-900 border border-gray-800 rounded-xl">
         <form action={archiveAction}>
-          <button type="submit" className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors border ${
+          <button type="submit" className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
             client.isActive
-              ? "border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
-              : "border-green-700/40 text-green-400 hover:bg-green-500/10"
+              ? "bg-gray-700 hover:bg-gray-600 text-white"
+              : "bg-green-600 hover:bg-green-500 text-white"
           }`}>
             {client.isActive ? "📂 Archiver" : "✅ Réactiver"}
           </button>
         </form>
         <form action={blockAction}>
-          <button type="submit" className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors border ${
+          <button type="submit" className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
             client.isBlocked
-              ? "border-green-700/40 text-green-400 hover:bg-green-500/10"
-              : "border-orange-700/40 text-orange-400 hover:bg-orange-500/10"
+              ? "bg-green-600 hover:bg-green-500 text-white"
+              : "bg-orange-600 hover:bg-orange-500 text-white"
           }`}>
             {client.isBlocked ? "🔓 Débloquer l'accès" : "🔒 Bloquer l'accès"}
           </button>
@@ -107,7 +107,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         <form action={deleteAction} onSubmit={(e) => {
           if (!confirm(`Supprimer définitivement ${client.firstName} ${client.lastName} ? Cette action est irréversible.`)) e.preventDefault();
         }}>
-          <button type="submit" className="px-4 py-2 rounded-lg text-xs font-semibold border border-red-700/40 text-red-400 hover:bg-red-500/10 transition-colors">
+          <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-red-700 hover:bg-red-600 text-white transition-colors">
             🗑️ Supprimer
           </button>
         </form>
