@@ -5,13 +5,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
 import { createProgram } from "./programmes/actions";
-import {
-  archiveClient,
-  unarchiveClient,
-  blockClient,
-  unblockClient,
-  deleteClient,
-} from "./actions";
+import { archiveClient, unarchiveClient, blockClient, unblockClient } from "./actions";
+import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Fiche client — D5 CRM" };
@@ -86,7 +81,6 @@ export default async function AppClientDetailPage({
   const unarchiveAction = unarchiveClient.bind(null, client.id);
   const blockAction = blockClient.bind(null, client.id);
   const unblockAction = unblockClient.bind(null, client.id);
-  const deleteAction = deleteClient.bind(null, client.id);
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
@@ -156,14 +150,10 @@ export default async function AppClientDetailPage({
                 {client.isBlocked ? "Débloquer" : "Bloquer l'accès"}
               </button>
             </form>
-            <form action={deleteAction}>
-              <button
-                type="submit"
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-700 hover:bg-red-600 text-white transition-colors"
-              >
-                Supprimer
-              </button>
-            </form>
+            <DeleteClientButton
+              clientId={client.id}
+              clientName={`${client.firstName} ${client.lastName}`}
+            />
           </div>
         </div>
       </div>
