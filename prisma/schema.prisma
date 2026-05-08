@@ -138,6 +138,7 @@ model AppClient {
   gender          String?
   objectives      String?
   isActive        Boolean   @default(true) @map("is_active")
+  isBlocked       Boolean   @default(false) @map("is_blocked")
   isRebootOnly    Boolean   @default(false) @map("is_reboot_only")
   rebootStartDate DateTime? @map("reboot_start_date") @db.Date
   createdAt       DateTime  @default(now()) @map("created_at")
