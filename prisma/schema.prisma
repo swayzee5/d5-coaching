@@ -142,6 +142,7 @@ model AppClient {
   progressEntries  AppProgressEntry[]
   nutritionFiles   AppNutritionFile[]
   trainingPrograms TrainingProgram[]
+  comments         ClientComment[]
 
   @@map("clients")
 }
@@ -184,6 +185,22 @@ model AppNutritionFile {
   @@map("nutrition_files")
 }
 
+model ClientComment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  programId String?  @map("program_id") @db.Uuid
+  content   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client  AppClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  program TrainingProgram? @relation(fields: [programId], references: [id], onDelete: SetNull)
+
+  @@index([isRead, createdAt])
+  @@index([clientId])
+  @@map("client_comments")
+}
+
 model ExerciseLibrary {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String
@@ -212,6 +229,7 @@ model TrainingProgram {
 
   client   AppClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   sessions TrainingSession[]
+  comments ClientComment[]
 
   @@index([clientId])
   @@map("training_programs")

@@ -3,6 +3,44 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
+import { markCommentAsRead } from "./actions";
+
+type RecentCompletion = {
+  client_id: string;
+  client_name: string;
+  session_name: string;
+  completed_at: Date;
+};
+
+type UnreadComment = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  content: string;
+  created_at: Date;
+};
+
+type EndingSoonProgram = {
+  id: string;
+  name: string;
+  end_date: Date;
+  client_id: string;
+  client_name: string;
+};
+
+function timeAgo(date: Date): string {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `il y a ${diffMins}min`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `il y a ${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `il y a ${diffDays}j`;
+}
+
+function daysUntil(date: Date): number {
+  return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
+}
 
 async function getDashboardData() {
   const [
@@ -36,6 +74,59 @@ async function getDashboardData() {
     statusCounts.map((s) => [s.status, s._count.id])
   ) as Record<string, number>;
 
+  let recentCompletions: RecentCompletion[] = [];
+  let unreadComments: UnreadComment[] = [];
+  let endingSoonPrograms: EndingSoonProgram[] = [];
+
+  try {
+    recentCompletions = await db.$queryRaw<RecentCompletion[]>`
+      SELECT
+        rc.client_id::text,
+        c.first_name || ' ' || c.last_name AS client_name,
+        rs.name AS session_name,
+        rc.completed_at
+      FROM reboot_completions rc
+      JOIN clients c ON c.id = rc.client_id
+      JOIN reboot_sessions rs ON rs.id = rc.session_id
+      WHERE rc.completed_at > NOW() - INTERVAL '7 days'
+      ORDER BY rc.completed_at DESC
+      LIMIT 8
+    `;
+  } catch {}
+
+  try {
+    unreadComments = await db.$queryRaw<UnreadComment[]>`
+      SELECT
+        cc.id::text,
+        cc.client_id::text,
+        c.first_name || ' ' || c.last_name AS client_name,
+        cc.content,
+        cc.created_at
+      FROM client_comments cc
+      JOIN clients c ON c.id = cc.client_id
+      WHERE cc.is_read = false
+      ORDER BY cc.created_at DESC
+      LIMIT 10
+    `;
+  } catch {}
+
+  try {
+    endingSoonPrograms = await db.$queryRaw<EndingSoonProgram[]>`
+      SELECT
+        tp.id::text,
+        tp.name,
+        tp.end_date,
+        c.id::text AS client_id,
+        c.first_name || ' ' || c.last_name AS client_name
+      FROM training_programs tp
+      JOIN clients c ON c.id = tp.client_id
+      WHERE tp.is_active = true
+        AND tp.end_date BETWEEN NOW() AND NOW() + INTERVAL '7 days'
+      ORDER BY tp.end_date ASC
+      LIMIT 10
+    `;
+  } catch {}
+
   return {
     totalProspects,
     byStatus,
@@ -43,6 +134,9 @@ async function getDashboardData() {
     recentProspects,
     activeClients,
     revenue: activeClients * 3000,
+    recentCompletions,
+    unreadComments,
+    endingSoonPrograms,
   };
 }
 
@@ -56,6 +150,10 @@ const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
+  const totalNotifications =
+    data.unreadComments.length +
+    data.recentCompletions.length +
+    data.endingSoonPrograms.length;
 
   return (
     <div className="p-6 space-y-6">
@@ -71,6 +169,97 @@ export default async function DashboardPage() {
           })}
         </p>
       </div>
+
+      {/* Notifications Aujourd'hui */}
+      {totalNotifications > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
+              Aujourd&apos;hui
+            </h2>
+            <span className="text-xs bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full">
+              {totalNotifications} notification{totalNotifications > 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="divide-y divide-gray-800">
+            {/* Commentaires non lus */}
+            {data.unreadComments.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-3 px-5 py-4">
+                <span className="text-xl shrink-0 mt-0.5">💬</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white">
+                    <span className="font-medium">{comment.client_name}</span>{" "}
+                    a laissé un commentaire
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    &ldquo;{comment.content}&rdquo;
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">{timeAgo(comment.created_at)}</p>
+                </div>
+                <form
+                  action={async () => {
+                    "use server";
+                    await markCommentAsRead(comment.id);
+                  }}
+                  className="shrink-0"
+                >
+                  <button
+                    type="submit"
+                    title="Marquer comme lu"
+                    className="w-7 h-7 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-white transition-colors text-xs"
+                  >
+                    ✓
+                  </button>
+                </form>
+              </div>
+            ))}
+
+            {/* Séances Reboot terminées */}
+            {data.recentCompletions.map((c, i) => (
+              <div key={`${c.client_id}-${i}`} className="flex items-start gap-3 px-5 py-4">
+                <span className="text-xl shrink-0 mt-0.5">✅</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white">
+                    <span className="font-medium">{c.client_name}</span>{" "}
+                    a terminé{" "}
+                    <span className="text-brand-400">{c.session_name}</span>
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">{timeAgo(c.completed_at)}</p>
+                </div>
+              </div>
+            ))}
+
+            {/* Programmes qui se terminent bientôt */}
+            {data.endingSoonPrograms.map((p) => {
+              const days = daysUntil(p.end_date);
+              return (
+                <div key={p.id} className="flex items-start gap-3 px-5 py-4">
+                  <span className="text-xl shrink-0 mt-0.5">⏰</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white">
+                      Programme de{" "}
+                      <span className="font-medium">{p.client_name}</span>{" "}
+                      se termine dans{" "}
+                      <span className={days <= 2 ? "text-red-400 font-semibold" : "text-yellow-400 font-semibold"}>
+                        {days} jour{days > 1 ? "s" : ""}
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{p.name}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Fin le{" "}
+                      {new Date(p.end_date).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -129,7 +318,6 @@ export default async function DashboardPage() {
               </div>
             );
           })}
-          {/* Ghostés / Refusés */}
           <div className="ml-4 border-l border-gray-700 pl-4 flex gap-2 shrink-0">
             {(["DECLINED", "GHOST"] as ProspectStatus[]).map((s) => (
               <Link
