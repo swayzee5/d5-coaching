@@ -37,14 +37,32 @@ async function getClient(id: string) {
 }
 
 export default async function AppClientDetailPage({ params }: { params: { id: string } }) {
-  const [client, programs] = await Promise.all([
-    getClient(params.id),
-    db.trainingProgram.findMany({
-      where: { clientId: params.id },
-      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-      include: { _count: { select: { sessions: true } } },
-    }),
-  ]);
+  let client;
+  let programs: Awaited<ReturnType<typeof db.trainingProgram.findMany>> = [];
+  let errorMsg = "";
+
+  try {
+    [client, programs] = await Promise.all([
+      getClient(params.id),
+      db.trainingProgram.findMany({
+        where: { clientId: params.id },
+        orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+        include: { _count: { select: { sessions: true } } },
+      }),
+    ]);
+  } catch (err: unknown) {
+    errorMsg = err instanceof Error ? err.message : String(err);
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="p-6">
+        <Link href="/app-clients" className="text-gray-500 hover:text-gray-300 text-sm">← App Clients</Link>
+        <h1 className="text-xl font-bold text-red-400 mt-4 mb-4">Erreur DB</h1>
+        <pre className="bg-gray-900 border border-red-700 rounded-xl p-4 text-red-300 text-xs whitespace-pre-wrap break-all">{errorMsg}</pre>
+      </div>
+    );
+  }
 
   if (!client) notFound();
 
