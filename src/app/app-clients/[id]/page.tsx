@@ -5,8 +5,9 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
+import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import { createProgram } from "./programmes/actions";
-import { archiveClient, unarchiveClient, blockClient, unblockClient, deleteClient } from "./actions";
+import { archiveClient, unarchiveClient, blockClient, unblockClient } from "./actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Fiche client — D5 CRM" };
@@ -54,7 +55,6 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const createProgramAction = createProgram.bind(null, client.id);
   const archiveAction = client.isActive ? archiveClient.bind(null, client.id) : unarchiveClient.bind(null, client.id);
   const blockAction = client.isBlocked ? unblockClient.bind(null, client.id) : blockClient.bind(null, client.id);
-  const deleteAction = deleteClient.bind(null, client.id);
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
@@ -90,13 +90,10 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
             {client.isBlocked ? "🔓 Débloquer l'accès" : "🔒 Bloquer l'accès"}
           </button>
         </form>
-        <form action={deleteAction} onSubmit={(e) => {
-          if (!confirm(`Supprimer définitivement ${client.firstName} ${client.lastName} ? Cette action est irréversible.`)) e.preventDefault();
-        }}>
-          <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-red-700 hover:bg-red-600 text-white transition-colors">
-            🗑️ Supprimer
-          </button>
-        </form>
+        <DeleteClientButton
+          clientId={client.id}
+          clientName={`${client.firstName} ${client.lastName}`}
+        />
       </div>
 
       <div className="grid grid-cols-4 gap-3">
