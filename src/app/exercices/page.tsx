@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
 import { createExercise, deleteExercise } from "./actions";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Bibliothèque d'exercices — D5 CRM" };
@@ -99,7 +100,6 @@ export default async function ExercicesPage() {
         {exercises.length === 0 ? (
           <div className="py-16 text-center text-gray-600 text-sm">
             Aucun exercice dans la bibliothèque
-
             <br />
             <span className="text-gray-700 text-xs">Ajoutez vos premiers exercices ci-dessus</span>
           </div>
@@ -141,14 +141,13 @@ export default async function ExercicesPage() {
                     )}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <form action={deleteExercise.bind(null, ex.id)}>
-                      <button
-                        type="submit"
-                        className="text-xs text-gray-600 hover:text-red-400 transition-colors"
-                      >
-                        Supprimer
-                      </button>
-                    </form>
+                    <ConfirmButton
+                      action={deleteExercise.bind(null, ex.id)}
+                      message={`Supprimer « ${ex.name} » ? Cet exercice sera retiré de toutes les séances.`}
+                      className="text-xs text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors"
+                    >
+                      Supprimer
+                    </ConfirmButton>
                   </td>
                 </tr>
               ))}

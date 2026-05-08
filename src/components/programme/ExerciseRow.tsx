@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useTransition } from "react";
 
 type Exercise = {
   id: string;
@@ -21,9 +21,15 @@ export function ExerciseRow({
   removeAction: () => Promise<void>;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [isPending, startTransition] = useTransition();
 
   function autoSave() {
     formRef.current?.requestSubmit();
+  }
+
+  function handleRemove() {
+    if (!confirm(`Retirer « ${exercise.name} » de cette séance ?`)) return;
+    startTransition(() => removeAction());
   }
 
   return (
@@ -72,17 +78,17 @@ export function ExerciseRow({
       </form>
 
       <div className="col-span-1 flex justify-center">
-        <form action={removeAction}>
-          <button
-            type="submit"
-            className="text-gray-600 hover:text-red-400 transition-colors p-1 rounded"
-            title="Supprimer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={handleRemove}
+          disabled={isPending}
+          className="text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors p-1 rounded"
+          title="Retirer l'exercice"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
       </div>
     </div>
   );
