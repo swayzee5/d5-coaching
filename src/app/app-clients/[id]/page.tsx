@@ -12,9 +12,14 @@ import {
   unblockClient,
   deleteClient,
 } from "./actions";
+import { Prisma } from "@prisma/client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Fiche client — D5 CRM" };
+
+type ProgramWithCount = Prisma.TrainingProgramGetPayload<{
+  include: { _count: { select: { sessions: true } } };
+}>;
 
 function fmt(val: unknown, unit: string): string {
   const n = Number(val);
@@ -37,8 +42,8 @@ async function getClient(id: string) {
 }
 
 export default async function AppClientDetailPage({ params }: { params: { id: string } }) {
-  let client;
-  let programs: Awaited<ReturnType<typeof db.trainingProgram.findMany>> = [];
+  let client: Awaited<ReturnType<typeof getClient>> = null;
+  let programs: ProgramWithCount[] = [];
   let errorMsg = "";
 
   try {
@@ -123,7 +128,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           </button>
         </form>
         <form action={deleteAction} onSubmit={(e) => {
-          if (!confirm(`Supprimer définitivement ${client.firstName} ${client.lastName} ? Cette action est irréversible.`)) e.preventDefault();
+          if (!confirm(`Supprimer définitivement ${client!.firstName} ${client!.lastName} ? Cette action est irréversible.`)) e.preventDefault();
         }}>
           <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-red-700 hover:bg-red-600 text-white transition-colors">
             🗑️ Supprimer
@@ -175,7 +180,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
                   {client.progressEntries.map((entry, i) => {
-                    const prev = client.progressEntries[i + 1];
+                    const prev = client!.progressEntries[i + 1];
                     const delta = entry.weightKg && prev?.weightKg ? Number(entry.weightKg) - Number(prev.weightKg) : null;
                     return (
                       <tr key={entry.id} className="hover:bg-gray-800/30 transition-colors">
@@ -207,7 +212,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         {programs.length > 0 && (
           <div className="space-y-2 mb-5">
             {programs.map((prog) => (
-              <Link key={prog.id} href={`/app-clients/${client.id}/programmes/${prog.id}`}
+              <Link key={prog.id} href={`/app-clients/${client!.id}/programmes/${prog.id}`}
                 className="flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group">
                 <div>
                   <p className="text-sm font-medium text-white">{prog.name}</p>
