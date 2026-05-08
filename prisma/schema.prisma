@@ -150,6 +150,8 @@ model AppProgressEntry {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clientId       String   @map("client_id") @db.Uuid
   entryDate      DateTime @map("entry_date") @db.Date
+  heightCm       Decimal? @map("height_cm") @db.Decimal(5, 1)
+  ageYears       Int?     @map("age_years")
   weightKg       Decimal? @map("weight_kg") @db.Decimal(5, 2)
   bodyFatPercent Decimal? @map("body_fat_percent") @db.Decimal(4, 1)
   chestCm        Decimal? @map("chest_cm") @db.Decimal(5, 1)
