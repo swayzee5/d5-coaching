@@ -150,6 +150,7 @@ model AppProgressEntry {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clientId       String   @map("client_id") @db.Uuid
   entryDate      DateTime @map("entry_date") @db.Date
+  heightCm       Decimal? @map("height_cm") @db.Decimal(5, 1)
   weightKg       Decimal? @map("weight_kg") @db.Decimal(5, 2)
   bodyFatPercent Decimal? @map("body_fat_percent") @db.Decimal(4, 1)
   chestCm        Decimal? @map("chest_cm") @db.Decimal(5, 1)
@@ -251,4 +252,56 @@ model SessionExercise {
 
   @@index([sessionId])
   @@map("exercises")
+}
+
+// =============================================================
+// REBOOT 40 — séances template et suivi client
+// =============================================================
+
+model RebootSession {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  muscleGroup     String   @map("muscle_group")
+  location        String
+  orderIndex      Int      @default(0) @map("order_index")
+  description     String?
+  durationMinutes Int?     @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  exercises   RebootExercise[]
+  completions RebootCompletion[]
+
+  @@map("reboot_sessions")
+}
+
+model RebootExercise {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId    String   @map("session_id") @db.Uuid
+  name         String
+  sets         Int?
+  reps         String?
+  restSeconds  Int?     @map("rest_seconds")
+  vimeoVideoId String?  @map("vimeo_video_id")
+  orderIndex   Int      @default(0) @map("order_index")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  session RebootSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("reboot_exercises")
+}
+
+model RebootCompletion {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  completedAt DateTime @default(now()) @map("completed_at")
+  notes       String?
+
+  session RebootSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, sessionId])
+  @@index([clientId])
+  @@map("reboot_completions")
 }
