@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { sendWelcomeEmail } from "@/lib/email";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 
@@ -26,6 +27,11 @@ export async function createAppClient(formData: FormData) {
       objectives,
     },
   });
+
+  // Send welcome email — non-blocking so a Resend failure doesn't prevent account creation
+  sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
+    console.error("[welcome-email]", err)
+  );
 
   redirect(`/app-clients/${client.id}`);
 }
