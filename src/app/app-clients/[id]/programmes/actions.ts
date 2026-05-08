@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { sendProgramCreatedEmail } from "@/lib/email";
 import { redirect } from "next/navigation";
 
 export async function createProgram(clientId: string, formData: FormData) {
@@ -9,13 +10,32 @@ export async function createProgram(clientId: string, formData: FormData) {
   const weeksDuration = formData.get("weeksDuration") as string;
   const startDate = formData.get("startDate") as string;
   if (!name?.trim()) return;
-  const program = await db.trainingProgram.create({
-    data: {
-      clientId, name: name.trim(), description: description?.trim() || null,
-      weeksDuration: weeksDuration ? parseInt(weeksDuration) : null,
-      startDate: startDate ? new Date(startDate) : null, isActive: true,
-    },
-  });
+
+  const [program, client] = await Promise.all([
+    db.trainingProgram.create({
+      data: {
+        clientId,
+        name: name.trim(),
+        description: description?.trim() || null,
+        weeksDuration: weeksDuration ? parseInt(weeksDuration) : null,
+        startDate: startDate ? new Date(startDate) : null,
+        isActive: true,
+      },
+    }),
+    db.appClient.findUnique({
+      where: { id: clientId },
+      select: { firstName: true, email: true },
+    }),
+  ]);
+
+  if (client) {
+    sendProgramCreatedEmail({
+      firstName: client.firstName,
+      email: client.email,
+      programName: name.trim(),
+    }).catch((err) => console.error("[program-email]", err));
+  }
+
   redirect(`/app-clients/${clientId}/programmes/${program.id}`);
 }
 
