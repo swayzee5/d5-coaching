@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const nav = [
@@ -50,6 +51,15 @@ const nav = [
     ),
   },
   {
+    href: "/reboot-sessions",
+    label: "Séances Reboot 40",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 8h6m-6 4h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/exercices",
     label: "Bibliothèque exercices",
     icon: (
@@ -65,20 +75,17 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 shrink-0 flex flex-col bg-gray-900 border-r border-gray-800 h-screen">
-      {/* Logo */}
-      <div className="px-5 py-6 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-brand-500 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm">D5</span>
-          </div>
-          <div>
-            <p className="font-semibold text-white text-sm leading-tight">D5 Coaching</p>
-            <p className="text-gray-500 text-xs">Reboot 40+</p>
-          </div>
-        </div>
+      <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-center">
+        <Image
+          src="https://raw.githubusercontent.com/swayzee5/d5-coaching/main/Logo%20D5.PNG"
+          alt="D5 Coaching"
+          width={120}
+          height={80}
+          className="object-contain brightness-0 invert"
+          priority
+        />
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {nav.map((item) => {
           const active =
@@ -103,7 +110,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Pied de page */}
       <div className="px-5 py-4 border-t border-gray-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center">

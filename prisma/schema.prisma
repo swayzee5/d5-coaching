@@ -33,7 +33,6 @@ model Prospect {
   photosReceived Boolean @default(false)
   onboardingDone Boolean @default(false)
 
-  // LEAD | ONBOARDING | CHALLENGE | CALL_SCHEDULED | CLIENT | DECLINED | GHOST
   status String @default("LEAD")
 
   manychatId String?
@@ -54,7 +53,6 @@ model ChallengeGroup {
   name      String
   startDate DateTime
   endDate   DateTime
-  // UPCOMING | ACTIVE | COMPLETED
   status  String @default("UPCOMING")
   maxSize Int    @default(10)
 
@@ -114,7 +112,6 @@ model AISummary {
   prospect   Prospect @relation(fields: [prospectId], references: [id])
   prospectId String
 
-  // ONBOARDING | PRE_CALL | CHALLENGE_WEEK
   type    String @default("ONBOARDING")
   content String
 
@@ -123,8 +120,6 @@ model AISummary {
 
 // =============================================================
 // APP CLIENTE D5 — tables partagées avec d5-clients-app
-// Ces modèles sont créés via db/schema.sql dans l'app cliente
-// Prisma les lit/écrit via @@map sur les noms de tables réels
 // =============================================================
 
 model AppClient {
@@ -256,4 +251,56 @@ model SessionExercise {
 
   @@index([sessionId])
   @@map("exercises")
+}
+
+// =============================================================
+// REBOOT 40 — séances template et suivi client
+// =============================================================
+
+model RebootSession {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  muscleGroup     String   @map("muscle_group")
+  location        String
+  orderIndex      Int      @default(0) @map("order_index")
+  description     String?
+  durationMinutes Int?     @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  exercises   RebootExercise[]
+  completions RebootCompletion[]
+
+  @@map("reboot_sessions")
+}
+
+model RebootExercise {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId    String   @map("session_id") @db.Uuid
+  name         String
+  sets         Int?
+  reps         String?
+  restSeconds  Int?     @map("rest_seconds")
+  vimeoVideoId String?  @map("vimeo_video_id")
+  orderIndex   Int      @default(0) @map("order_index")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  session RebootSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("reboot_exercises")
+}
+
+model RebootCompletion {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  completedAt DateTime @default(now()) @map("completed_at")
+  notes       String?
+
+  session RebootSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, sessionId])
+  @@index([clientId])
+  @@map("reboot_completions")
 }
