@@ -20,15 +20,16 @@ async function getAppClients() {
   });
 }
 
+type ClientList = Awaited<ReturnType<typeof getAppClients>>;
+
 export default async function AppClientsPage() {
-  let clients;
+  let clients: ClientList = [];
   let errorMsg = "";
 
   try {
     clients = await getAppClients();
   } catch (err: unknown) {
     errorMsg = err instanceof Error ? err.message : String(err);
-    clients = [];
   }
 
   if (errorMsg) {
