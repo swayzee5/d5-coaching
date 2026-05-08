@@ -21,14 +21,32 @@ async function getAppClients() {
 }
 
 export default async function AppClientsPage() {
-  const clients = await getAppClients();
+  let clients;
+  let errorMsg = "";
+
+  try {
+    clients = await getAppClients();
+  } catch (err: unknown) {
+    errorMsg = err instanceof Error ? err.message : String(err);
+    clients = [];
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-bold text-red-400 mb-4">Erreur DB</h1>
+        <pre className="bg-gray-900 border border-red-700 rounded-xl p-4 text-red-300 text-xs whitespace-pre-wrap break-all">{errorMsg}</pre>
+      </div>
+    );
+  }
+
   const active = clients.filter((c) => c.isActive);
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">App D5 — Clients</h1>
+          <h1 className="text-2xl font-bold text-white">App D5 — Clients</h1>
           <p className="text-gray-400 text-sm mt-1">
             {active.length} compte{active.length > 1 ? "s" : ""} actif{active.length > 1 ? "s" : ""}
           </p>
@@ -46,7 +64,7 @@ export default async function AppClientsPage() {
           <p className="text-5xl mb-4">📱</p>
           <p className="font-medium text-gray-400 text-lg">Aucun compte créé</p>
           <p className="text-sm mt-2 text-gray-600">
-            Crée le premier compte pour qu’un client accède à l’app D5.
+            Crée le premier compte pour qu'un client accède à l'app D5.
           </p>
           <Link
             href="/app-clients/nouveau"
