@@ -119,7 +119,7 @@ model AISummary {
 }
 
 // =============================================================
-// APP CLIENTE D5 — tables partagées avec d5-clients-app
+// APP CLIENTE D5
 // =============================================================
 
 model AppClient {
@@ -206,6 +206,8 @@ model ExerciseLibrary {
   name         String
   description  String?
   muscles      String[]
+  equipment    String[] @default([])
+  isFavorite   Boolean  @default(false) @map("is_favorite")
   vimeoVideoId String?  @map("vimeo_video_id")
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -273,7 +275,7 @@ model SessionExercise {
 }
 
 // =============================================================
-// REBOOT 40 — séances template et suivi client
+// REBOOT 40
 // =============================================================
 
 model RebootSession {
