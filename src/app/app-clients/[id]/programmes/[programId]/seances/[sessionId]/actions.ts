@@ -8,15 +8,37 @@ function sessionPath(clientId: string, programId: string, sessionId: string) {
 }
 
 export async function addExercise(sessionId: string, clientId: string, programId: string, formData: FormData) {
-  const name = formData.get("name") as string;
-  const libraryExerciseId = (formData.get("libraryExerciseId") as string) || null;
+  const name = (formData.get("name") as string)?.trim();
+  let libraryExerciseId = (formData.get("libraryExerciseId") as string) || null;
   const sets = formData.get("sets") as string;
   const reps = formData.get("reps") as string;
   const restSeconds = formData.get("restSeconds") as string;
-  if (!name?.trim()) return;
+  if (!name) return;
+
+  // Auto-enregistre dans la bibliothèque si c'est un exercice personnalisé
+  if (!libraryExerciseId) {
+    const existing = await db.exerciseLibrary.findFirst({
+      where: { name: { equals: name, mode: "insensitive" } },
+    });
+    if (existing) {
+      libraryExerciseId = existing.id;
+    } else {
+      const created = await db.exerciseLibrary.create({ data: { name } });
+      libraryExerciseId = created.id;
+    }
+  }
+
   const count = await db.sessionExercise.count({ where: { sessionId } });
   await db.sessionExercise.create({
-    data: { sessionId, libraryExerciseId: libraryExerciseId || null, name: name.trim(), sets: sets ? parseInt(sets) : null, reps: reps?.trim() || null, restSeconds: restSeconds ? parseInt(restSeconds) : null, orderIndex: count },
+    data: {
+      sessionId,
+      libraryExerciseId,
+      name,
+      sets: sets ? parseInt(sets) : null,
+      reps: reps?.trim() || null,
+      restSeconds: restSeconds ? parseInt(restSeconds) : null,
+      orderIndex: count,
+    },
   });
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }
@@ -32,7 +54,11 @@ export async function updateExercise(exerciseId: string, clientId: string, progr
   const restSeconds = formData.get("restSeconds") as string;
   await db.sessionExercise.update({
     where: { id: exerciseId },
-    data: { sets: sets ? parseInt(sets) : null, reps: reps?.trim() || null, restSeconds: restSeconds ? parseInt(restSeconds) : null },
+    data: {
+      sets: sets ? parseInt(sets) : null,
+      reps: reps?.trim() || null,
+      restSeconds: restSeconds ? parseInt(restSeconds) : null,
+    },
   });
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }
