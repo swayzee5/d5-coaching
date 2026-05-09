@@ -7,7 +7,7 @@ import { ExercisePicker } from "@/components/programme/ExercisePicker";
 import { ExerciseRow } from "@/components/programme/ExerciseRow";
 import { addExercise, removeExercise, updateExercise } from "./actions";
 import { toggleFavorite } from "@/app/exercices/actions";
-import { createSession } from "../actions";
+import { createSession } from "../../actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Séance template — D5 CRM" };
@@ -57,7 +57,6 @@ export default async function TemplateSessionPage({
 
   return (
     <div className="p-6 max-w-6xl space-y-6">
-      {/* Breadcrumb */}
       <div>
         <Link
           href={`/programmes/${programId}`}
@@ -66,7 +65,6 @@ export default async function TemplateSessionPage({
           ← {session.program.name}
         </Link>
 
-        {/* Navigation entre séances */}
         {session.program.sessions.length > 1 && (
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             {session.program.sessions.map((s, i) => (
@@ -86,7 +84,6 @@ export default async function TemplateSessionPage({
         )}
       </div>
 
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">{session.name}</h1>
@@ -117,7 +114,6 @@ export default async function TemplateSessionPage({
         </div>
       </div>
 
-      {/* Table exercices */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         {session.exercises.length === 0 ? (
           <div className="py-16 text-center space-y-2">
