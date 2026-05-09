@@ -11,13 +11,7 @@ export async function createExercise(formData: FormData) {
   const equipment = formData.getAll("equipment") as string[];
   if (!name) return;
   await db.exerciseLibrary.create({
-    data: {
-      name,
-      description: description?.trim() || null,
-      vimeoVideoId: vimeoVideoId?.trim() || null,
-      muscles,
-      equipment,
-    },
+    data: { name, description: description?.trim() || null, vimeoVideoId: vimeoVideoId?.trim() || null, muscles, equipment },
   });
   revalidatePath("/exercices");
 }
@@ -28,9 +22,12 @@ export async function deleteExercise(id: string) {
 }
 
 export async function toggleFavorite(id: string, current: boolean) {
-  await db.exerciseLibrary.update({
-    where: { id },
-    data: { isFavorite: !current },
-  });
+  await db.exerciseLibrary.update({ where: { id }, data: { isFavorite: !current } });
+  revalidatePath("/exercices");
+}
+
+export async function updateExerciseVimeo(id: string, formData: FormData) {
+  const vimeoVideoId = (formData.get("vimeoVideoId") as string)?.trim() || null;
+  await db.exerciseLibrary.update({ where: { id }, data: { vimeoVideoId } });
   revalidatePath("/exercices");
 }
