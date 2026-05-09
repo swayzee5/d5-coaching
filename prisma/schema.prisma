@@ -219,17 +219,18 @@ model ExerciseLibrary {
 
 model TrainingProgram {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientId      String    @map("client_id") @db.Uuid
+  clientId      String?   @map("client_id") @db.Uuid
   name          String
   description   String?
   startDate     DateTime? @map("start_date") @db.Date
   endDate       DateTime? @map("end_date") @db.Date
   weeksDuration Int?      @map("weeks_duration")
   isActive      Boolean   @default(true) @map("is_active")
+  isTemplate    Boolean   @default(false) @map("is_template")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  client   AppClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   AppClient?       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   sessions TrainingSession[]
   comments ClientComment[]
 
@@ -261,7 +262,9 @@ model SessionExercise {
   name              String
   sets              Int?
   reps              String?
+  tempo             String?
   restSeconds       Int?     @map("rest_seconds")
+  weight            String?
   vimeoVideoId      String?  @map("vimeo_video_id")
   orderIndex        Int      @default(0) @map("order_index")
   notes             String?
