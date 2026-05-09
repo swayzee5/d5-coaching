@@ -7,6 +7,7 @@ import { ExercisePicker } from "@/components/programme/ExercisePicker";
 import { ExerciseRow } from "@/components/programme/ExerciseRow";
 import { addExercise, removeExercise, updateExercise } from "./actions";
 import { toggleFavorite } from "@/app/exercices/actions";
+import { createSession } from "../actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Séance template — D5 CRM" };
@@ -23,21 +24,38 @@ export default async function TemplateSessionPage({
       where: { id: sessionId },
       include: {
         exercises: { orderBy: { orderIndex: "asc" } },
-        program: { select: { id: true, name: true, isTemplate: true } },
+        program: {
+          select: { id: true, name: true, isTemplate: true },
+          include: {
+            sessions: {
+              orderBy: { orderIndex: "asc" },
+              select: { id: true, name: true },
+            },
+          },
+        },
       },
     }),
     db.exerciseLibrary.findMany({
       where: { isActive: true },
       orderBy: [{ isFavorite: "desc" }, { name: "asc" }],
-      select: { id: true, name: true, muscles: true, equipment: true, description: true, isFavorite: true },
+      select: {
+        id: true,
+        name: true,
+        muscles: true,
+        equipment: true,
+        description: true,
+        isFavorite: true,
+      },
     }),
   ]);
   if (!session || !session.program.isTemplate) notFound();
 
   const addAction = addExercise.bind(null, sessionId, programId);
+  const createSessionAction = createSession.bind(null, programId);
 
   return (
     <div className="p-6 max-w-6xl space-y-6">
+      {/* Breadcrumb + nav séances */}
       <div>
         <Link
           href={`/programmes/${programId}`}
@@ -45,13 +63,51 @@ export default async function TemplateSessionPage({
         >
           ← {session.program.name}
         </Link>
-        <div className="flex items-center justify-between mt-4">
-          <div>
-            <h1 className="text-xl font-bold text-white">{session.name}</h1>
-            {session.dayOfWeek !== null && (
-              <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
-            )}
+
+        {/* Navigation entre séances */}
+        {session.program.sessions.length > 1 && (
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {session.program.sessions.map((s, i) => (
+              <Link
+                key={s.id}
+                href={`/programmes/${programId}/seances/${s.id}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  s.id === sessionId
+                    ? "bg-brand-500/20 text-brand-400 border border-brand-500/30"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                Séance {i + 1}
+                {s.id === sessionId && <span className="ml-1">— {s.name}</span>}
+              </Link>
+            ))}
           </div>
+        )}
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-white">{session.name}</h1>
+          {session.dayOfWeek !== null && (
+            <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Ajouter une autre séance */}
+          <form action={createSessionAction} className="flex items-center gap-2">
+            <input
+              name="name"
+              placeholder={`Séance ${session.program.sessions.length + 1}`}
+              className="w-36 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors whitespace-nowrap"
+            >
+              + Séance
+            </button>
+          </form>
           <ExercisePicker
             library={library}
             addAction={addAction}
@@ -60,11 +116,14 @@ export default async function TemplateSessionPage({
         </div>
       </div>
 
+      {/* Exercice table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         {session.exercises.length === 0 ? (
-          <div className="py-16 text-center space-y-1">
+          <div className="py-16 text-center space-y-2">
             <p className="text-gray-500 text-sm">Aucun exercice dans cette séance</p>
-            <p className="text-gray-600 text-xs">Utilisez le bouton « Ajouter un exercice » ci-dessus</p>
+            <p className="text-gray-600 text-xs">
+              Cliquez sur « Ajouter un exercice » pour sélectionner depuis la bibliothèque
+            </p>
           </div>
         ) : (
           <>

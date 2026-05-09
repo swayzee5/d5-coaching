@@ -9,6 +9,7 @@ export async function createTemplate(formData: FormData) {
   const description = (formData.get("description") as string)?.trim() || null;
   const weeksDuration = formData.get("weeksDuration") as string;
   if (!name) return;
+
   const program = await db.trainingProgram.create({
     data: {
       clientId: null,
@@ -18,7 +19,13 @@ export async function createTemplate(formData: FormData) {
       weeksDuration: weeksDuration ? parseInt(weeksDuration) : null,
     },
   });
-  redirect(`/programmes/${program.id}`);
+
+  // Auto-crée la première séance pour arriver directement dans le builder
+  const session = await db.trainingSession.create({
+    data: { programId: program.id, name: "Séance 1", orderIndex: 0 },
+  });
+
+  redirect(`/programmes/${program.id}/seances/${session.id}`);
 }
 
 export async function assignToClient(programId: string, formData: FormData) {
