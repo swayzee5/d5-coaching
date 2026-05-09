@@ -25,8 +25,10 @@ export default async function TemplateSessionPage({
       include: {
         exercises: { orderBy: { orderIndex: "asc" } },
         program: {
-          select: { id: true, name: true, isTemplate: true },
-          include: {
+          select: {
+            id: true,
+            name: true,
+            isTemplate: true,
             sessions: {
               orderBy: { orderIndex: "asc" },
               select: { id: true, name: true },
@@ -55,7 +57,7 @@ export default async function TemplateSessionPage({
 
   return (
     <div className="p-6 max-w-6xl space-y-6">
-      {/* Breadcrumb + nav séances */}
+      {/* Breadcrumb */}
       <div>
         <Link
           href={`/programmes/${programId}`}
@@ -77,8 +79,7 @@ export default async function TemplateSessionPage({
                     : "bg-gray-800 text-gray-400 hover:text-white"
                 }`}
               >
-                Séance {i + 1}
-                {s.id === sessionId && <span className="ml-1">— {s.name}</span>}
+                {i + 1}. {s.name}
               </Link>
             ))}
           </div>
@@ -86,18 +87,18 @@ export default async function TemplateSessionPage({
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">{session.name}</h1>
           {session.dayOfWeek !== null && (
             <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          {/* Ajouter une autre séance */}
+        <div className="flex items-center gap-2">
           <form action={createSessionAction} className="flex items-center gap-2">
             <input
               name="name"
+              required
               placeholder={`Séance ${session.program.sessions.length + 1}`}
               className="w-36 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500"
             />
@@ -116,7 +117,7 @@ export default async function TemplateSessionPage({
         </div>
       </div>
 
-      {/* Exercice table */}
+      {/* Table exercices */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         {session.exercises.length === 0 ? (
           <div className="py-16 text-center space-y-2">
@@ -133,7 +134,7 @@ export default async function TemplateSessionPage({
                 <div className="w-10 shrink-0 text-center">Séries</div>
                 <div className="w-14 shrink-0 text-center">Reps</div>
                 <div className="w-16 shrink-0 text-center">Tempo</div>
-                <div className="w-12 shrink-0 text-center">Repos (s)</div>
+                <div className="w-12 shrink-0 text-center">Repos (s)</div>
                 <div className="w-16 shrink-0 text-center">Charges</div>
                 <div className="w-20 shrink-0 text-center">Vidéo</div>
               </div>
