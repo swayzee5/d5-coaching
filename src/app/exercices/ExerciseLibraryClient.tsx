@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { toggleFavorite, deleteExercise, updateExerciseVimeo } from "./actions";
+import { toggleFavorite, deleteExercise, updateExerciseVimeo, createExercise } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
 type Exercise = {
@@ -205,7 +205,6 @@ export function ExerciseLibraryClient({ exercises }: { exercises: Exercise[] }) 
 }
 
 function AddExerciseForm({ onDone }: { onDone: () => void }) {
-  const { createExercise } = require("./actions");
   return (
     <form
       action={async (fd: FormData) => {
