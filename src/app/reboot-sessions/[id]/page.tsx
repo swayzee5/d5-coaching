@@ -14,18 +14,10 @@ const MUSCLE_LABELS: Record<string, string> = {
 };
 
 export default async function RebootSessionDetailPage({ params }: { params: { id: string } }) {
-  let session: Awaited<ReturnType<typeof db.rebootSession.findUnique>> & {
-    exercises: Awaited<ReturnType<typeof db.rebootExercise.findMany>>;
-  } | null = null;
-
-  try {
-    session = await db.rebootSession.findUnique({
-      where: { id: params.id },
-      include: { exercises: { orderBy: { orderIndex: "asc" } } },
-    }) as typeof session;
-  } catch {
-    return notFound();
-  }
+  const session = await db.rebootSession.findUnique({
+    where: { id: params.id },
+    include: { exercises: { orderBy: { orderIndex: "asc" } } },
+  }).catch(() => null);
 
   if (!session) return notFound();
 
@@ -53,7 +45,7 @@ export default async function RebootSessionDetailPage({ params }: { params: { id
         <h2 className="text-white font-semibold">Exercices ({session.exercises.length})</h2>
         {session.exercises.length === 0 && <p className="text-gray-500 text-sm">Aucun exercice. Ajoutez-en ci-dessous.</p>}
         {session.exercises.map((ex, i) => {
-          const deleteAction = deleteExercise.bind(null, ex.id, session!.id);
+          const deleteAction = deleteExercise.bind(null, ex.id, session.id);
           return (
             <div key={ex.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -73,7 +65,7 @@ export default async function RebootSessionDetailPage({ params }: { params: { id
                   Supprimer
                 </ConfirmButton>
               </div>
-              <UpdateVimeoForm exerciseId={ex.id} sessionId={session!.id} currentVimeoId={ex.vimeoVideoId ?? ""} />
+              <UpdateVimeoForm exerciseId={ex.id} sessionId={session.id} currentVimeoId={ex.vimeoVideoId ?? ""} />
             </div>
           );
         })}
