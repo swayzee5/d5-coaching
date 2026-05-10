@@ -28,24 +28,43 @@ export async function createAppClient(
   try {
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const client = await db.appClient.create({
-      data: {
-        firstName,
-        lastName,
-        email,
-        passwordHash,
-        phone,
-        isRebootOnly,
-        objectives,
-      },
-    });
+    // Check if email already exists (active or inactive)
+    const existing = await db.appClient.findUnique({ where: { email } });
 
-    clientId = client.id;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("Unique") || msg.includes("unique") || msg.includes("P2002")) {
-      return { error: "Cet email est déjà utilisé par un autre client." };
+    if (existing) {
+      if (existing.isActive) {
+        return { error: "Cet email est déjà utilisé par un client actif." };
+      }
+      // Reactivate the soft-deleted account with new data
+      const updated = await db.appClient.update({
+        where: { email },
+        data: {
+          firstName,
+          lastName,
+          passwordHash,
+          phone,
+          isRebootOnly,
+          objectives,
+          isActive: true,
+          isBlocked: false,
+        },
+      });
+      clientId = updated.id;
+    } else {
+      const client = await db.appClient.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          passwordHash,
+          phone,
+          isRebootOnly,
+          objectives,
+        },
+      });
+      clientId = client.id;
     }
+  } catch (err) {
     console.error("[createAppClient]", err);
     return { error: "Erreur lors de la création. Réessayez dans un instant." };
   }
