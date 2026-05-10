@@ -7,22 +7,42 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Activités — D5 CRM" };
 
 export default async function ActivitesPage() {
-  const completions = await db.sessionCompletion.findMany({
-    orderBy: { completedAt: "desc" },
-    take: 100,
-    include: {
-      session: {
-        include: {
-          program: {
-            include: {
-              client: { select: { id: true, firstName: true, lastName: true } },
+  let completions: {
+    id: string;
+    initiatedBy: string;
+    completedAt: Date;
+    setResults: { id: string; completed: boolean }[];
+    session: {
+      id: string;
+      name: string;
+      program: {
+        id: string;
+        name: string;
+        client: { id: string; firstName: string; lastName: string };
+      };
+    };
+  }[] = [];
+
+  try {
+    completions = await db.sessionCompletion.findMany({
+      orderBy: { completedAt: "desc" },
+      take: 100,
+      include: {
+        session: {
+          include: {
+            program: {
+              include: {
+                client: { select: { id: true, firstName: true, lastName: true } },
+              },
             },
           },
         },
+        setResults: { select: { id: true, completed: true } },
       },
-      setResults: { select: { id: true, completed: true } },
-    },
-  });
+    });
+  } catch {
+    // Table not yet migrated
+  }
 
   return (
     <div className="p-6 max-w-2xl space-y-6">
@@ -58,13 +78,11 @@ export default async function ActivitesPage() {
                     <p className="text-sm font-medium text-white">
                       {client.firstName} {client.lastName}
                     </p>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        completion.initiatedBy === "coach"
-                          ? "bg-blue-500/10 text-blue-400"
-                          : "bg-green-500/10 text-green-400"
-                      }`}
-                    >
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      completion.initiatedBy === "coach"
+                        ? "bg-blue-500/10 text-blue-400"
+                        : "bg-green-500/10 text-green-400"
+                    }`}>
                       {completion.initiatedBy === "coach" ? "Coach" : "Client"}
                     </span>
                   </div>
@@ -77,10 +95,7 @@ export default async function ActivitesPage() {
                   </p>
                   <p className="text-xs text-gray-600 mt-0.5">
                     {new Intl.DateTimeFormat("fr-FR", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
+                      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
                     }).format(new Date(completion.completedAt))}
                   </p>
                 </div>

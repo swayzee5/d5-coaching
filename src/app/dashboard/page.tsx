@@ -11,7 +11,6 @@ async function getDashboardData() {
     activeGroups,
     recentProspects,
     activeClients,
-    recentCompletions,
   ] = await Promise.all([
     db.prospect.count(),
     db.prospect.groupBy({ by: ["status"], _count: { id: true } }),
@@ -31,7 +30,31 @@ async function getDashboardData() {
       include: { summaries: { orderBy: { createdAt: "desc" }, take: 1 } },
     }),
     db.coachingClient.count({ where: { isActive: true } }),
-    db.sessionCompletion.findMany({
+  ]);
+
+  const byStatus = Object.fromEntries(
+    statusCounts.map((s) => [s.status, s._count.id])
+  ) as Record<string, number>;
+
+  // Guarded query — table may not exist if migration hasn't run yet
+  let recentCompletions: {
+    id: string;
+    initiatedBy: string;
+    completedAt: Date;
+    setResults: { completed: boolean }[];
+    session: {
+      id: string;
+      name: string;
+      program: {
+        id: string;
+        name: string;
+        client: { id: string; firstName: string; lastName: string };
+      };
+    };
+  }[] = [];
+
+  try {
+    recentCompletions = await db.sessionCompletion.findMany({
       orderBy: { completedAt: "desc" },
       take: 6,
       include: {
@@ -44,14 +67,12 @@ async function getDashboardData() {
             },
           },
         },
-        setResults: { select: { id: true, completed: true } },
+        setResults: { select: { completed: true } },
       },
-    }),
-  ]);
-
-  const byStatus = Object.fromEntries(
-    statusCounts.map((s) => [s.status, s._count.id])
-  ) as Record<string, number>;
+    });
+  } catch {
+    // Table not yet migrated — show empty widget
+  }
 
   return {
     totalProspects,
@@ -132,28 +153,21 @@ export default async function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white font-medium">
                       {client.firstName} {client.lastName}
-                      <span
-                        className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
-                          completion.initiatedBy === "coach"
-                            ? "bg-blue-500/10 text-blue-400"
-                            : "bg-green-500/10 text-green-400"
-                        }`}
-                      >
+                      <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                        completion.initiatedBy === "coach"
+                          ? "bg-blue-500/10 text-blue-400"
+                          : "bg-green-500/10 text-green-400"
+                      }`}>
                         {completion.initiatedBy === "coach" ? "Coach" : "Client"}
                       </span>
                     </p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{completion.session.name}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-xs text-gray-400">
-                      {totalSets > 0 ? `${completedSets}/${totalSets}` : "–"}
-                    </p>
+                    <p className="text-xs text-gray-400">{totalSets > 0 ? `${completedSets}/${totalSets}` : "–"}</p>
                     <p className="text-xs text-gray-600">
                       {new Intl.DateTimeFormat("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
+                        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
                       }).format(new Date(completion.completedAt))}
                     </p>
                   </div>
@@ -181,9 +195,7 @@ export default async function DashboardPage() {
                 >
                   <span className="text-xl mb-1">{stage.emoji}</span>
                   <span className="text-2xl font-bold text-white">{count}</span>
-                  <span className="text-xs text-gray-400 mt-1 text-center">
-                    {statusLabel(stage.status)}
-                  </span>
+                  <span className="text-xs text-gray-400 mt-1 text-center">{statusLabel(stage.status)}</span>
                 </Link>
                 {!isLast && (
                   <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -195,9 +207,7 @@ export default async function DashboardPage() {
           })}
           <div className="ml-4 border-l border-gray-700 pl-4 flex gap-2 shrink-0">
             {(["DECLINED", "GHOST"] as ProspectStatus[]).map((s) => (
-              <Link
-                key={s}
-                href={`/prospects?status=${s}`}
+              <Link key={s} href={`/prospects?status=${s}`}
                 className="flex flex-col items-center bg-gray-800/50 hover:bg-gray-700 rounded-xl px-4 py-3 transition-colors min-w-[80px]"
               >
                 <span className="text-xl mb-1">{s === "DECLINED" ? "🚫" : "👻"}</span>
@@ -235,9 +245,7 @@ export default async function DashboardPage() {
                         group.status === "ACTIVE"
                           ? "bg-green-500/10 text-green-400 border-green-500/20"
                           : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                      }`}>
-                        {group.status === "ACTIVE" ? "En cours" : "À venir"}
-                      </span>
+                      }`}>{group.status === "ACTIVE" ? "En cours" : "À venir"}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
                       <span>{group.participants.length}/{group.maxSize} participants</span>
@@ -267,7 +275,9 @@ export default async function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {data.recentProspects.map((p) => (
-                <Link key={p.id} href={`/prospects/${p.id}`} className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-lg px-4 py-3 transition-colors">
+                <Link key={p.id} href={`/prospects/${p.id}`}
+                  className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-lg px-4 py-3 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
                       <span className="text-xs font-medium text-gray-300">{p.name.charAt(0).toUpperCase()}</span>
@@ -302,12 +312,7 @@ function StatCard({ label, value, sub, accent }: {
   sub: string;
   accent: "blue" | "purple" | "green" | "orange";
 }) {
-  const accentMap = {
-    blue: "text-blue-400",
-    purple: "text-purple-400",
-    green: "text-green-400",
-    orange: "text-brand-400",
-  };
+  const accentMap = { blue: "text-blue-400", purple: "text-purple-400", green: "text-green-400", orange: "text-brand-400" };
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
       <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">{label}</p>
