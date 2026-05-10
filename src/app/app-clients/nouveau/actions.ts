@@ -4,8 +4,14 @@ import { db } from "@/lib/db";
 import { sendWelcomeEmail } from "@/lib/email";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
-export async function createAppClient(formData: FormData) {
+export type CreateClientState = { error: string } | null;
+
+export async function createAppClient(
+  _prev: CreateClientState,
+  formData: FormData
+): Promise<CreateClientState> {
   const firstName = (formData.get("firstName") as string).trim();
   const lastName = (formData.get("lastName") as string).trim();
   const email = (formData.get("email") as string).trim().toLowerCase();
@@ -14,24 +20,39 @@ export async function createAppClient(formData: FormData) {
   const isRebootOnly = formData.get("isRebootOnly") === "on";
   const objectives = (formData.get("objectives") as string)?.trim() || null;
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  if (!firstName || !lastName || !email || !password) {
+    return { error: "Veuillez remplir tous les champs obligatoires." };
+  }
 
-  const client = await db.appClient.create({
-    data: {
-      firstName,
-      lastName,
-      email,
-      passwordHash,
-      phone,
-      isRebootOnly,
-      objectives,
-    },
-  });
+  try {
+    const passwordHash = await bcrypt.hash(password, 12);
 
-  // Send welcome email — non-blocking so a Resend failure doesn't prevent account creation
-  sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
-    console.error("[welcome-email]", err)
-  );
+    const client = await db.appClient.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        passwordHash,
+        phone,
+        isRebootOnly,
+        objectives,
+      },
+    });
 
-  redirect(`/app-clients/${client.id}`);
+    // Send welcome email — non-blocking
+    sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
+      console.error("[welcome-email]", err)
+    );
+
+    redirect(`/app-clients/${client.id}`);
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("Unique") || msg.includes("unique") || msg.includes("P2002")) {
+      return { error: "Cet email est déjà utilisé par un autre client." };
+    }
+    console.error("[createAppClient]", err);
+    return { error: "Erreur lors de la création. Réessayez dans un instant." };
+  }
 }
