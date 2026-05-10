@@ -38,7 +38,6 @@ export default async function TemplateSessionPage({
       },
     }),
     db.exerciseLibrary.findMany({
-      where: { isActive: true },
       orderBy: [{ isFavorite: "desc" }, { name: "asc" }],
       select: {
         id: true,

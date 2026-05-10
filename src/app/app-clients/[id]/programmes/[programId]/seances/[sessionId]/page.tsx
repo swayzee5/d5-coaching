@@ -27,7 +27,6 @@ export default async function SessionBuilderPage({
       },
     }),
     db.exerciseLibrary.findMany({
-      where: { isActive: true },
       orderBy: [{ isFavorite: "desc" }, { name: "asc" }],
       select: { id: true, name: true, muscles: true, equipment: true, description: true, isFavorite: true },
     }),
@@ -74,7 +73,7 @@ export default async function SessionBuilderPage({
                 <div className="w-10 shrink-0 text-center">Séries</div>
                 <div className="w-14 shrink-0 text-center">Reps</div>
                 <div className="w-16 shrink-0 text-center">Tempo</div>
-                <div className="w-12 shrink-0 text-center">Repos (s)</div>
+                <div className="w-12 shrink-0 text-center">Repos (s)</div>
                 <div className="w-16 shrink-0 text-center">Charges</div>
                 <div className="w-20 shrink-0 text-center">Vidéo</div>
               </div>
