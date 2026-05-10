@@ -1,14 +1,27 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { createAppClient } from "./actions";
 import Link from "next/link";
 
 const inputCls =
   "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors";
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white rounded-xl font-semibold transition-colors"
+    >
+      {pending ? "Création..." : "Créer le compte"}
+    </button>
+  );
+}
+
 export default function NouveauClientPage() {
-  const [state, formAction, pending] = useActionState(createAppClient, null);
+  const [state, formAction] = useFormState(createAppClient, null);
 
   return (
     <div className="p-6 max-w-xl space-y-6">
@@ -102,13 +115,7 @@ export default function NouveauClientPage() {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white rounded-xl font-semibold transition-colors"
-        >
-          {pending ? "Création..." : "Créer le compte"}
-        </button>
+        <SubmitButton />
       </form>
     </div>
   );
