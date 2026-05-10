@@ -3,9 +3,8 @@
 import { db } from "@/lib/db";
 import { sendWelcomeEmail } from "@/lib/email";
 import bcrypt from "bcryptjs";
-import { redirect } from "next/navigation";
 
-export type CreateClientState = { error: string } | null;
+export type CreateClientState = { error: string } | { clientId: string } | null;
 
 export async function createAppClient(
   _prev: CreateClientState,
@@ -23,56 +22,36 @@ export async function createAppClient(
     return { error: "Veuillez remplir tous les champs obligatoires." };
   }
 
-  let clientId: string;
-
   try {
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Check if email already exists (active or inactive)
     const existing = await db.appClient.findUnique({ where: { email } });
+
+    let clientId: string;
 
     if (existing) {
       if (existing.isActive) {
         return { error: "Cet email est déjà utilisé par un client actif." };
       }
-      // Reactivate the soft-deleted account with new data
       const updated = await db.appClient.update({
         where: { email },
-        data: {
-          firstName,
-          lastName,
-          passwordHash,
-          phone,
-          isRebootOnly,
-          objectives,
-          isActive: true,
-          isBlocked: false,
-        },
+        data: { firstName, lastName, passwordHash, phone, isRebootOnly, objectives, isActive: true, isBlocked: false },
       });
       clientId = updated.id;
     } else {
       const client = await db.appClient.create({
-        data: {
-          firstName,
-          lastName,
-          email,
-          passwordHash,
-          phone,
-          isRebootOnly,
-          objectives,
-        },
+        data: { firstName, lastName, email, passwordHash, phone, isRebootOnly, objectives },
       });
       clientId = client.id;
     }
+
+    sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
+      console.error("[welcome-email]", err)
+    );
+
+    return { clientId };
   } catch (err) {
     console.error("[createAppClient]", err);
     return { error: "Erreur lors de la création. Réessayez dans un instant." };
   }
-
-  // Send welcome email — non-blocking
-  sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
-    console.error("[welcome-email]", err)
-  );
-
-  redirect(`/app-clients/${clientId}`);
 }
