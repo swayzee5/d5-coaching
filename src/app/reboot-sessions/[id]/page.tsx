@@ -18,18 +18,10 @@ export default async function RebootSessionDetailPage({
 }: {
   params: { id: string };
 }) {
-  let session: Awaited<ReturnType<typeof db.rebootSession.findUnique>> & {
-    exercises: Awaited<ReturnType<typeof db.rebootExercise.findMany>>;
-  } | null = null;
-
-  try {
-    session = await db.rebootSession.findUnique({
-      where: { id: params.id },
-      include: { exercises: { orderBy: { orderIndex: "asc" } } },
-    }) as typeof session;
-  } catch {
-    return notFound();
-  }
+  const session = await db.rebootSession.findUnique({
+    where: { id: params.id },
+    include: { exercises: { orderBy: { orderIndex: "asc" } } },
+  });
 
   if (!session) return notFound();
 
@@ -78,7 +70,7 @@ export default async function RebootSessionDetailPage({
           <p className="text-gray-500 text-sm">Aucun exercice. Ajoutez-en ci-dessous.</p>
         )}
         {session.exercises.map((ex, i) => {
-          const deleteAction = deleteExercise.bind(null, ex.id, session!.id);
+          const deleteAction = deleteExercise.bind(null, ex.id, session.id);
           return (
             <div
               key={ex.id}
@@ -121,7 +113,7 @@ export default async function RebootSessionDetailPage({
               </div>
               <UpdateVimeoForm
                 exerciseId={ex.id}
-                sessionId={session!.id}
+                sessionId={session.id}
                 currentVimeoId={ex.vimeoVideoId ?? ""}
               />
             </div>
