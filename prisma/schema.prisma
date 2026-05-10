@@ -228,8 +228,9 @@ model TrainingSession {
   notes           String?
   createdAt       DateTime @default(now()) @map("created_at")
 
-  program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
-  exercises SessionExercise[]
+  program     TrainingProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercises   SessionExercise[]
+  completions SessionCompletion[]
 
   @@index([programId])
   @@map("training_sessions")
@@ -248,8 +249,9 @@ model SessionExercise {
   notes             String?
   createdAt         DateTime @default(now()) @map("created_at")
 
-  session         TrainingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  libraryExercise ExerciseLibrary? @relation(fields: [libraryExerciseId], references: [id])
+  session         TrainingSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  libraryExercise ExerciseLibrary?  @relation(fields: [libraryExerciseId], references: [id])
+  setResults      ExerciseSetResult[]
 
   @@index([sessionId])
   @@map("exercises")
@@ -305,4 +307,41 @@ model RebootCompletion {
   @@unique([clientId, sessionId])
   @@index([clientId])
   @@map("reboot_completions")
+}
+
+// =============================================================
+// SESSION COMPLETIONS — suivi des séances réalisées
+// =============================================================
+
+model SessionCompletion {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId       String   @map("session_id") @db.Uuid
+  clientId        String   @map("client_id") @db.Uuid
+  completedAt     DateTime @default(now()) @map("completed_at")
+  durationMinutes Int?     @map("duration_minutes")
+  notes           String?
+  initiatedBy     String   @default("client") @map("initiated_by")
+
+  session    TrainingSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  setResults ExerciseSetResult[]
+
+  @@index([clientId])
+  @@index([sessionId])
+  @@map("session_completions")
+}
+
+model ExerciseSetResult {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  completionId String  @map("completion_id") @db.Uuid
+  exerciseId   String  @map("exercise_id") @db.Uuid
+  setNumber    Int     @map("set_number")
+  weightActual String? @map("weight_actual")
+  repsActual   String? @map("reps_actual")
+  completed    Boolean @default(true)
+
+  completion SessionCompletion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  exercise   SessionExercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([completionId])
+  @@map("exercise_set_results")
 }

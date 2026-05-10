@@ -91,7 +91,7 @@ export default async function ProgramDetailPage({
 
       {/* Sessions list */}
       <div className="space-y-3">
-        <h2 className="font-semibold text-white text-sm uppercase tracking-wider text-gray-400">Séances</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Séances</h2>
 
         {program.sessions.length === 0 ? (
           <div className="bg-gray-900 border border-gray-800 border-dashed rounded-xl py-12 text-center">
@@ -99,30 +99,52 @@ export default async function ProgramDetailPage({
           </div>
         ) : (
           program.sessions.map((session, i) => (
-            <Link
-              key={session.id}
-              href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`}
-              className="flex items-center justify-between bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-xl p-4 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
-                  <span className="text-brand-400 font-bold text-sm">{i + 1}</span>
+            <div key={session.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
+                    <span className="text-brand-400 font-bold text-sm">{i + 1}</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-white text-sm">{session.name}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {session.dayOfWeek !== null ? DAY_NAMES[session.dayOfWeek] + " · " : ""}
+                      {session._count.exercises} exercice{session._count.exercises !== 1 ? "s" : ""}
+                      {session.durationMinutes ? ` · ~${session.durationMinutes} min` : ""}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-white text-sm">{session.name}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">
-                    {session.dayOfWeek !== null ? DAY_NAMES[session.dayOfWeek] + " · " : ""}
-                    {session._count.exercises} exercice{session._count.exercises !== 1 ? "s" : ""}
-                  </p>
-                </div>
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`}
+                  className="text-gray-600 hover:text-gray-400 text-xs px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                >
+                  ✏️ Modifier
+                </Link>
               </div>
-              <svg
-                className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 pt-3 border-t border-gray-800">
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/voir`}
+                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                >
+                  👁 Voir
+                </Link>
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/commencer`}
+                  className="flex-1 text-center py-2 text-xs text-white bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors font-medium"
+                >
+                  ▶ Commencer
+                </Link>
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/resultats`}
+                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                >
+                  📊 Résultats
+                </Link>
+              </div>
+            </div>
           ))
         )}
       </div>
@@ -142,8 +164,8 @@ export default async function ProgramDetailPage({
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-colors"
           >
             <option value="">Jour (optionnel)</option>
-            {DAY_NAMES.map((d, i) => (
-              <option key={i} value={i}>{d}</option>
+            {DAY_NAMES.map((d, idx) => (
+              <option key={idx} value={idx}>{d}</option>
             ))}
           </select>
           <button

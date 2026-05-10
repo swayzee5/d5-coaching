@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export async function createProgram(clientId: string, formData: FormData) {
   const name = formData.get("name") as string;
@@ -49,4 +50,21 @@ export async function createSession(
   redirect(
     `/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`
   );
+}
+
+export async function renameSession(
+  sessionId: string,
+  clientId: string,
+  programId: string,
+  formData: FormData
+) {
+  const name = formData.get("name") as string;
+  if (!name?.trim()) return;
+
+  await db.trainingSession.update({
+    where: { id: sessionId },
+    data: { name: name.trim() },
+  });
+
+  revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
 }
