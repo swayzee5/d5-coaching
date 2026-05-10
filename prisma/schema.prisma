@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -119,7 +120,7 @@ model AISummary {
 }
 
 // =============================================================
-// APP CLIENTE D5 — tables partagées avec d5-clients-app
+// APP CLIENTE D5
 // =============================================================
 
 model AppClient {
@@ -258,7 +259,7 @@ model SessionExercise {
 }
 
 // =============================================================
-// REBOOT 40 — séances template et suivi client
+// REBOOT 40
 // =============================================================
 
 model RebootSession {
@@ -310,7 +311,7 @@ model RebootCompletion {
 }
 
 // =============================================================
-// SESSION COMPLETIONS — suivi des séances réalisées
+// SESSION COMPLETIONS
 // =============================================================
 
 model SessionCompletion {
