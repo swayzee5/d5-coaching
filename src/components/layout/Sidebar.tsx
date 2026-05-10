@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const nav = [
@@ -94,13 +93,13 @@ export default function Sidebar() {
   return (
     <aside className="w-60 shrink-0 flex flex-col bg-gray-900 border-r border-gray-800 h-screen">
       <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-center">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="https://raw.githubusercontent.com/swayzee5/d5-coaching/main/Logo%20D5.PNG"
           alt="D5 Coaching"
           width={120}
           height={80}
           className="object-contain brightness-0 invert"
-          priority
         />
       </div>
 
