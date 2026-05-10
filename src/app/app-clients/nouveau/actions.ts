@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { sendWelcomeEmail } from "@/lib/email";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 export type CreateClientState = { error: string } | null;
 
@@ -24,6 +23,8 @@ export async function createAppClient(
     return { error: "Veuillez remplir tous les champs obligatoires." };
   }
 
+  let clientId: string;
+
   try {
     const passwordHash = await bcrypt.hash(password, 12);
 
@@ -39,15 +40,8 @@ export async function createAppClient(
       },
     });
 
-    // Send welcome email — non-blocking
-    sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
-      console.error("[welcome-email]", err)
-    );
-
-    redirect(`/app-clients/${client.id}`);
+    clientId = client.id;
   } catch (err) {
-    if (isRedirectError(err)) throw err;
-
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("Unique") || msg.includes("unique") || msg.includes("P2002")) {
       return { error: "Cet email est déjà utilisé par un autre client." };
@@ -55,4 +49,11 @@ export async function createAppClient(
     console.error("[createAppClient]", err);
     return { error: "Erreur lors de la création. Réessayez dans un instant." };
   }
+
+  // Send welcome email — non-blocking
+  sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
+    console.error("[welcome-email]", err)
+  );
+
+  redirect(`/app-clients/${clientId}`);
 }
