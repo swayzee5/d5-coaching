@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createSession, duplicateSession, deleteSession } from "../actions";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { createSession, renameSession, duplicateSession, deleteSession } from "../actions";
+import { ClientSessionList } from "@/components/programme/ClientSessionList";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Programme — D5 CRM" };
@@ -92,46 +92,14 @@ export default async function ProgramDetailPage({
             <p className="text-gray-600 text-sm">Aucune séance — ajoutez-en une ci-dessous</p>
           </div>
         ) : (
-          program.sessions.map((session, i) => (
-            <div
-              key={session.id}
-              className="group flex items-center bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-xl transition-colors"
-            >
-              <Link
-                href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`}
-                className="flex-1 flex items-center gap-3 p-4"
-              >
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
-                  <span className="text-brand-400 font-bold text-sm">{i + 1}</span>
-                </div>
-                <div>
-                  <p className="font-medium text-white text-sm">{session.name}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">
-                    {session.dayOfWeek !== null ? DAY_NAMES[session.dayOfWeek] + " · " : ""}
-                    {session._count.exercises} exercice{session._count.exercises !== 1 ? "s" : ""}
-                  </p>
-                </div>
-              </Link>
-              <div className="flex items-center gap-1 pr-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <form action={duplicateSession.bind(null, session.id, programId, clientId)}>
-                  <button
-                    type="submit"
-                    title="Dupliquer"
-                    className="p-1.5 text-gray-500 hover:text-brand-400 transition-colors rounded text-xs"
-                  >
-                    Copier
-                  </button>
-                </form>
-                <ConfirmButton
-                  action={deleteSession.bind(null, session.id, clientId, programId)}
-                  message={`Supprimer « ${session.name} » ?`}
-                  className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded text-xs"
-                >
-                  Suppr.
-                </ConfirmButton>
-              </div>
-            </div>
-          ))
+          <ClientSessionList
+            sessions={program.sessions}
+            programId={programId}
+            clientId={clientId}
+            renameAction={renameSession}
+            duplicateAction={duplicateSession}
+            deleteAction={deleteSession}
+          />
         )}
       </div>
 

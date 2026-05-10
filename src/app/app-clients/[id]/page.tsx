@@ -168,7 +168,15 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h2 className="font-semibold text-white mb-4">Programmes d&apos;entraînement</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-white">Programmes d&apos;entraînement</h2>
+          <Link
+            href="/programmes"
+            className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+          >
+            Assigner depuis un template →
+          </Link>
+        </div>
         {programs.length > 0 && (
           <div className="space-y-2 mb-5">
             {programs.map((prog: any) => (
@@ -189,7 +197,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           <summary className="cursor-pointer list-none">
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 border-dashed rounded-lg text-sm text-gray-400 hover:text-gray-200 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              Créer un nouveau programme
+              Créer un programme personnalisé
             </div>
           </summary>
           <form action={createProgramAction} className="mt-3 space-y-3 p-4 bg-gray-800/30 rounded-lg border border-gray-800">

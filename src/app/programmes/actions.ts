@@ -20,12 +20,8 @@ export async function createTemplate(formData: FormData) {
     },
   });
 
-  // Auto-crée la première séance pour arriver directement dans le builder
-  const session = await db.trainingSession.create({
-    data: { programId: program.id, name: "Séance 1", orderIndex: 0 },
-  });
-
-  redirect(`/programmes/${program.id}/seances/${session.id}`);
+  // Redirect to program page — user names their own first session there
+  redirect(`/programmes/${program.id}`);
 }
 
 export async function assignToClient(programId: string, formData: FormData) {

@@ -56,6 +56,16 @@ export async function createSession(programId: string, clientId: string, formDat
   redirect(`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`);
 }
 
+export async function renameSession(sessionId: string, clientId: string, programId: string, formData: FormData) {
+  const name = formData.get("name") as string;
+  if (!name?.trim()) return;
+  await db.trainingSession.update({
+    where: { id: sessionId },
+    data: { name: name.trim() },
+  });
+  revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
+}
+
 export async function duplicateSession(sessionId: string, programId: string, clientId: string) {
   const original = await db.trainingSession.findUnique({
     where: { id: sessionId },
