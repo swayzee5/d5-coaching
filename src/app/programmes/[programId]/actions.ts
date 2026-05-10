@@ -20,6 +20,16 @@ export async function createSession(programId: string, formData: FormData) {
   redirect(`/programmes/${programId}/seances/${session.id}`);
 }
 
+export async function renameSession(sessionId: string, programId: string, formData: FormData) {
+  const name = formData.get("name") as string;
+  if (!name?.trim()) return;
+  await db.trainingSession.update({
+    where: { id: sessionId },
+    data: { name: name.trim() },
+  });
+  revalidatePath(`/programmes/${programId}`);
+}
+
 export async function duplicateSession(sessionId: string, programId: string) {
   const original = await db.trainingSession.findUnique({
     where: { id: sessionId },
