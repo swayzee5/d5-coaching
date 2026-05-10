@@ -7,13 +7,27 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Programmes — D5 CRM" };
 
 export default async function ProgrammesPage() {
-  const programs = await db.trainingProgram.findMany({
-    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-    include: {
-      client: { select: { id: true, firstName: true, lastName: true } },
-      _count: { select: { sessions: true } },
-    },
-  });
+  let programs: {
+    id: string;
+    clientId: string;
+    name: string;
+    isActive: boolean;
+    weeksDuration: number | null;
+    _count: { sessions: number };
+    client: { id: string; firstName: string; lastName: string };
+  }[] = [];
+
+  try {
+    programs = await db.trainingProgram.findMany({
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+        _count: { select: { sessions: true } },
+      },
+    });
+  } catch {
+    // DB error
+  }
 
   const active = programs.filter((p) => p.isActive);
   const inactive = programs.filter((p) => !p.isActive);
@@ -38,7 +52,9 @@ export default async function ProgrammesPage() {
       {programs.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl py-16 text-center">
           <p className="text-gray-500 text-sm">Aucun programme créé</p>
-          <p className="text-gray-600 text-xs mt-1">Allez sur la fiche d’un client pour créer son programme</p>
+          <p className="text-gray-600 text-xs mt-1">
+            Allez sur la fiche d’un client pour créer son programme
+          </p>
           <Link
             href="/app-clients"
             className="mt-4 inline-block text-brand-400 hover:text-brand-300 text-sm"
@@ -50,7 +66,9 @@ export default async function ProgrammesPage() {
         <div className="space-y-6">
           {active.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Actifs ({active.length})</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Actifs ({active.length})
+              </h2>
               {active.map((prog) => (
                 <ProgramCard key={prog.id} prog={prog} />
               ))}
@@ -58,7 +76,9 @@ export default async function ProgrammesPage() {
           )}
           {inactive.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-600">Inactifs ({inactive.length})</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                Inactifs ({inactive.length})
+              </h2>
               {inactive.map((prog) => (
                 <ProgramCard key={prog.id} prog={prog} />
               ))}
