@@ -1,34 +1,42 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 
-async function getAppClients() {
-  return db.appClient.findMany({
-    include: {
-      progressEntries: {
-        orderBy: { entryDate: "desc" },
-        take: 1,
-      },
-      nutritionFiles: {
-        where: { isActive: true },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(date));
 }
 
 export default async function AppClientsPage() {
-  const clients = await getAppClients();
+  let clients: Awaited<ReturnType<typeof db.appClient.findMany<{
+    include: {
+      progressEntries: { orderBy: { entryDate: "desc" }; take: 1 };
+      nutritionFiles: { where: { isActive: true }; take: 1 };
+    };
+  }>>> = [];
+
+  try {
+    clients = await db.appClient.findMany({
+      include: {
+        progressEntries: { orderBy: { entryDate: "desc" }, take: 1 },
+        nutritionFiles: { where: { isActive: true }, take: 1 },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch {
+    // DB error
+  }
+
   const active = clients.filter((c) => c.isActive);
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">App D5 — Clients</h1>
+          <h1 className="text-2xl font-bold text-white">App D5 — Clients</h1>
           <p className="text-gray-400 text-sm mt-1">
             {active.length} compte{active.length > 1 ? "s" : ""} actif{active.length > 1 ? "s" : ""}
           </p>
