@@ -10,6 +10,7 @@ type Session = {
   id: string;
   name: string;
   dayOfWeek: number | null;
+  durationMinutes: number | null;
   _count: { exercises: number };
 };
 
@@ -95,6 +96,7 @@ export function ClientSessionList({
                 <p className="text-gray-500 text-xs mt-0.5">
                   {session.dayOfWeek !== null ? DAY_NAMES[session.dayOfWeek] + " · " : ""}
                   {session._count.exercises} exercice{session._count.exercises !== 1 ? "s" : ""}
+                  {session.durationMinutes ? ` · ~${session.durationMinutes} min` : ""}
                 </p>
               </div>
             </Link>
@@ -120,7 +122,7 @@ export function ClientSessionList({
               </form>
               <ConfirmButton
                 action={deleteAction.bind(null, session.id, clientId, programId)}
-                message={`Supprimer « ${session.name} » ?`}
+                message={`Supprimer « ${session.name} » ?`}
                 className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded text-xs"
               >
                 Suppr.

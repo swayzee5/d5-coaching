@@ -10,6 +10,7 @@ type Session = {
   id: string;
   name: string;
   dayOfWeek: number | null;
+  durationMinutes: number | null;
   _count: { exercises: number };
 };
 
@@ -94,6 +95,7 @@ export function TemplateSessionList({
                 <p className="text-gray-500 text-xs mt-0.5">
                   {session.dayOfWeek !== null ? DAY_NAMES[session.dayOfWeek] + " · " : ""}
                   {session._count.exercises} exercice{session._count.exercises !== 1 ? "s" : ""}
+                  {session.durationMinutes ? ` · ~${session.durationMinutes} min` : ""}
                 </p>
               </div>
             </Link>

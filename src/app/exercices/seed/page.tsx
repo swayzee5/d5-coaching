@@ -105,6 +105,17 @@ const EXERCISES = [
   { name: "Box jump", muscles: ["Quadriceps","Fessiers"], equipment: [], description: "Face à une boîte ou un banc. Descendre en squat puis exploser vers le haut. Réception souple avec les genoux fléchis." },
   { name: "Sprint 30m", muscles: ["Quadriceps","Fessiers","Ischio-jambiers"], equipment: [], description: "Sprint sur 30 mètres à vitesse maximale. Récupération complète entre chaque. Travailler la puissance et la vitesse." },
   { name: "Gainage dynamique", muscles: ["Abdominaux"], equipment: [], description: "Alterner position planche haute et basse sans poser les genoux. Maintenir le corps aligné." },
+  // CARDIO MACHINES
+  { name: "Marche", muscles: ["Quadriceps","Mollets"], equipment: [], description: "Marche à allure soutenue en extérieur ou sur tapis. FCmax cible : 50-65%. Idéale pour la récupération active et la combustion des graisses en aérobie continu." },
+  { name: "Marche inclinée", muscles: ["Fessiers","Quadriceps","Mollets"], equipment: ["Tapis de course"], description: "Marche sur tapis avec inclinaison 10-15%. Sollicite davantage les fessiers que la marche plate. FCmax : 60-75%. Ne pas s'accrocher aux barres." },
+  { name: "Course sur tapis", muscles: ["Quadriceps","Ischio-jambiers","Mollets"], equipment: ["Tapis de course"], description: "Course à vitesse modérée à élevée sur tapis de course. Possible en régime continu ou en intervalles. Ne pas tenir les barres pour conserver une bonne posture." },
+  { name: "Vélo stationnaire", muscles: ["Quadriceps","Fessiers","Mollets"], equipment: ["Vélo stationnaire"], description: "Pédalage assis, résistance légère à élevée. Selle à hauteur de hanche. Cadence cible : 70-90 tours/min. Travail aérobie ou intervalles." },
+  { name: "Vélo spinning", muscles: ["Quadriceps","Fessiers","Ischio-jambiers","Mollets"], equipment: ["Vélo stationnaire"], description: "Séance intensive sur vélo de spinning. Alterner résistances et positions assis/debout. Très efficace pour la dépense calorique et la VO2max." },
+  { name: "Vélo elliptique", muscles: ["Quadriceps","Fessiers","Épaules","Dos"], equipment: ["Vélo elliptique"], description: "Mouvement elliptique sans impact sur les articulations. Utiliser les poignées mobiles pour un travail full body. Posture droite, regard droit devant." },
+  { name: "Rameur", muscles: ["Dos","Quadriceps","Abdominaux","Épaules","Biceps"], equipment: ["Rameur"], description: "60% jambes, 20% dos, 20% bras. Pousser les jambes d'abord, puis basculer le buste, puis tirer la poignée vers le ventre. Cadence cible : 24-28 coups/min." },
+  { name: "SkiErg", muscles: ["Épaules","Dos","Abdominaux","Triceps"], equipment: ["SkiErg"], description: "Tirer les poignées de haut en bas en fléchissant le buste, comme en ski de fond. Excellent cardio haut du corps. Rythme 20-30 coups/min." },
+  { name: "Machine escalier", muscles: ["Quadriceps","Fessiers","Mollets","Ischio-jambiers"], equipment: ["Machine escalier"], description: "Monter des marches en mouvement continu. Ne pas s'appuyer sur les barres latérales. Intensité réglable, très efficace pour les fessiers et le cardio." },
+  { name: "Natation", muscles: ["Dos","Épaules","Abdominaux","Quadriceps"], equipment: [], description: "Nager en crawl, brasse ou dos crawlé à rythme soutenu. Cardio à faible impact sur les articulations. Excellent pour la récupération et l'endurance générale." },
 ];
 
 export default async function SeedExercisesPage() {

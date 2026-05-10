@@ -2,11 +2,18 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
-const TEMPLATES = [
+const TEMPLATES: {
+  name: string;
+  description: string;
+  session: string;
+  durationMinutes: number;
+  exercises: { name: string; sets: number; reps?: string }[];
+}[] = [
   {
     name: "Séance Dos",
     description: "Renforcement du dos — tirage vertical et horizontal",
     session: "Dos",
+    durationMinutes: 45,
     exercises: [
       { name: "Traction prise large", sets: 4 },
       { name: "Rowing barre", sets: 4 },
@@ -19,6 +26,7 @@ const TEMPLATES = [
     name: "Séance Pecs",
     description: "Renforcement des pectoraux — développé et isolation",
     session: "Pecs",
+    durationMinutes: 45,
     exercises: [
       { name: "Développé couché barre", sets: 4 },
       { name: "Développé incliné", sets: 3 },
@@ -31,6 +39,7 @@ const TEMPLATES = [
     name: "Séance Push",
     description: "Pectoraux + épaules + triceps",
     session: "Push",
+    durationMinutes: 45,
     exercises: [
       { name: "Développé couché haltères", sets: 4 },
       { name: "Développé militaire haltères", sets: 3 },
@@ -43,6 +52,7 @@ const TEMPLATES = [
     name: "Séance Pull",
     description: "Dos + biceps",
     session: "Pull",
+    durationMinutes: 45,
     exercises: [
       { name: "Traction prise large", sets: 4 },
       { name: "Rowing barre", sets: 4 },
@@ -55,6 +65,7 @@ const TEMPLATES = [
     name: "Séance Legs",
     description: "Quadriceps, ischio-jambiers, mollets",
     session: "Legs",
+    durationMinutes: 55,
     exercises: [
       { name: "Squat barre", sets: 4 },
       { name: "Fentes avant", sets: 3 },
@@ -68,6 +79,7 @@ const TEMPLATES = [
     name: "Séance Haut du corps",
     description: "Pecs + dos + épaules — séance complète haut",
     session: "Haut du corps",
+    durationMinutes: 50,
     exercises: [
       { name: "Développé couché haltères", sets: 4 },
       { name: "Rowing haltère unilatéral", sets: 4 },
@@ -80,6 +92,7 @@ const TEMPLATES = [
     name: "Séance Bas du corps",
     description: "Cuisses + fessiers + mollets — séance complète bas",
     session: "Bas du corps",
+    durationMinutes: 50,
     exercises: [
       { name: "Squat barre", sets: 4 },
       { name: "Hip thrust", sets: 4 },
@@ -91,33 +104,48 @@ const TEMPLATES = [
   },
   {
     name: "Séance Cardio",
-    description: "Circuit cardio — intensité modérée à élevée",
-    session: "Cardio",
+    description: "Circuit cardio HIIT — intervalles haute intensité",
+    session: "Cardio HIIT",
+    durationMinutes: 35,
     exercises: [
       { name: "Burpees", sets: 4 },
       { name: "Mountain climbers", sets: 4 },
+      { name: "Kettlebell swing", sets: 3 },
       { name: "Squat sauté", sets: 3 },
       { name: "Box jump", sets: 3 },
-      { name: "Jumping jacks", sets: 3 },
+    ],
+  },
+  {
+    name: "Cardio Machine",
+    description: "Cardio en régime constant sur appareils — 45 min",
+    session: "Cardio Machine",
+    durationMinutes: 45,
+    exercises: [
+      { name: "Rameur", sets: 1, reps: "10 min" },
+      { name: "Vélo stationnaire", sets: 1, reps: "15 min" },
+      { name: "SkiErg", sets: 1, reps: "10 min" },
+      { name: "Machine escalier", sets: 1, reps: "10 min" },
     ],
   },
   {
     name: "Séance Renfo + Mobilité",
     description: "Renforcement musculaire profond et mobilité",
     session: "Renfo + Mobilité",
+    durationMinutes: 40,
     exercises: [
-      { name: "Planche", sets: 4 },
+      { name: "Planche", sets: 4, reps: "30 s" },
       { name: "Superman", sets: 3 },
       { name: "Glute bridge", sets: 3 },
       { name: "Good morning", sets: 3 },
       { name: "Face pull", sets: 3 },
-      { name: "Hollow body", sets: 3 },
+      { name: "Hollow body", sets: 3, reps: "20 s" },
     ],
   },
   {
     name: "Séance Fessiers",
     description: "Focus fessiers — hip thrust, abduction, kickback",
     session: "Fessiers",
+    durationMinutes: 50,
     exercises: [
       { name: "Hip thrust", sets: 4 },
       { name: "Glute bridge", sets: 3 },
@@ -131,19 +159,21 @@ const TEMPLATES = [
     name: "Séance Abdos",
     description: "Renforcement abdominal complet",
     session: "Abdos",
+    durationMinutes: 35,
     exercises: [
-      { name: "Planche", sets: 4 },
+      { name: "Planche", sets: 4, reps: "30 s" },
       { name: "Crunch bicycle", sets: 3 },
       { name: "Leg raise", sets: 3 },
       { name: "Russian twist", sets: 3 },
       { name: "Mountain climbers", sets: 3 },
-      { name: "Hollow body", sets: 3 },
+      { name: "Hollow body", sets: 3, reps: "20 s" },
     ],
   },
   {
     name: "Séance Épaules",
-    description: "Deltroïdes antérieurs, latéraux et postérieurs",
+    description: "Deltoïdes antérieurs, latéraux et postérieurs",
     session: "Épaules",
+    durationMinutes: 50,
     exercises: [
       { name: "Développé militaire haltères", sets: 4 },
       { name: "Élévation latérale", sets: 4 },
@@ -157,6 +187,7 @@ const TEMPLATES = [
     name: "Séance Bras",
     description: "Biceps + triceps",
     session: "Bras",
+    durationMinutes: 50,
     exercises: [
       { name: "Curl barre EZ", sets: 4 },
       { name: "Dips triceps", sets: 4 },
@@ -170,13 +201,14 @@ const TEMPLATES = [
     name: "Full Body",
     description: "Séance corps entier — exercices polyarticulaires",
     session: "Full Body",
+    durationMinutes: 60,
     exercises: [
       { name: "Squat barre", sets: 4 },
       { name: "Développé couché barre", sets: 4 },
       { name: "Rowing barre", sets: 4 },
       { name: "Développé militaire haltères", sets: 3 },
       { name: "Hip thrust", sets: 3 },
-      { name: "Planche", sets: 3 },
+      { name: "Planche", sets: 3, reps: "30 s" },
     ],
   },
 ];
@@ -198,7 +230,12 @@ async function doSeed() {
     });
 
     const session = await db.trainingSession.create({
-      data: { programId: program.id, name: tmpl.session, orderIndex: 0 },
+      data: {
+        programId: program.id,
+        name: tmpl.session,
+        orderIndex: 0,
+        durationMinutes: tmpl.durationMinutes,
+      },
     });
 
     let order = 0;
@@ -210,7 +247,7 @@ async function doSeed() {
           name: ex.name,
           libraryExerciseId: libId,
           sets: ex.sets,
-          reps: "10",
+          reps: ex.reps ?? "10",
           restSeconds: 60,
           orderIndex: order++,
         },
@@ -232,19 +269,19 @@ export default async function SeedTemplatesPage() {
         </Link>
         <h1 className="text-xl font-bold text-white mt-4">Générer les templates de base</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Crée automatiquement {TEMPLATES.length} templates pré-construits avec leurs exercices. Les templates déjà existants sont ignorés.
+          Crée {TEMPLATES.length} templates pré-construits avec exercices et durée approximative. Les templates déjà existants sont ignorés.
         </p>
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
         <p className="text-sm text-gray-400">
-          Templates déjà créés : <span className="text-white font-bold">{count}</span>
+          Templates déjà créés : <span className="text-white font-bold">{count}</span>
         </p>
         <div className="space-y-1.5">
           {TEMPLATES.map((t) => (
             <div key={t.name} className="flex items-center justify-between text-sm">
               <span className="text-gray-300">{t.name}</span>
-              <span className="text-gray-600">{t.exercises.length} exercices · 3-4 séries · 10 reps</span>
+              <span className="text-gray-600">{t.exercises.length} exercices · ~{t.durationMinutes} min</span>
             </div>
           ))}
         </div>
