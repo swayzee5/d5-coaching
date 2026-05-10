@@ -8,6 +8,46 @@ import { createProgram } from "./programmes/actions";
 import { archiveClient, unarchiveClient, blockClient, unblockClient } from "./actions";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 
+type ProgressEntry = {
+  id: string;
+  weightKg: unknown;
+  waistCm: unknown;
+  chestCm: unknown;
+  hipsCm: unknown;
+  armsCm: unknown;
+  entryDate: Date;
+};
+
+type NutritionFile = {
+  id: string;
+  name: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number | null;
+  uploadedAt: Date;
+};
+
+type Program = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  weeksDuration: number | null;
+  _count: { sessions: number };
+};
+
+type ClientDetail = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  isBlocked: boolean;
+  isRebootOnly: boolean;
+  objectives: string | null;
+  progressEntries: ProgressEntry[];
+  nutritionFiles: NutritionFile[];
+};
+
 function fmt(val: unknown, unit: string): string {
   const n = Number(val);
   if (isNaN(n) || val === null || val === undefined) return "—";
@@ -19,14 +59,11 @@ function formatShort(date: Date | string): string {
 }
 
 export default async function AppClientDetailPage({ params }: { params: { id: string } }) {
-  let client: Awaited<ReturnType<typeof db.appClient.findUnique>> & {
-    progressEntries: { id: string; weightKg: unknown; waistCm: unknown; chestCm: unknown; hipsCm: unknown; armsCm: unknown; entryDate: Date }[];
-    nutritionFiles: { id: string; name: string; fileUrl: string; fileName: string; fileSize: number | null; uploadedAt: Date }[];
-  } | null = null;
-  let programs: Awaited<ReturnType<typeof db.trainingProgram.findMany>> = [];
+  let client: ClientDetail | null = null;
+  let programs: Program[] = [];
 
   try {
-    [client, programs] = await Promise.all([
+    const [c, p] = await Promise.all([
       db.appClient.findUnique({
         where: { id: params.id },
         include: {
@@ -39,7 +76,9 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
         include: { _count: { select: { sessions: true } } },
       }),
-    ]) as [typeof client, typeof programs];
+    ]);
+    client = c as ClientDetail | null;
+    programs = p as Program[];
   } catch (err) {
     console.error("[client-detail]", err);
   }
@@ -147,7 +186,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
                   {client.progressEntries.map((entry, i) => {
-                    const prev = client.progressEntries[i + 1];
+                    const prev = client!.progressEntries[i + 1];
                     const delta = entry.weightKg && prev?.weightKg
                       ? Number(entry.weightKg) - Number(prev.weightKg) : null;
                     return (
@@ -184,7 +223,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         {programs.length > 0 && (
           <div className="space-y-2 mb-5">
             {programs.map((prog) => (
-              <Link key={prog.id} href={`/app-clients/${client.id}/programmes/${prog.id}`}
+              <Link key={prog.id} href={`/app-clients/${client!.id}/programmes/${prog.id}`}
                 className="flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group">
                 <div>
                   <p className="text-sm font-medium text-white">{prog.name}</p>
