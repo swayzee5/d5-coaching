@@ -1,5 +1,5 @@
 "use client";
-
+// v2
 import { useFormState, useFormStatus } from "react-dom";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +45,7 @@ export default function NouveauClientPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Nouveau compte client</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Le client se connectera à l'app D5 avec ces identifiants.
+          Le client se connectera à l&apos;app D5 avec ces identifiants.
         </p>
       </div>
 
@@ -96,7 +96,7 @@ export default function NouveauClientPage() {
             <span className="text-sm text-gray-300">
               Reboot 40+ uniquement
               <span className="block text-xs text-gray-600 mt-0.5">
-                Pas de programme d'entraînement ni de plan nutrition
+                Pas de programme d&apos;entraînement ni de plan nutrition
               </span>
             </span>
           </label>
