@@ -42,7 +42,13 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     }),
   ]) as any;
 
-  if (!client) notFound();
+  if (!client) {
+  return (
+    <div className="p-8 text-white">
+      Client introuvable ou supprimé.
+    </div>
+  );
+}
 
   const latest = client.progressEntries[0] ?? null;
   const prevWeight = client.progressEntries.find((e: any, i: number) => i > 0 && e.weightKg !== null);
