@@ -8,115 +8,348 @@ datasource db {
 }
 
 model Prospect {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name  String
-  phone String @unique
-  email String?
-  age   Int?
-
-  qualifObjectif     String?
-  qualifDelai        String?
-  qualifFrein        String?
-  qualifExperience   String?
-  qualifDisponible   String?
-  qualifSante        String?
-  qualifMotivation   String?
-  qualifBudget       String?
-
-  weight        Float?
-  height        Float?
-  availableDays String?
-  nutritionInfo String?
-  photosReceived Boolean @default(false)
-  onboardingDone Boolean @default(false)
-
-  // LEAD | ONBOARDING | CHALLENGE | CALL_SCHEDULED | CLIENT | DECLINED | GHOST
-  status String @default("LEAD")
-
-  manychatId String?
-  notes String?
-
+  id                    String                 @id @default(cuid())
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  name                  String
+  phone                 String                 @unique
+  email                 String?
+  age                   Int?
+  qualifObjectif        String?
+  qualifDelai           String?
+  qualifFrein           String?
+  qualifExperience      String?
+  qualifDisponible      String?
+  qualifSante           String?
+  qualifMotivation      String?
+  qualifBudget          String?
+  weight                Float?
+  height                Float?
+  availableDays         String?
+  nutritionInfo         String?
+  photosReceived        Boolean                @default(false)
+  onboardingDone        Boolean                @default(false)
+  status                String                 @default("LEAD")
+  manychatId            String?
+  notes                 String?
+  summaries             AISummary[]
   challengeParticipants ChallengeParticipant[]
   coachingClient        CoachingClient?
-  summaries             AISummary[]
-
-  @@index([status])
-  @@index([createdAt])
 }
 
 model ChallengeGroup {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  // UPCOMING | ACTIVE | COMPLETED
-  status    String @default("UPCOMING")
-  maxSize   Int    @default(10)
-
-  coachNotes String?
-
+  id           String                 @id @default(cuid())
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  name         String
+  startDate    DateTime               @db.Timestamptz(6)
+  endDate      DateTime               @db.Timestamptz(6)
+  status       String                 @default("UPCOMING")
+  maxSize      Int                    @default(10)
+  coachNotes   String?
   participants ChallengeParticipant[]
-
-  @@index([status])
-  @@index([startDate])
 }
 
 model ChallengeParticipant {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  prospect   Prospect @relation(fields: [prospectId], references: [id])
-  prospectId String
-
-  group   ChallengeGroup @relation(fields: [groupId], references: [id])
-  groupId String
-
-  day1Done Boolean @default(false)
-  day2Done Boolean @default(false)
-  day3Done Boolean @default(false)
-  day4Done Boolean @default(false)
-  day5Done Boolean @default(false)
-  day6Done Boolean @default(false)
-  day7Done Boolean @default(false)
-
+  id              String         @id @default(cuid())
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  prospectId      String
+  groupId         String
+  day1Done        Boolean        @default(false)
+  day2Done        Boolean        @default(false)
+  day3Done        Boolean        @default(false)
+  day4Done        Boolean        @default(false)
+  day5Done        Boolean        @default(false)
+  day6Done        Boolean        @default(false)
+  day7Done        Boolean        @default(false)
   engagementScore Int?
-  isSerious       Boolean @default(false)
+  isSerious       Boolean        @default(false)
   coachNotes      String?
+  group           ChallengeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  prospect        Prospect       @relation(fields: [prospectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([prospectId, groupId])
 }
 
 model CoachingClient {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  prospect   Prospect @relation(fields: [prospectId], references: [id])
-  prospectId String   @unique
-
-  contractStart DateTime
-  contractEnd   DateTime
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  prospectId    String   @unique
+  contractStart DateTime @db.Timestamptz(6)
+  contractEnd   DateTime @db.Timestamptz(6)
   priceEur      Int      @default(3000)
-
   objectives    String?
   progressNotes String?
-  isActive      Boolean @default(true)
+  isActive      Boolean  @default(true)
+  prospect      Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model AISummary {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  prospect   Prospect @relation(fields: [prospectId], references: [id])
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
   prospectId String
+  type       String   @default("ONBOARDING")
+  content    String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
 
-  // ONBOARDING | PRE_CALL | CHALLENGE_WEEK
-  type    String @default("ONBOARDING")
-  content String
+model client_comments {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id         String             @db.Uuid
+  program_id        String?            @db.Uuid
+  content           String
+  is_read           Boolean            @default(false)
+  created_at        DateTime           @default(now()) @db.Timestamptz(6)
+  clients           clients            @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  training_programs training_programs? @relation(fields: [program_id], references: [id], onUpdate: NoAction)
 
-  @@index([prospectId])
+  @@index([client_id], map: "idx_client_comments_client")
+  @@index([is_read, created_at(sort: Desc)], map: "idx_client_comments_unread")
+}
+
+model client_reboot_progress {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id     String      @db.Uuid
+  reboot_day_id String      @db.Uuid
+  completed_at  DateTime    @default(now()) @db.Timestamptz(6)
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  clients       clients     @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reboot_days   reboot_days @relation(fields: [reboot_day_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([client_id, reboot_day_id])
+  @@index([client_id], map: "idx_reboot_progress_client")
+}
+
+model clients {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String                   @unique @db.VarChar(255)
+  password_hash          String                   @db.VarChar(255)
+  first_name             String                   @db.VarChar(100)
+  last_name              String                   @db.VarChar(100)
+  phone                  String?                  @db.VarChar(20)
+  birth_date             DateTime?                @db.Date
+  gender                 String?                  @db.VarChar(20)
+  objectives             String?
+  is_active              Boolean                  @default(true)
+  is_reboot_only         Boolean                  @default(false)
+  reboot_start_date      DateTime?                @db.Date
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  is_blocked             Boolean                  @default(false)
+  client_comments        client_comments[]
+  client_reboot_progress client_reboot_progress[]
+  nutrition_files        nutrition_files[]
+  progress_entries       progress_entries[]
+  reboot_completions     reboot_completions[]
+  training_programs      training_programs[]
+}
+
+model exercise_library {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String      @db.VarChar(255)
+  description    String?
+  muscles        String[]    @default([])
+  vimeo_video_id String?     @db.VarChar(50)
+  is_active      Boolean     @default(true)
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  equipment      String[]    @default([])
+  is_favorite    Boolean     @default(false)
+  exercises      exercises[]
+
+  @@index([is_active], map: "idx_exercise_library_active")
+  @@index([name], map: "idx_exercise_library_name")
+}
+
+model exercise_set_results {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  completion_id       String              @db.Uuid
+  exercise_id         String              @db.Uuid
+  set_number          Int
+  weight_actual       String?
+  reps_actual         String?
+  completed           Boolean             @default(true)
+  session_completions session_completions @relation(fields: [completion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  exercises           exercises           @relation(fields: [exercise_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([completion_id])
+}
+
+model exercises {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id           String                 @db.Uuid
+  name                 String                 @db.VarChar(255)
+  sets                 Int?                   @db.SmallInt
+  reps                 String?                @db.VarChar(50)
+  rest_seconds         Int?                   @db.SmallInt
+  vimeo_video_id       String?                @db.VarChar(50)
+  order_index          Int                    @default(0)
+  notes                String?
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  library_exercise_id  String?                @db.Uuid
+  tempo                String?                @db.VarChar
+  weight               String?                @db.VarChar
+  block_id String? @db.Uuid
+  exercise_set_results exercise_set_results[]
+  exercise_library     exercise_library?      @relation(fields: [library_exercise_id], references: [id], onUpdate: NoAction)
+  training_sessions    training_sessions      @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id, order_index], map: "idx_exercises_session")
+  @@index([session_id], map: "idx_exercises_session_id")
+}
+
+model nutrition_files {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id   String   @db.Uuid
+  name        String   @db.VarChar(255)
+  file_url    String
+  file_name   String   @db.VarChar(255)
+  file_size   Int?
+  uploaded_at DateTime @default(now()) @db.Timestamptz(6)
+  is_active   Boolean  @default(true)
+  clients     clients  @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([client_id, uploaded_at(sort: Desc)], map: "idx_nutrition_files_client")
+  @@index([client_id], map: "idx_nutrition_files_client_id")
+}
+
+model progress_entries {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id        String            @db.Uuid
+  entry_date       DateTime          @db.Date
+  weight_kg        Decimal?          @db.Decimal(5, 2)
+  body_fat_percent Decimal?          @db.Decimal(4, 1)
+  chest_cm         Decimal?          @db.Decimal(5, 1)
+  waist_cm         Decimal?          @db.Decimal(5, 1)
+  hips_cm          Decimal?          @db.Decimal(5, 1)
+  arms_cm          Decimal?          @db.Decimal(5, 1)
+  thighs_cm        Decimal?          @db.Decimal(5, 1)
+  notes            String?
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  height_cm        Decimal?          @db.Decimal(5, 1)
+  clients          clients           @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  progress_photos  progress_photos[]
+
+  @@unique([client_id, entry_date])
+  @@index([client_id, entry_date(sort: Desc)], map: "idx_progress_entries_client")
+  @@index([client_id], map: "idx_progress_entries_client_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model progress_photos {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  progress_entry_id String           @db.Uuid
+  photo_url         String
+  photo_type        String?          @db.VarChar(20)
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  progress_entries  progress_entries @relation(fields: [progress_entry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([progress_entry_id], map: "idx_progress_photos_entry")
+}
+
+model reboot_completions {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id       String          @db.Uuid
+  session_id      String          @db.Uuid
+  completed_at    DateTime        @default(now()) @db.Timestamptz(6)
+  notes           String?
+  clients         clients         @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reboot_sessions reboot_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([client_id, session_id])
+  @@index([client_id], map: "idx_reboot_completions_client")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reboot_days {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  day_number             Int                      @unique @db.SmallInt
+  title                  String                   @db.VarChar(255)
+  description            String?
+  vimeo_video_id         String?                  @db.VarChar(50)
+  content_html           String?
+  order_index            Int                      @default(0)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  client_reboot_progress client_reboot_progress[]
+}
+
+model reboot_exercises {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id      String          @db.Uuid
+  name            String
+  sets            Int?
+  reps            String?
+  rest_seconds    Int?
+  vimeo_video_id  String?
+  order_index     Int             @default(0)
+  notes           String?
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  reboot_sessions reboot_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id], map: "idx_reboot_exercises_session")
+}
+
+model reboot_sessions {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  muscle_group       String
+  location           String
+  order_index        Int                  @default(0)
+  description        String?
+  duration_minutes   Int?
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  reboot_completions reboot_completions[]
+  reboot_exercises   reboot_exercises[]
+}
+
+model session_completions {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id           String                 @db.Uuid
+  client_id            String                 @db.Uuid
+  completed_at         DateTime               @default(now()) @db.Timestamptz(6)
+  duration_minutes     Int?
+  notes                String?
+  initiated_by         String                 @default("client")
+  exercise_set_results exercise_set_results[]
+  training_sessions    training_sessions      @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([client_id])
+  @@index([session_id])
+}
+
+model training_programs {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id         String?             @db.Uuid
+  name              String              @db.VarChar(255)
+  description       String?
+  start_date        DateTime?           @db.Date
+  end_date          DateTime?           @db.Date
+  is_active         Boolean             @default(true)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  weeks_duration    Int?                @db.SmallInt
+  is_template       Boolean             @default(false)
+  client_comments   client_comments[]
+  clients           clients?            @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  training_sessions training_sessions[]
+
+  @@index([client_id], map: "idx_training_programs_client")
+  @@index([client_id], map: "idx_training_programs_client_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model training_sessions {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id          String                @db.Uuid
+  name                String                @db.VarChar(255)
+  day_of_week         Int?                  @db.SmallInt
+  order_index         Int                   @default(0)
+  duration_minutes    Int?
+  notes               String?
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  exercises           exercises[]
+  session_completions session_completions[]
+  training_programs   training_programs     @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id, order_index], map: "idx_training_sessions_program")
+  @@index([program_id], map: "idx_training_sessions_program_id")
 }
