@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -230,7 +231,7 @@ model TrainingProgram {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  client   AppClient?       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   AppClient?        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   sessions TrainingSession[]
   comments ClientComment[]
 
@@ -239,28 +240,6 @@ model TrainingProgram {
 }
 
 model TrainingSession {
-model SessionBlock {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sessionId   String   @map("session_id") @db.Uuid
-
-  title       String
-  type        String   @default("standard")
-  orderIndex  Int      @default(0) @map("order_index")
-
-  rounds      Int?
-  restSeconds Int?     @map("rest_seconds")
-
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  session     TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  exercises   SessionExercise[]
-blocks SessionBlock[]
-
-
-  @@index([sessionId])
-  @@map("session_blocks")
-}
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   programId       String   @map("program_id") @db.Uuid
   name            String
@@ -272,15 +251,34 @@ blocks SessionBlock[]
 
   program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
   exercises SessionExercise[]
+  blocks    SessionBlock[]
 
   @@index([programId])
   @@map("training_sessions")
+}
+
+model SessionBlock {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  title       String
+  type        String   @default("standard")
+  orderIndex  Int      @default(0) @map("order_index")
+  rounds      Int?
+  restSeconds Int?     @map("rest_seconds")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session   TrainingSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercises SessionExercise[]
+
+  @@index([sessionId])
+  @@map("session_blocks")
 }
 
 model SessionExercise {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sessionId         String   @map("session_id") @db.Uuid
   libraryExerciseId String?  @map("library_exercise_id") @db.Uuid
+  blockId           String?  @map("block_id") @db.Uuid
   name              String
   sets              Int?
   reps              String?
@@ -291,11 +289,10 @@ model SessionExercise {
   orderIndex        Int      @default(0) @map("order_index")
   notes             String?
   createdAt         DateTime @default(now()) @map("created_at")
-blockId String? @map("block_id") @db.Uuid
 
   session         TrainingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   libraryExercise ExerciseLibrary? @relation(fields: [libraryExerciseId], references: [id])
-block SessionBlock? @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  block           SessionBlock?    @relation(fields: [blockId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@map("exercises")
