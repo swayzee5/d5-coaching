@@ -255,54 +255,75 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
             ))}
           </div>
         )}
-        <details className="group">
-          <summary className="cursor-pointer list-none">
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 border-dashed rounded-lg text-sm text-gray-400 hover:text-gray-200 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Créer un nouveau programme
-            </div>
-          </summary>
-          <form action={createProgramAction} className="mt-3 space-y-3 p-4 bg-gray-800/30 rounded-lg border border-gray-800">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Nom du programme *</label>
-              <input
-                name="name"
-                required
-                placeholder="ex: Programme Force — 8 semaines"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <details className="group">
+            <summary className="cursor-pointer list-none">
+              <div className="flex items-center gap-3 p-4 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 border-dashed rounded-xl text-gray-300 hover:text-white transition-colors">
+                <div className="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Depuis un template</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Créer rapidement avec un nom</p>
+                </div>
+              </div>
+            </summary>
+            <form action={createProgramAction} className="mt-3 space-y-3 p-4 bg-gray-800/30 rounded-lg border border-gray-800">
               <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Durée (semaines)</label>
+                <label className="block text-xs text-gray-400 mb-1.5">Nom du programme *</label>
                 <input
-                  type="number"
-                  name="weeksDuration"
-                  min={1}
-                  max={52}
-                  placeholder="ex: 8"
+                  name="name"
+                  required
+                  placeholder="ex: Programme Force — 8 semaines"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Date de début</label>
-                <input
-                  type="date"
-                  name="startDate"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-colors"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">Durée (semaines)</label>
+                  <input
+                    type="number"
+                    name="weeksDuration"
+                    min={1}
+                    max={52}
+                    placeholder="ex: 8"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">Date de début</label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-colors"
+                  />
+                </div>
               </div>
+              <button
+                type="submit"
+                className="w-full py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Créer le programme
+              </button>
+            </form>
+          </details>
+          <Link
+            href={`/app-clients/${client!.id}/programmes/nouveau`}
+            className="flex items-center gap-3 p-4 bg-brand-500/5 hover:bg-brand-500/10 border border-brand-500/30 hover:border-brand-500/50 rounded-xl text-gray-300 hover:text-white transition-all"
+          >
+            <div className="w-9 h-9 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
             </div>
-            <button
-              type="submit"
-              className="w-full py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Créer le programme
-            </button>
-          </form>
-        </details>
+            <div>
+              <p className="text-sm font-medium text-white">Créer manuellement</p>
+              <p className="text-xs text-gray-500 mt-0.5">Définir semaines, jours et exercices</p>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );

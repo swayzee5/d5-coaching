@@ -244,6 +244,7 @@ model TrainingSession {
   programId       String   @map("program_id") @db.Uuid
   name            String
   dayOfWeek       Int?     @map("day_of_week")
+  weekNumber      Int?     @map("week_number")
   orderIndex      Int      @default(0) @map("order_index")
   durationMinutes Int?     @map("duration_minutes")
   notes           String?
@@ -288,6 +289,13 @@ model SessionExercise {
   vimeoVideoId      String?  @map("vimeo_video_id")
   orderIndex        Int      @default(0) @map("order_index")
   notes             String?
+  rpe               Int?
+  isWarmup          Boolean  @default(false) @map("is_warmup")
+  weekFrom          Int?     @map("week_from")
+  weekTo            Int?     @map("week_to")
+  durationSeconds   Int?     @map("duration_seconds")
+  distanceMeters    Int?     @map("distance_meters")
+  calories          Int?
   createdAt         DateTime @default(now()) @map("created_at")
 
   session         TrainingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
