@@ -3,9 +3,13 @@
 import { db } from "@/lib/db";
 import { sendWelcomeEmail } from "@/lib/email";
 import bcrypt from "bcryptjs";
-import { redirect } from "next/navigation";
 
-export async function createAppClient(formData: FormData) {
+export type CreateClientState = { error: string } | { clientId: string } | null;
+
+export async function createAppClient(
+  _prev: CreateClientState,
+  formData: FormData
+): Promise<CreateClientState> {
   const firstName = (formData.get("firstName") as string).trim();
   const lastName = (formData.get("lastName") as string).trim();
   const email = (formData.get("email") as string).trim().toLowerCase();
@@ -14,15 +18,40 @@ export async function createAppClient(formData: FormData) {
   const isRebootOnly = formData.get("isRebootOnly") === "on";
   const objectives = (formData.get("objectives") as string)?.trim() || null;
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  if (!firstName || !lastName || !email || !password) {
+    return { error: "Veuillez remplir tous les champs obligatoires." };
+  }
 
-  const client = await db.appClient.create({
-    data: { firstName, lastName, email, passwordHash, phone, isRebootOnly, objectives },
-  });
+  try {
+    const passwordHash = await bcrypt.hash(password, 12);
 
-  sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
-    console.error("[welcome-email]", err)
-  );
+    const existing = await db.appClient.findUnique({ where: { email } });
 
-  redirect(`/app-clients/${client.id}`);
+    let clientId: string;
+
+    if (existing) {
+      if (existing.isActive) {
+        return { error: "Cet email est déjà utilisé par un client actif." };
+      }
+      const updated = await db.appClient.update({
+        where: { email },
+        data: { firstName, lastName, passwordHash, phone, isRebootOnly, objectives, isActive: true, isBlocked: false },
+      });
+      clientId = updated.id;
+    } else {
+      const client = await db.appClient.create({
+        data: { firstName, lastName, email, passwordHash, phone, isRebootOnly, objectives },
+      });
+      clientId = client.id;
+    }
+
+    sendWelcomeEmail({ firstName, lastName, email, password }).catch((err) =>
+      console.error("[welcome-email]", err)
+    );
+
+    return { clientId };
+  } catch (err) {
+    console.error("[createAppClient]", err);
+    return { error: "Erreur lors de la création. Réessayez dans un instant." };
+  }
 }
