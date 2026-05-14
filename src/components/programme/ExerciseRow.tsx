@@ -12,6 +12,9 @@ type Exercise = {
   weight: string | null;
   vimeoVideoId: string | null;
   notes: string | null;
+  rpe?: number | null;
+  weekFrom?: number | null;
+  weekTo?: number | null;
 };
 
 export function ExerciseRow({
@@ -33,7 +36,7 @@ export function ExerciseRow({
   }
 
   function handleRemove() {
-    if (!confirm(`Retirer « ${exercise.name} » ?`)) return;
+    if (!confirm(`Retirer « ${exercise.name} » ?`)) return;
     startTransition(() => removeAction());
   }
 
@@ -47,36 +50,80 @@ export function ExerciseRow({
           </div>
 
           <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
-            <input
-              type="number" name="sets" defaultValue={exercise.sets ?? ""}
-              min={1} max={99} placeholder="—" onBlur={autoSave}
-              className="w-10 shrink-0 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
-            />
-            <input
-              type="text" name="reps" defaultValue={exercise.reps ?? ""}
-              placeholder="—" onBlur={autoSave}
-              className="w-14 shrink-0 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
-            />
-            <input
-              type="text" name="tempo" defaultValue={exercise.tempo ?? ""}
-              placeholder="—" onBlur={autoSave}
-              className="w-16 shrink-0 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
-            />
-            <input
-              type="number" name="restSeconds" defaultValue={exercise.restSeconds ?? ""}
-              min={0} placeholder="—" onBlur={autoSave}
-              className="w-12 shrink-0 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
-            />
-            <input
-              type="text" name="weight" defaultValue={exercise.weight ?? ""}
-              placeholder="—" onBlur={autoSave}
-              className="w-16 shrink-0 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
-            />
-            <input
-              type="text" name="vimeoVideoId" defaultValue={exercise.vimeoVideoId ?? ""}
-              placeholder="Vimeo" onBlur={autoSave}
-              className="w-20 shrink-0 bg-gray-800 border border-blue-800/40 rounded px-1 py-1.5 text-xs text-blue-300 text-center focus:outline-none focus:border-blue-500 placeholder-gray-600"
-            />
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Sér.</span>
+              <input
+                type="number" name="sets" defaultValue={exercise.sets ?? ""}
+                min={1} max={99} placeholder="—" onBlur={autoSave}
+                className="w-10 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+              />
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Rep.</span>
+              <input
+                type="text" name="reps" defaultValue={exercise.reps ?? ""}
+                placeholder="—" onBlur={autoSave}
+                className="w-14 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+              />
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Tempo</span>
+              <input
+                type="text" name="tempo" defaultValue={exercise.tempo ?? ""}
+                placeholder="—" onBlur={autoSave}
+                className="w-16 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+              />
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Repos</span>
+              <input
+                type="number" name="restSeconds" defaultValue={exercise.restSeconds ?? ""}
+                min={0} placeholder="—" onBlur={autoSave}
+                className="w-12 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+              />
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Charge</span>
+              <input
+                type="text" name="weight" defaultValue={exercise.weight ?? ""}
+                placeholder="—" onBlur={autoSave}
+                className="w-16 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+              />
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">RPE</span>
+              <input
+                type="number" name="rpe" defaultValue={exercise.rpe ?? ""}
+                min={1} max={10} placeholder="—" onBlur={autoSave}
+                className="w-10 bg-gray-800 border border-orange-800/40 rounded px-1 py-1.5 text-xs text-orange-300 text-center focus:outline-none focus:border-orange-500 placeholder-gray-600"
+              />
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Sem.</span>
+              <div className="flex items-center gap-0.5">
+                <input
+                  type="number" name="weekFrom" defaultValue={exercise.weekFrom ?? ""}
+                  min={1} placeholder="—" onBlur={autoSave}
+                  title="Semaine de début"
+                  className="w-9 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+                />
+                <span className="text-gray-700 text-xs">→</span>
+                <input
+                  type="number" name="weekTo" defaultValue={exercise.weekTo ?? ""}
+                  min={1} placeholder="—" onBlur={autoSave}
+                  title="Semaine de fin"
+                  className="w-9 bg-gray-800 border border-gray-700/60 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500 placeholder-gray-600"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <span className="text-gray-600 text-[10px] mb-0.5">Vidéo</span>
+              <input
+                type="text" name="vimeoVideoId" defaultValue={exercise.vimeoVideoId ?? ""}
+                placeholder="Vimeo" onBlur={autoSave}
+                className="w-20 bg-gray-800 border border-blue-800/40 rounded px-1 py-1.5 text-xs text-blue-300 text-center focus:outline-none focus:border-blue-500 placeholder-gray-600"
+              />
+            </div>
           </div>
 
           <button

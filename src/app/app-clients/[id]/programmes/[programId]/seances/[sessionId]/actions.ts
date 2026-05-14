@@ -21,6 +21,13 @@ export async function addExercise(
   const restSeconds = formData.get("restSeconds") as string;
   const weight = (formData.get("weight") as string)?.trim() || null;
   let vimeoVideoId = (formData.get("vimeoVideoId") as string)?.trim() || null;
+  const rpe = formData.get("rpe") as string;
+  const isWarmup = formData.get("isWarmup") === "true";
+  const weekFrom = formData.get("weekFrom") as string;
+  const weekTo = formData.get("weekTo") as string;
+  const durationSeconds = formData.get("durationSeconds") as string;
+  const distanceMeters = formData.get("distanceMeters") as string;
+  const calories = formData.get("calories") as string;
   if (!name) return;
 
   if (!libraryExerciseId) {
@@ -54,8 +61,15 @@ export async function addExercise(
       restSeconds: restSeconds ? parseInt(restSeconds) : null,
       weight,
       vimeoVideoId,
+      rpe: rpe ? parseInt(rpe) : null,
+      isWarmup,
+      weekFrom: weekFrom ? parseInt(weekFrom) : null,
+      weekTo: weekTo ? parseInt(weekTo) : null,
+      durationSeconds: durationSeconds ? parseInt(durationSeconds) : null,
+      distanceMeters: distanceMeters ? parseInt(distanceMeters) : null,
+      calories: calories ? parseInt(calories) : null,
       orderIndex: count,
-    },
+    } as any,
   });
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }
@@ -84,6 +98,9 @@ export async function updateExercise(
   const weight = (formData.get("weight") as string)?.trim() || null;
   const vimeoVideoId = (formData.get("vimeoVideoId") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
+  const rpe = formData.get("rpe") as string;
+  const weekFrom = formData.get("weekFrom") as string;
+  const weekTo = formData.get("weekTo") as string;
   await db.sessionExercise.update({
     where: { id: exerciseId },
     data: {
@@ -94,7 +111,10 @@ export async function updateExercise(
       weight,
       vimeoVideoId,
       notes,
-    },
+      rpe: rpe ? parseInt(rpe) : null,
+      weekFrom: weekFrom ? parseInt(weekFrom) : null,
+      weekTo: weekTo ? parseInt(weekTo) : null,
+    } as any,
   });
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }

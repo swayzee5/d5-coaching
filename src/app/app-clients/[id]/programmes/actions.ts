@@ -43,6 +43,7 @@ export async function createProgram(clientId: string, formData: FormData) {
 export async function createSession(programId: string, clientId: string, formData: FormData) {
   const name = formData.get("name") as string;
   const dayOfWeek = formData.get("dayOfWeek") as string;
+  const weekNumber = formData.get("weekNumber") as string;
   if (!name?.trim()) return;
   const count = await db.trainingSession.count({ where: { programId } });
   const session = await db.trainingSession.create({
@@ -50,6 +51,7 @@ export async function createSession(programId: string, clientId: string, formDat
       programId,
       name: name.trim(),
       dayOfWeek: dayOfWeek !== "" ? parseInt(dayOfWeek) : null,
+      weekNumber: weekNumber ? parseInt(weekNumber) : null,
       orderIndex: count,
     },
   });
@@ -78,6 +80,7 @@ export async function duplicateSession(sessionId: string, programId: string, cli
       programId,
       name: `${original.name} (copie)`,
       dayOfWeek: original.dayOfWeek,
+      weekNumber: (original as any).weekNumber ?? null,
       orderIndex: count,
       notes: original.notes,
       exercises: {
@@ -91,11 +94,74 @@ export async function duplicateSession(sessionId: string, programId: string, cli
           weight: ex.weight,
           vimeoVideoId: ex.vimeoVideoId,
           notes: ex.notes,
+          rpe: (ex as any).rpe ?? null,
+          isWarmup: (ex as any).isWarmup ?? false,
+          weekFrom: (ex as any).weekFrom ?? null,
+          weekTo: (ex as any).weekTo ?? null,
           orderIndex: i,
         })),
       },
     },
   });
+  revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
+}
+
+export async function duplicateWeek(programId: string, clientId: string, formData: FormData) {
+  const weekNumberRaw = formData.get("weekNumber") as string;
+  const weekNumber = parseInt(weekNumberRaw);
+  if (isNaN(weekNumber)) return;
+
+  const sessions = await db.trainingSession.findMany({
+    where: { programId, weekNumber } as any,
+    include: { exercises: { orderBy: { orderIndex: "asc" } } },
+    orderBy: { orderIndex: "asc" },
+  });
+  if (sessions.length === 0) return;
+
+  const allSessions = await db.trainingSession.findMany({
+    where: { programId, weekNumber: { not: null } } as any,
+    select: { weekNumber: true } as any,
+  });
+  const maxWeek = Math.max(
+    ...allSessions.map((s: any) => s.weekNumber ?? 0),
+    weekNumber
+  );
+  const newWeekNumber = maxWeek + 1;
+
+  const count = await db.trainingSession.count({ where: { programId } });
+
+  for (let i = 0; i < sessions.length; i++) {
+    const original = sessions[i];
+    await db.trainingSession.create({
+      data: {
+        programId,
+        name: original.name,
+        dayOfWeek: original.dayOfWeek,
+        weekNumber: newWeekNumber,
+        orderIndex: count + i,
+        notes: original.notes,
+        exercises: {
+          create: original.exercises.map((ex, j) => ({
+            name: ex.name,
+            libraryExerciseId: ex.libraryExerciseId,
+            sets: ex.sets,
+            reps: ex.reps,
+            tempo: ex.tempo,
+            restSeconds: ex.restSeconds,
+            weight: ex.weight,
+            vimeoVideoId: ex.vimeoVideoId,
+            notes: ex.notes,
+            rpe: (ex as any).rpe ?? null,
+            isWarmup: (ex as any).isWarmup ?? false,
+            weekFrom: (ex as any).weekFrom ?? null,
+            weekTo: (ex as any).weekTo ?? null,
+            orderIndex: j,
+          })),
+        },
+      } as any,
+    });
+  }
+
   revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
 }
 
