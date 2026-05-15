@@ -51,11 +51,22 @@ export default async function SessionBuilderPage({
               <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
             )}
           </div>
-          <ExercisePicker
-            library={library}
-            addAction={addAction}
-            toggleFavoriteAction={toggleFavorite}
-          />
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/app-clients/${clientId}/programmes/${programId}/seances/${sessionId}/progression`}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 rounded-lg text-sm font-medium transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              Progression
+            </Link>
+            <ExercisePicker
+              library={library}
+              addAction={addAction}
+              toggleFavoriteAction={toggleFavorite}
+            />
+          </div>
         </div>
       </div>
 
@@ -63,7 +74,7 @@ export default async function SessionBuilderPage({
         {session.exercises.length === 0 ? (
           <div className="py-16 text-center space-y-1">
             <p className="text-gray-500 text-sm">Aucun exercice dans cette séance</p>
-            <p className="text-gray-600 text-xs">Utilisez le bouton « Ajouter un exercice » ci-dessus</p>
+            <p className="text-gray-600 text-xs">Utilisez le bouton « Ajouter un exercice » ci-dessus</p>
           </div>
         ) : (
           <>
@@ -73,7 +84,7 @@ export default async function SessionBuilderPage({
                 <div className="w-10 shrink-0 text-center">Séries</div>
                 <div className="w-14 shrink-0 text-center">Reps</div>
                 <div className="w-16 shrink-0 text-center">Tempo</div>
-                <div className="w-12 shrink-0 text-center">Repos (s)</div>
+                <div className="w-12 shrink-0 text-center">Repos (s)</div>
                 <div className="w-16 shrink-0 text-center">Charges</div>
                 <div className="w-20 shrink-0 text-center">Vidéo</div>
               </div>
