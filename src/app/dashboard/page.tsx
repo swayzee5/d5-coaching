@@ -25,6 +25,7 @@ type ActivityRow = {
   completed_at: Date;
   duration_seconds: number | null;
   rpe: number | null;
+  session_id: string;
   session_name: string;
   program_id: string;
   client_id: string;
@@ -68,6 +69,7 @@ async function getClientActivity() {
     recentActivities = (await db.$queryRaw`
       SELECT
         ws.id, ws.completed_at, ws.duration_seconds, ws.rpe,
+        ts.id          AS session_id,
         ts.name        AS session_name,
         tp.id          AS program_id,
         c.id           AS client_id,
@@ -198,7 +200,11 @@ export default async function DashboardPage() {
           </div>
           <div className="space-y-2">
             {data.unreadNotes.map((note) => (
-              <div key={note.id} className="bg-gray-900 border border-orange-500/20 rounded-lg px-4 py-3">
+              <Link
+                key={note.id}
+                href={`/app-clients/${note.client_id}/programmes/${note.program_id}/seances`}
+                className="block bg-gray-900 border border-orange-500/20 rounded-lg px-4 py-3 hover:border-orange-500/40 transition-colors"
+              >
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
                     <span className="text-orange-400 font-bold text-xs">{note.first_name[0]}{note.last_name[0]}</span>
@@ -213,7 +219,7 @@ export default async function DashboardPage() {
                     <p className="text-sm text-gray-300 italic">&ldquo;{note.content}&rdquo;</p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -230,8 +236,11 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {data.recentActivities.map((a) => (
-              <div key={a.id} className="bg-gray-800 rounded-xl px-4 py-3 space-y-2">
-                {/* Row 1: client + badge + time */}
+              <Link
+                key={a.id}
+                href={`/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression`}
+                className="block bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 space-y-2 transition-colors"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center shrink-0">
@@ -249,7 +258,6 @@ export default async function DashboardPage() {
                     <span className="text-xs text-gray-500">{timeAgo(a.completed_at)}</span>
                   </div>
                 </div>
-                {/* Row 2: stats */}
                 {(a.rpe !== null || a.duration_seconds) && (
                   <div className="flex items-center gap-3 pl-10">
                     {a.rpe !== null && (
@@ -264,11 +272,10 @@ export default async function DashboardPage() {
                     ) : null}
                   </div>
                 )}
-                {/* Row 3: note */}
                 {a.note && (
                   <p className="pl-10 text-xs text-orange-300 italic">&ldquo;{a.note}&rdquo;</p>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}
