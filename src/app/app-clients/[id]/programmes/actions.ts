@@ -40,6 +40,11 @@ export async function createProgram(clientId: string, formData: FormData) {
   redirect(`/app-clients/${clientId}/programmes/${program.id}`);
 }
 
+export async function deleteProgram(programId: string, clientId: string) {
+  await db.trainingProgram.delete({ where: { id: programId } });
+  redirect(`/app-clients/${clientId}`);
+}
+
 export async function createSession(programId: string, clientId: string, formData: FormData) {
   const name = formData.get("name") as string;
   const dayOfWeek = formData.get("dayOfWeek") as string;

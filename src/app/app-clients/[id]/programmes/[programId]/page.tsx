@@ -3,8 +3,9 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createSession, renameSession, duplicateSession, deleteSession, duplicateWeek } from "../actions";
+import { createSession, renameSession, duplicateSession, deleteSession, duplicateWeek, deleteProgram } from "../actions";
 import { ClientSessionList } from "@/components/programme/ClientSessionList";
+import { DeleteProgramButton } from "@/components/programme/DeleteProgramButton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Programme — D5 CRM" };
@@ -53,6 +54,7 @@ export default async function ProgramDetailPage({
 
   const createSessionAction = createSession.bind(null, programId, clientId);
   const duplicateWeekAction = duplicateWeek.bind(null, programId, clientId);
+  const deleteProgramAction = deleteProgram.bind(null, programId, clientId);
 
   return (
     <div className="p-6 max-w-3xl space-y-6">
@@ -82,15 +84,21 @@ export default async function ProgramDetailPage({
               )}
             </div>
           </div>
-          <span
-            className={`mt-1 px-3 py-1 text-xs rounded-full font-medium ${
-              program.isActive
-                ? "bg-green-500/10 text-green-400"
-                : "bg-gray-700 text-gray-400"
-            }`}
-          >
-            {program.isActive ? "Actif" : "Inactif"}
-          </span>
+          <div className="flex items-center gap-2 mt-1">
+            <span
+              className={`px-3 py-1 text-xs rounded-full font-medium ${
+                program.isActive
+                  ? "bg-green-500/10 text-green-400"
+                  : "bg-gray-700 text-gray-400"
+              }`}
+            >
+              {program.isActive ? "Actif" : "Inactif"}
+            </span>
+            <DeleteProgramButton
+              deleteAction={deleteProgramAction}
+              programName={program.name}
+            />
+          </div>
         </div>
       </div>
 
