@@ -46,6 +46,15 @@ type NoteRow = {
   last_name: string;
 };
 
+type MessageRow = {
+  id: string;
+  content: string;
+  created_at: Date;
+  client_id: string;
+  first_name: string;
+  last_name: string;
+};
+
 function timeAgo(date: Date | string): string {
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (diff < 60) return "à l'instant";
@@ -64,6 +73,7 @@ function formatDuration(s: number | null): string {
 async function getClientActivity() {
   let recentActivities: ActivityRow[] = [];
   let unreadNotes: NoteRow[] = [];
+  let unreadMessages: MessageRow[] = [];
 
   try {
     recentActivities = (await db.$queryRaw`
@@ -109,7 +119,21 @@ async function getClientActivity() {
     `) as NoteRow[];
   } catch { /* tables not yet created */ }
 
-  return { recentActivities, unreadNotes };
+  try {
+    unreadMessages = (await db.$queryRaw`
+      SELECT
+        m.id, m.content, m.created_at,
+        m.client_id,
+        c.first_name, c.last_name
+      FROM messages m
+      JOIN app_clients c ON c.id = m.client_id
+      WHERE m.sender_role = 'client' AND m.is_read = false
+      ORDER BY m.created_at DESC
+      LIMIT 10
+    `) as MessageRow[];
+  } catch { /* messages table not yet created */ }
+
+  return { recentActivities, unreadNotes, unreadMessages };
 }
 
 async function getDashboardData() {
@@ -143,12 +167,12 @@ async function getDashboardData() {
     console.error("[dashboard:main]", err);
   }
 
-  const { recentActivities, unreadNotes } = await getClientActivity();
+  const { recentActivities, unreadNotes, unreadMessages } = await getClientActivity();
 
   return {
     totalProspects, byStatus, activeGroups, recentProspects,
     activeClients, revenue: activeClients * 3000,
-    recentActivities, unreadNotes,
+    recentActivities, unreadNotes, unreadMessages,
   };
 }
 
@@ -179,6 +203,47 @@ export default async function DashboardPage() {
         <StatCard label="Clients actifs" value={data.activeClients} sub="/ 15 max" accent="green" />
         <StatCard label="CA mensuel" value={`${(data.revenue / 1000).toFixed(0)}k€`} sub="accompagnements" accent="orange" />
       </div>
+
+      {/* Priority: unread messages */}
+      {data.unreadMessages.length > 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" />
+              </span>
+              <h2 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Messages non lus</h2>
+              <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">{data.unreadMessages.length}</span>
+            </div>
+            <Link href="/messages" className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-lg px-3 py-1.5 hover:bg-blue-500/10 transition-colors">
+              Voir tout
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {data.unreadMessages.map((msg) => (
+              <Link
+                key={msg.id}
+                href={`/app-clients/${msg.client_id}/messages`}
+                className="block bg-gray-900 border border-blue-500/20 rounded-lg px-4 py-3 hover:border-blue-500/40 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-blue-400 font-bold text-xs">{msg.first_name[0]}{msg.last_name[0]}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-white">{msg.first_name} {msg.last_name}</p>
+                      <span className="ml-auto text-xs text-blue-400 shrink-0">{timeAgo(msg.created_at)}</span>
+                    </div>
+                    <p className="text-sm text-gray-300 italic">&ldquo;{msg.content}&rdquo;</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Priority: unread notes */}
       {data.unreadNotes.length > 0 && (
