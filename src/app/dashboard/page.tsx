@@ -39,6 +39,21 @@ type RecentCompletion = {
   };
 };
 
+type UnreadMessage = {
+  client_id: string;
+  content: string;
+  created_at: Date;
+};
+
+type UnreadCheckin = {
+  id: string;
+  client_id: string;
+  energy: number;
+  sleep: number;
+  stress: number;
+  submitted_at: Date;
+};
+
 async function getDashboardData() {
   let totalProspects = 0;
   let byStatus: Record<string, number> = {};
@@ -46,6 +61,8 @@ async function getDashboardData() {
   let recentProspects: ProspectWithSummary[] = [];
   let activeClients = 0;
   let recentCompletions: RecentCompletion[] = [];
+  let unreadMessages: (UnreadMessage & { clientName: string })[] = [];
+  let unreadCheckins: (UnreadCheckin & { clientName: string })[] = [];
 
   try {
     const [counts, statusCounts, groups, prospects, clients] = await Promise.all([
@@ -83,7 +100,78 @@ async function getDashboardData() {
     }) as RecentCompletion[];
   } catch { /* table not migrated */ }
 
-  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions };
+  // Unread client messages
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        client_id TEXT NOT NULL,
+        sender_role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT now()
+      )
+    `.catch(() => {});
+
+    type MsgRow = { client_id: string; content: string; created_at: Date };
+    const msgRows = await db.$queryRaw<MsgRow[]>`
+      SELECT DISTINCT ON (client_id) client_id, content, created_at
+      FROM messages
+      WHERE sender_role = 'client' AND is_read = false
+      ORDER BY client_id, created_at DESC
+      LIMIT 5
+    `;
+    unreadMessages = await Promise.all(
+      msgRows.map(async (row) => {
+        const client = await db.appClient
+          .findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } })
+          .catch(() => null);
+        return {
+          ...row,
+          clientName: client ? `${client.firstName} ${client.lastName}` : row.client_id,
+        };
+      })
+    );
+  } catch { /* messages table may not exist */ }
+
+  // Unread check-ins
+  try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS weekly_checkins (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        client_id TEXT NOT NULL,
+        energy INT NOT NULL,
+        sleep INT NOT NULL,
+        stress INT NOT NULL,
+        weight DECIMAL(5,2),
+        note TEXT,
+        is_read BOOLEAN DEFAULT false,
+        submitted_at TIMESTAMPTZ DEFAULT now()
+      )
+    `.catch(() => {});
+
+    type CheckinRow = { id: string; client_id: string; energy: number; sleep: number; stress: number; submitted_at: Date };
+    const checkinRows = await db.$queryRaw<CheckinRow[]>`
+      SELECT id, client_id, energy, sleep, stress, submitted_at
+      FROM weekly_checkins
+      WHERE is_read = false
+      ORDER BY submitted_at DESC
+      LIMIT 5
+    `;
+    unreadCheckins = await Promise.all(
+      checkinRows.map(async (row) => {
+        const client = await db.appClient
+          .findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } })
+          .catch(() => null);
+        return {
+          ...row,
+          clientName: client ? `${client.firstName} ${client.lastName}` : row.client_id,
+        };
+      })
+    );
+  } catch { /* checkins table may not exist */ }
+
+  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, unreadMessages, unreadCheckins };
 }
 
 const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
@@ -93,6 +181,10 @@ const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
   { status: "CALL_SCHEDULED", emoji: "📞" },
   { status: "CLIENT", emoji: "✅" },
 ];
+
+const ENERGY_EMOJIS = ["😴", "😪", "🙂", "😊", "💪"];
+const SLEEP_EMOJIS = ["😴", "😪", "🙂", "😊", "⭐"];
+const STRESS_EMOJIS = ["😰", "😟", "😐", "🙂", "😌"];
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
@@ -113,13 +205,96 @@ export default async function DashboardPage() {
         <StatCard label="CA mensuel" value={`${(data.revenue / 1000).toFixed(0)}k€`} sub="accompagnements" accent="orange" />
       </div>
 
+      {/* Unread messages */}
+      {data.unreadMessages.length > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-blue-500/30 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+              </span>
+              <h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wide">
+                Messages non lus ({data.unreadMessages.length})
+              </h2>
+            </div>
+            <Link href="/messages" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+              Voir tout →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {data.unreadMessages.map((msg, i) => (
+              <Link
+                key={i}
+                href={`/app-clients/${msg.client_id}/messages`}
+                className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                  <span className="text-blue-400 font-bold text-xs">
+                    {msg.clientName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white font-medium">{msg.clientName}</p>
+                  <p className="text-xs text-gray-500 truncate">{msg.content}</p>
+                </div>
+                <p className="text-xs text-gray-400">
+                  {new Date(msg.created_at).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Unread check-ins */}
+      {data.unreadCheckins.length > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-purple-500/30 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500" />
+              </span>
+              <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wide">
+                Check-ins non lus ({data.unreadCheckins.length})
+              </h2>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {data.unreadCheckins.map((c) => (
+              <Link
+                key={c.id}
+                href={`/app-clients/${c.client_id}/checkins`}
+                className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
+                  <span className="text-purple-400 font-bold text-xs">
+                    {c.clientName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white font-medium">{c.clientName}</p>
+                  <p className="text-xs text-gray-500">
+                    Énergie {ENERGY_EMOJIS[c.energy - 1]} · Sommeil {SLEEP_EMOJIS[c.sleep - 1]} · Stress {STRESS_EMOJIS[c.stress - 1]}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-400">
+                  {new Date(c.submitted_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Activités récentes</h2>
           <Link href="/activites" className="text-xs text-brand-400 hover:text-brand-300 font-medium">Voir tout →</Link>
         </div>
         {data.recentCompletions.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-6">Aucune séance validée pour l’instant</p>
+          <p className="text-gray-500 text-sm text-center py-6">Aucune séance validée pour l&apos;instant</p>
         ) : (
           <div className="space-y-2">
             {data.recentCompletions.map((c) => {
