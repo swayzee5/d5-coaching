@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { createExercise, deleteExercise } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import GenerateVideoButton from "@/components/exercices/GenerateVideoButton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Bibliothèque d'exercices — D5 CRM" };
@@ -20,10 +21,29 @@ const MUSCLE_GROUPS = [
   "Mollets",
 ];
 
+type ExerciseRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  muscles: string[];
+  vimeo_video_id: string | null;
+  generated_video_url: string | null;
+  is_active: boolean;
+};
+
 export default async function ExercicesPage() {
-  const exercises = await db.exerciseLibrary.findMany({
-    orderBy: { name: "asc" },
-  });
+  // Ensure column exists before querying it
+  await db.$executeRaw`
+    ALTER TABLE exercise_library
+    ADD COLUMN IF NOT EXISTS generated_video_url TEXT
+  `.catch(() => {});
+
+  const exercises = await db.$queryRaw<ExerciseRow[]>`
+    SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+    FROM exercise_library
+    WHERE is_active = true
+    ORDER BY name ASC
+  `.catch(() => [] as ExerciseRow[]);
 
   return (
     <div className="p-6 max-w-5xl space-y-6">
@@ -134,20 +154,42 @@ export default async function ExercicesPage() {
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    {ex.vimeoVideoId ? (
-                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs">✓ Vimeo</span>
-                    ) : (
-                      <span className="text-gray-600 text-xs">—</span>
-                    )}
+                    <div className="space-y-2">
+                      {ex.vimeo_video_id && (
+                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs">✓ Vimeo</span>
+                      )}
+                      {ex.generated_video_url && (
+                        <details className="mt-1">
+                          <summary className="text-xs text-purple-400 cursor-pointer hover:text-purple-300">
+                            ▶ Voir vidéo IA
+                          </summary>
+                          <video
+                            src={ex.generated_video_url}
+                            controls
+                            className="mt-2 rounded-lg w-48 h-28 object-cover bg-black"
+                          />
+                        </details>
+                      )}
+                      {!ex.vimeo_video_id && !ex.generated_video_url && (
+                        <span className="text-gray-600 text-xs">—</span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <ConfirmButton
-                      action={deleteExercise.bind(null, ex.id)}
-                      message={`Supprimer « ${ex.name} » ? Cet exercice sera retiré de toutes les séances.`}
-                      className="text-xs text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors"
-                    >
-                      Supprimer
-                    </ConfirmButton>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-2 justify-end">
+                      <GenerateVideoButton
+                        exerciseId={ex.id}
+                        exerciseName={ex.name}
+                        hasVideo={!!ex.generated_video_url}
+                      />
+                      <ConfirmButton
+                        action={deleteExercise.bind(null, ex.id)}
+                        message={`Supprimer « ${ex.name} » ? Cet exercice sera retiré de toutes les séances.`}
+                        className="text-xs text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors"
+                      >
+                        Supprimer
+                      </ConfirmButton>
+                    </div>
                   </td>
                 </tr>
               ))}
