@@ -12,21 +12,15 @@ type Message = {
   created_at: Date;
 };
 
-type ClientInfo = {
-  id: string;
-  firstName: string;
-  lastName: string;
-};
-
 async function getConversation(clientId: string) {
   let messages: Message[] = [];
-  let client: ClientInfo | null = null;
+  let client = null;
 
   try {
     client = await db.appClient.findUnique({
       where: { id: clientId },
       select: { id: true, firstName: true, lastName: true },
-    }) as ClientInfo | null;
+    });
   } catch {}
 
   try {
@@ -58,10 +52,12 @@ export default async function ClientMessagesPage({ params }: { params: { id: str
         <Link href={`/app-clients/${params.id}`} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
           ← {client.firstName} {client.lastName}
         </Link>
-        <h1 className="text-xl font-bold text-white mt-3">Conversation</h1>
+        <div className="flex items-center justify-between mt-3">
+          <h1 className="text-xl font-bold text-white">Conversation</h1>
+          <span className="text-xs text-gray-500">{messages.length} message{messages.length !== 1 ? "s" : ""}</span>
+        </div>
       </div>
 
-      {/* Messages */}
       <div className="space-y-3 min-h-[200px]">
         {messages.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-12">Aucun message pour l&apos;instant</p>
@@ -94,13 +90,15 @@ export default async function ClientMessagesPage({ params }: { params: { id: str
         )}
       </div>
 
-      {/* Reply form */}
-      <form action={async (fd) => {
-        "use server";
-        const content = fd.get("content") as string;
-        if (content?.trim()) await replyAction(content.trim());
-      }} className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
-        <label className="block text-sm font-medium text-gray-300">Répondre</label>
+      <form
+        action={async (fd) => {
+          "use server";
+          const content = fd.get("content") as string;
+          if (content?.trim()) await replyAction(content.trim());
+        }}
+        className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3"
+      >
+        <label className="block text-sm font-medium text-gray-300">Répondre à {client.firstName}</label>
         <textarea
           name="content"
           rows={3}

@@ -3,34 +3,58 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import Link from "next/link";
 
-type ConversationRow = {
+type MessageRow = {
   client_id: string;
-  first_name: string;
-  last_name: string;
   last_message: string;
   last_at: Date;
   unread_count: bigint;
 };
 
+async function ensureTable() {
+  await db.$executeRaw`
+    CREATE TABLE IF NOT EXISTS messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      client_id UUID NOT NULL,
+      sender_role VARCHAR(10) NOT NULL,
+      content TEXT NOT NULL,
+      is_read BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `.catch(() => {})
+}
+
 async function getConversations() {
   try {
-    return await db.$queryRaw`
+    await ensureTable();
+
+    // Get message stats per client
+    const rows = await db.$queryRaw`
       SELECT
-        m.client_id,
-        c.first_name,
-        c.last_name,
+        client_id::text,
         (
           SELECT content FROM messages m2
           WHERE m2.client_id = m.client_id
           ORDER BY m2.created_at DESC LIMIT 1
         ) AS last_message,
-        MAX(m.created_at) AS last_at,
-        COUNT(*) FILTER (WHERE m.sender_role = 'client' AND m.is_read = false) AS unread_count
+        MAX(created_at) AS last_at,
+        COUNT(*) FILTER (WHERE sender_role = 'client' AND is_read = false) AS unread_count
       FROM messages m
-      JOIN app_clients c ON c.id = m.client_id
-      GROUP BY m.client_id, c.first_name, c.last_name
+      GROUP BY client_id
       ORDER BY last_at DESC
-    ` as ConversationRow[];
+    ` as MessageRow[];
+
+    // Get client names via Prisma for each client_id
+    const enriched = await Promise.all(
+      rows.map(async (row) => {
+        const client = await db.appClient.findUnique({
+          where: { id: row.client_id },
+          select: { id: true, firstName: true, lastName: true },
+        }).catch(() => null);
+        return { ...row, client };
+      })
+    );
+
+    return enriched.filter((r) => r.client !== null);
   } catch {
     return [];
   }
@@ -50,13 +74,13 @@ export default async function MessagesPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Messagerie</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {totalUnread > 0 ? `${totalUnread} message${totalUnread > 1 ? "s" : ""} non lu${totalUnread > 1 ? "s" : ""}` : "Toutes les conversations"}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-white">Messagerie</h1>
+        <p className="text-gray-400 text-sm mt-1">
+          {totalUnread > 0
+            ? `${totalUnread} message${totalUnread > 1 ? "s" : ""} non lu${totalUnread > 1 ? "s" : ""}`
+            : "Toutes les conversations"}
+        </p>
       </div>
 
       {conversations.length === 0 ? (
@@ -76,11 +100,13 @@ export default async function MessagesPage() {
               >
                 <div className="w-10 h-10 rounded-full bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
                   <span className="text-brand-400 font-bold text-sm">
-                    {conv.first_name[0]}{conv.last_name[0]}
+                    {conv.client!.firstName[0]}{conv.client!.lastName[0]}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm">{conv.first_name} {conv.last_name}</p>
+                  <p className="text-white font-semibold text-sm">
+                    {conv.client!.firstName} {conv.client!.lastName}
+                  </p>
                   <p className="text-gray-500 text-xs truncate mt-0.5">{conv.last_message}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
