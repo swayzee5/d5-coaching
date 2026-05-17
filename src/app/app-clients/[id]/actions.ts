@@ -28,6 +28,12 @@ export async function unblockClient(id: string) {
   revalidatePath("/app-clients");
 }
 
+export async function toggleRebootOnly(id: string, current: boolean) {
+  await db.appClient.update({ where: { id }, data: { isRebootOnly: !current } });
+  revalidatePath(`/app-clients/${id}`);
+  revalidatePath("/app-clients");
+}
+
 export async function deleteClient(id: string): Promise<{ error: string } | never> {
   // Delete in reverse dependency order to avoid FK constraint violations.
   // Raw SQL is used because these tables may have been created without CASCADE

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
-import { archiveClient, unarchiveClient, blockClient, unblockClient } from "./actions";
+import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleRebootOnly } from "./actions";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -116,6 +116,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const unarchiveAction = unarchiveClient.bind(null, client.id);
   const blockAction = blockClient.bind(null, client.id);
   const unblockAction = unblockClient.bind(null, client.id);
+  const toggleRebootOnlyAction = toggleRebootOnly.bind(null, client.id, client.isRebootOnly);
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
@@ -138,7 +139,19 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               </div>
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+            <form action={toggleRebootOnlyAction}>
+              <button
+                type="submit"
+                className={`px-4 py-2 text-xs font-semibold rounded-lg text-white transition-colors ${
+                  client.isRebootOnly
+                    ? "bg-brand-500 hover:bg-brand-600"
+                    : "bg-gray-700 hover:bg-gray-600"
+                }`}
+              >
+                {client.isRebootOnly ? "⚡ Reboot only" : "Passer en Reboot"}
+              </button>
+            </form>
             <form action={client.isActive ? archiveAction : unarchiveAction}>
               <button type="submit" className={`px-4 py-2 text-xs font-semibold rounded-lg text-white transition-colors ${client.isActive ? "bg-gray-700 hover:bg-gray-600" : "bg-green-700 hover:bg-green-600"}`}>
                 {client.isActive ? "Archiver" : "Réactiver"}
