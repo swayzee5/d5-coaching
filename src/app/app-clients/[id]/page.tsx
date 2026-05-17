@@ -52,6 +52,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   let programs: Program[] = [];
   let programTemplates: ProgramTemplate[] = [];
 
+  // Tier 1: full query with relations
   try {
     const [c, p] = await Promise.all([
       db.appClient.findUnique({
@@ -70,7 +71,19 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     client = c as ClientDetail | null;
     programs = p as Program[];
   } catch (err) {
-    console.error("[client-detail]", err);
+    console.error("[client-detail:full]", err);
+  }
+
+  // Tier 2: basic query without relations (avoids FK join issues)
+  if (!client) {
+    try {
+      const c = await db.appClient.findUnique({ where: { id: params.id } });
+      if (c) {
+        client = { ...c, progressEntries: [], nutritionFiles: [] } as unknown as ClientDetail;
+      }
+    } catch (err) {
+      console.error("[client-detail:fallback]", err);
+    }
   }
 
   if (!client) notFound();
