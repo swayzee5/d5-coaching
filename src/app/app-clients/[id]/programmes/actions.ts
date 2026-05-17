@@ -4,13 +4,14 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-export async function createProgram(clientId: string, formData: FormData) {
+export async function createProgram(formData: FormData) {
+  const clientId = formData.get("clientId") as string;
   const name = formData.get("name") as string;
   const description = (formData.get("description") as string) || null;
   const weeksDuration = formData.get("weeksDuration") as string;
   const startDate = formData.get("startDate") as string;
 
-  if (!name?.trim()) return;
+  if (!name?.trim() || !clientId) return;
 
   const program = await db.trainingProgram.create({
     data: {
@@ -26,11 +27,9 @@ export async function createProgram(clientId: string, formData: FormData) {
   redirect(`/app-clients/${clientId}/programmes/${program.id}`);
 }
 
-export async function createSession(
-  programId: string,
-  clientId: string,
-  formData: FormData
-) {
+export async function createSession(formData: FormData) {
+  const programId = formData.get("programId") as string;
+  const clientId = formData.get("clientId") as string;
   const name = formData.get("name") as string;
   const dayOfWeek = formData.get("dayOfWeek") as string;
 
@@ -47,9 +46,68 @@ export async function createSession(
     },
   });
 
-  redirect(
-    `/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`
-  );
+  redirect(`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`);
+}
+
+export async function createSessionFromTemplate(formData: FormData) {
+  const programId = formData.get("programId") as string;
+  const clientId = formData.get("clientId") as string;
+  const seanceTemplateId = formData.get("seanceTemplateId") as string;
+
+  if (!programId || !clientId || !seanceTemplateId) return;
+
+  const tplRows = await db.$queryRaw<{ name: string; duration_minutes: number | null; notes: string | null }[]>`
+    SELECT name, duration_minutes, notes FROM seance_templates WHERE id = ${seanceTemplateId}::uuid
+  `;
+  if (!tplRows.length) return;
+  const tpl = tplRows[0];
+
+  const count = await db.trainingSession.count({ where: { programId } });
+
+  const session = await db.trainingSession.create({
+    data: {
+      programId,
+      name: tpl.name,
+      orderIndex: count,
+      durationMinutes: tpl.duration_minutes,
+      notes: tpl.notes,
+    },
+  });
+
+  const exercises = await db.$queryRaw<{
+    exercise_name: string;
+    sets: number;
+    reps: string;
+    rest_seconds: number;
+    order_index: number;
+    notes: string | null;
+  }[]>`
+    SELECT exercise_name, sets, reps, rest_seconds, order_index, notes
+    FROM seance_template_exercises
+    WHERE seance_template_id = ${seanceTemplateId}::uuid
+    ORDER BY order_index ASC
+  `;
+
+  for (const ex of exercises) {
+    const libEx = await db.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM exercise_library WHERE name = ${ex.exercise_name} AND is_active = true LIMIT 1
+    `.catch(() => [] as { id: string }[]);
+
+    await db.sessionExercise.create({
+      data: {
+        sessionId: session.id,
+        libraryExerciseId: libEx[0]?.id ?? null,
+        name: ex.exercise_name,
+        sets: ex.sets,
+        reps: ex.reps,
+        restSeconds: ex.rest_seconds,
+        orderIndex: ex.order_index,
+        notes: ex.notes,
+      },
+    });
+  }
+
+  redirect(`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`);
 }
 
 export async function renameSession(

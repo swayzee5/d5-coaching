@@ -4,11 +4,20 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSession } from "../actions";
+import AddSessionForm from "@/components/app-clients/AddSessionForm";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Programme — D5 CRM" };
 
 const DAY_NAMES = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+type SeanceTemplate = {
+  id: string;
+  name: string;
+  category: string;
+  duration_minutes: number | null;
+  exercise_count: bigint;
+};
 
 export default async function ProgramDetailPage({
   params,
@@ -23,25 +32,32 @@ export default async function ProgramDetailPage({
       client: { select: { id: true, firstName: true, lastName: true } },
       sessions: {
         orderBy: { orderIndex: "asc" },
-        include: {
-          _count: { select: { exercises: true } },
-        },
+        include: { _count: { select: { exercises: true } } },
       },
     },
   });
 
   if (!program || program.clientId !== clientId) notFound();
 
-  const createSessionAction = createSession.bind(null, programId, clientId);
+  // Load seance templates
+  const seanceTemplatesRaw = await db.$queryRaw<SeanceTemplate[]>`
+    SELECT st.id::text, st.name, st.category, st.duration_minutes,
+      COUNT(ste.id) AS exercise_count
+    FROM seance_templates st
+    LEFT JOIN seance_template_exercises ste ON ste.seance_template_id = st.id
+    GROUP BY st.id
+    ORDER BY st.category, st.name
+  `.catch(() => [] as SeanceTemplate[]);
+
+  const seanceTemplates = seanceTemplatesRaw.map((t) => ({
+    ...t,
+    exercise_count: Number(t.exercise_count),
+  }));
 
   return (
     <div className="p-6 max-w-3xl space-y-6">
-      {/* Breadcrumb */}
       <div>
-        <Link
-          href={`/app-clients/${clientId}`}
-          className="text-gray-500 hover:text-gray-300 text-sm transition-colors"
-        >
+        <Link href={`/app-clients/${clientId}`} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
           ← {program.client.firstName} {program.client.lastName}
         </Link>
         <div className="mt-4">
@@ -54,7 +70,7 @@ export default async function ProgramDetailPage({
                 )}
                 {program.startDate && (
                   <span className="text-gray-400 text-sm">
-                    Début:{" "}
+                    Début :
                     {new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(
                       new Date(program.startDate)
                     )}
@@ -62,20 +78,15 @@ export default async function ProgramDetailPage({
                 )}
               </div>
             </div>
-            <span
-              className={`mt-1 px-3 py-1 text-xs rounded-full font-medium ${
-                program.isActive
-                  ? "bg-green-500/10 text-green-400"
-                  : "bg-gray-700 text-gray-400"
-              }`}
-            >
+            <span className={`mt-1 px-3 py-1 text-xs rounded-full font-medium ${
+              program.isActive ? "bg-green-500/10 text-green-400" : "bg-gray-700 text-gray-400"
+            }`}>
               {program.isActive ? "Actif" : "Inactif"}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="flex gap-6 px-5 py-4 bg-gray-900 border border-gray-800 rounded-xl">
         <div>
           <p className="text-2xl font-black text-white">{program.sessions.length}</p>
@@ -89,7 +100,6 @@ export default async function ProgramDetailPage({
         </div>
       </div>
 
-      {/* Sessions list */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Séances</h2>
 
@@ -100,7 +110,6 @@ export default async function ProgramDetailPage({
         ) : (
           program.sessions.map((session, i) => (
             <div key={session.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-              {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
@@ -122,25 +131,17 @@ export default async function ProgramDetailPage({
                   ✏️ Modifier
                 </Link>
               </div>
-
-              {/* Action buttons */}
               <div className="flex gap-2 pt-3 border-t border-gray-800">
-                <Link
-                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/voir`}
-                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium"
-                >
+                <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/voir`}
+                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium">
                   👁 Voir
                 </Link>
-                <Link
-                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/commencer`}
-                  className="flex-1 text-center py-2 text-xs text-white bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors font-medium"
-                >
+                <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/commencer`}
+                  className="flex-1 text-center py-2 text-xs text-white bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors font-medium">
                   ▶ Commencer
                 </Link>
-                <Link
-                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/resultats`}
-                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium"
-                >
+                <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/resultats`}
+                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium">
                   📊 Résultats
                 </Link>
               </div>
@@ -149,32 +150,13 @@ export default async function ProgramDetailPage({
         )}
       </div>
 
-      {/* Ajouter une séance */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
         <h2 className="font-semibold text-white mb-4 text-sm">Ajouter une séance</h2>
-        <form action={createSessionAction} className="flex flex-wrap gap-3">
-          <input
-            name="name"
-            required
-            placeholder="Nom de la séance (ex: Séance A — Push)"
-            className="flex-1 min-w-48 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
-          />
-          <select
-            name="dayOfWeek"
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-colors"
-          >
-            <option value="">Jour (optionnel)</option>
-            {DAY_NAMES.map((d, idx) => (
-              <option key={idx} value={idx}>{d}</option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            Créer
-          </button>
-        </form>
+        <AddSessionForm
+          programId={programId}
+          clientId={clientId}
+          seanceTemplates={seanceTemplates}
+        />
       </div>
     </div>
   );

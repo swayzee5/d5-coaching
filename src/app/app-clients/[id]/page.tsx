@@ -5,48 +5,36 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
-import { createProgram } from "./programmes/actions";
 import { archiveClient, unarchiveClient, blockClient, unblockClient } from "./actions";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
+import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
 type ProgressEntry = {
-  id: string;
-  weightKg: unknown;
-  waistCm: unknown;
-  chestCm: unknown;
-  hipsCm: unknown;
-  armsCm: unknown;
-  entryDate: Date;
+  id: string; weightKg: unknown; waistCm: unknown;
+  chestCm: unknown; hipsCm: unknown; armsCm: unknown; entryDate: Date;
 };
 
 type NutritionFile = {
-  id: string;
-  name: string;
-  fileUrl: string;
-  fileName: string;
-  fileSize: number | null;
-  uploadedAt: Date;
+  id: string; name: string; fileUrl: string; fileName: string;
+  fileSize: number | null; uploadedAt: Date;
 };
 
 type Program = {
-  id: string;
-  name: string;
-  isActive: boolean;
-  weeksDuration: number | null;
-  _count: { sessions: number };
+  id: string; name: string; isActive: boolean;
+  weeksDuration: number | null; _count: { sessions: number };
 };
 
 type ClientDetail = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  isActive: boolean;
-  isBlocked: boolean;
-  isRebootOnly: boolean;
+  id: string; email: string; firstName: string; lastName: string;
+  isActive: boolean; isBlocked: boolean; isRebootOnly: boolean;
   objectives: string | null;
   progressEntries: ProgressEntry[];
   nutritionFiles: NutritionFile[];
+};
+
+type ProgramTemplate = {
+  id: string; name: string; description: string | null;
+  category: string; weeks_duration: number; session_count: bigint;
 };
 
 function fmt(val: unknown, unit: string): string {
@@ -62,6 +50,7 @@ function formatShort(date: Date | string): string {
 export default async function AppClientDetailPage({ params }: { params: { id: string } }) {
   let client: ClientDetail | null = null;
   let programs: Program[] = [];
+  let programTemplates: ProgramTemplate[] = [];
 
   try {
     const [c, p] = await Promise.all([
@@ -86,6 +75,20 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
 
   if (!client) notFound();
 
+  programTemplates = await db.$queryRaw<ProgramTemplate[]>`
+    SELECT pt.id::text, pt.name, pt.description, pt.category, pt.weeks_duration,
+      COUNT(st.id) AS session_count
+    FROM program_templates pt
+    LEFT JOIN session_templates st ON st.program_template_id = pt.id
+    GROUP BY pt.id
+    ORDER BY pt.category, pt.name
+  `.catch(() => [] as ProgramTemplate[]);
+
+  const serializedTemplates = programTemplates.map((t) => ({
+    ...t,
+    session_count: Number(t.session_count),
+  }));
+
   const latest = client.progressEntries[0] ?? null;
   const prevWeight = client.progressEntries.find((e, i) => i > 0 && e.weightKg !== null);
   const weightDelta = latest?.weightKg && prevWeight?.weightKg
@@ -96,7 +99,6 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     fileSize: f.fileSize, uploadedAt: f.uploadedAt.toISOString(),
   }));
 
-  const createProgramAction = createProgram.bind(null, client.id);
   const archiveAction = archiveClient.bind(null, client.id);
   const unarchiveAction = unarchiveClient.bind(null, client.id);
   const blockAction = blockClient.bind(null, client.id);
@@ -251,31 +253,12 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Créer un nouveau programme
+              Nouveau programme
             </div>
           </summary>
-          <form action={createProgramAction} className="mt-3 space-y-3 p-4 bg-gray-800/30 rounded-lg border border-gray-800">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Nom du programme *</label>
-              <input name="name" required placeholder="ex: Programme Force — 8 semaines"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Durée (semaines)</label>
-                <input type="number" name="weeksDuration" min={1} max={52} placeholder="ex: 8"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Date de début</label>
-                <input type="date" name="startDate"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-colors" />
-              </div>
-            </div>
-            <button type="submit" className="w-full py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors">
-              Créer le programme
-            </button>
-          </form>
+          <div className="mt-3 p-4 bg-gray-800/30 rounded-lg border border-gray-800">
+            <CreateProgramForm clientId={client.id} programTemplates={serializedTemplates} />
+          </div>
         </details>
       </div>
     </div>
