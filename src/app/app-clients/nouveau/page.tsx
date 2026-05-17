@@ -27,7 +27,7 @@ export default function NouveauClientPage() {
   const [state, formAction] = useFormState(createAppClient, null);
 
   useEffect(() => {
-    if (state && "clientId" in state) {
+    if (state && "clientId" in state && state.clientId) {
       router.push(`/app-clients/${state.clientId}`);
     }
   }, [state, router]);
@@ -82,7 +82,7 @@ export default function NouveauClientPage() {
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1.5">Mot de passe temporaire *</label>
-            <input name="password" type="text" required placeholder="ex : D5coaching2025!" className={inputCls} />
+            <input name="password" type="text" required placeholder="ex : D5coaching2025!" className={inputCls} />
             <p className="text-xs text-gray-600 mt-1.5">
               À communiquer au client. Il pourra le changer depuis son profil.
             </p>

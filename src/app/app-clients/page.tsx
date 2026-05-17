@@ -23,6 +23,7 @@ function formatDate(date: Date | string): string {
 export default async function AppClientsPage() {
   let clients: ClientRow[] = [];
 
+  // Try full query with relations first
   try {
     const raw = await db.appClient.findMany({
       include: {
@@ -32,8 +33,20 @@ export default async function AppClientsPage() {
       orderBy: { createdAt: "desc" },
     });
     clients = raw as unknown as ClientRow[];
-  } catch (err) {
-    console.error("[app-clients]", err);
+  } catch {
+    // Fallback: basic query without relations (shows clients without weight/nutrition data)
+    try {
+      const raw = await db.appClient.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+      clients = (raw as unknown as ClientRow[]).map((c) => ({
+        ...c,
+        progressEntries: [],
+        nutritionFiles: [],
+      }));
+    } catch (err) {
+      console.error("[app-clients:fallback]", err);
+    }
   }
 
   const active = clients.filter((c) => c.isActive);
@@ -68,7 +81,9 @@ export default async function AppClientsPage() {
             const hasNutrition = client.nutritionFiles.length > 0;
             return (
               <Link key={client.id} href={`/app-clients/${client.id}`}
-                className="flex items-center justify-between bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 rounded-xl px-5 py-4 transition-colors">
+                className={`flex items-center justify-between bg-gray-900 hover:bg-gray-800 border rounded-xl px-5 py-4 transition-colors ${
+                  client.isActive ? "border-gray-800 hover:border-gray-700" : "border-gray-800/50 opacity-50"
+                }`}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-brand-400">{client.firstName[0]}{client.lastName[0]}</span>
@@ -76,6 +91,7 @@ export default async function AppClientsPage() {
                   <div>
                     <p className="font-semibold text-white">{client.firstName} {client.lastName}</p>
                     <p className="text-sm text-gray-400">{client.email}</p>
+                    {!client.isActive && <p className="text-xs text-red-400 mt-0.5">Archivé</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
