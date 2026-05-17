@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { sendProgramAssignedEmail } from "@/lib/email";
 
 export async function createProgram(formData: FormData) {
   const clientId = formData.get("clientId") as string;
@@ -23,6 +24,23 @@ export async function createProgram(formData: FormData) {
       isActive: true,
     },
   });
+
+  // Notify client by email
+  const client = await db.appClient.findUnique({
+    where: { id: clientId },
+    select: { email: true, firstName: true },
+  }).catch(() => null);
+
+  if (client) {
+    sendProgramAssignedEmail({
+      firstName: client.firstName,
+      email: client.email,
+      programName: name.trim(),
+      startDate: startDate || null,
+      sessionCount: 0,
+      weeksDuration: weeksDuration ? parseInt(weeksDuration) : null,
+    }).catch((err) => console.error("[program-email]", err));
+  }
 
   redirect(`/app-clients/${clientId}/programmes/${program.id}`);
 }

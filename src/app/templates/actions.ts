@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { sendProgramAssignedEmail } from "@/lib/email";
 
 type ExerciseTpl = {
   exercise_name: string;
@@ -29,30 +30,19 @@ export async function applyTemplate(formData: FormData) {
 
   if (!templateId || !clientId || !programName) return;
 
-  // Fetch template info
   const tplRows = await db.$queryRaw<{ weeks_duration: number }[]>`
     SELECT weeks_duration FROM program_templates WHERE id = ${templateId}::uuid
   `;
   const weeksDuration = tplRows[0]?.weeks_duration ?? 8;
 
-  // Calculate end date
   const start = startDate ? new Date(startDate) : new Date();
   const end = new Date(start);
   end.setDate(end.getDate() + weeksDuration * 7);
 
-  // Create program
   const program = await db.trainingProgram.create({
-    data: {
-      clientId,
-      name: programName,
-      startDate: start,
-      endDate: end,
-      weeksDuration,
-      isActive: true,
-    },
+    data: { clientId, name: programName, startDate: start, endDate: end, weeksDuration, isActive: true },
   });
 
-  // Fetch sessions
   const sessions = await db.$queryRaw<SessionTpl[]>`
     SELECT id::text, name, day_of_week, order_index, duration_minutes, notes
     FROM session_templates WHERE program_template_id = ${templateId}::uuid
@@ -60,7 +50,6 @@ export async function applyTemplate(formData: FormData) {
   `;
 
   for (const sess of sessions) {
-    // Create training session
     const trainingSession = await db.trainingSession.create({
       data: {
         programId: program.id,
@@ -72,7 +61,6 @@ export async function applyTemplate(formData: FormData) {
       },
     });
 
-    // Fetch exercises for this session
     const exercises = await db.$queryRaw<ExerciseTpl[]>`
       SELECT exercise_name, sets, reps, rest_seconds, order_index, notes
       FROM exercise_templates
@@ -81,7 +69,6 @@ export async function applyTemplate(formData: FormData) {
     `;
 
     for (const ex of exercises) {
-      // Try to find library exercise by name
       const libEx = await db.$queryRaw<{ id: string }[]>`
         SELECT id::text FROM exercise_library WHERE name = ${ex.exercise_name} AND is_active = true LIMIT 1
       `.catch(() => [] as { id: string }[]);
@@ -99,6 +86,23 @@ export async function applyTemplate(formData: FormData) {
         },
       });
     }
+  }
+
+  // Notify client by email
+  const client = await db.appClient.findUnique({
+    where: { id: clientId },
+    select: { email: true, firstName: true },
+  }).catch(() => null);
+
+  if (client) {
+    sendProgramAssignedEmail({
+      firstName: client.firstName,
+      email: client.email,
+      programName,
+      startDate: startDate || null,
+      sessionCount: sessions.length,
+      weeksDuration,
+    }).catch((err) => console.error("[program-email]", err));
   }
 
   redirect(`/app-clients/${clientId}/programmes/${program.id}`);
