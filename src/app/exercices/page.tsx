@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { createExercise, deleteExercise } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import GenerateVideoButton from "@/components/exercices/GenerateVideoButton";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Bibliothèque d'exercices — D5 CRM" };
@@ -19,6 +20,16 @@ const MUSCLE_GROUPS = [
   "Ischio-jambiers",
   "Fessiers",
   "Mollets",
+  "Cardio / Mobilité",
+  "Retour blessure - Épaule",
+  "Retour blessure - Genou",
+  "Retour blessure - Dos",
+  "Retour blessure - Cheville",
+];
+
+const FILTER_GROUPS = [
+  "Tous",
+  ...MUSCLE_GROUPS,
 ];
 
 type ExerciseRow = {
@@ -31,19 +42,31 @@ type ExerciseRow = {
   is_active: boolean;
 };
 
-export default async function ExercicesPage() {
-  // Ensure column exists before querying it
+export default async function ExercicesPage({
+  searchParams,
+}: {
+  searchParams: { cat?: string };
+}) {
   await db.$executeRaw`
     ALTER TABLE exercise_library
     ADD COLUMN IF NOT EXISTS generated_video_url TEXT
   `.catch(() => {});
 
-  const exercises = await db.$queryRaw<ExerciseRow[]>`
-    SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
-    FROM exercise_library
-    WHERE is_active = true
-    ORDER BY name ASC
-  `.catch(() => [] as ExerciseRow[]);
+  const cat = searchParams.cat;
+
+  const exercises = cat && cat !== "Tous"
+    ? await db.$queryRaw<ExerciseRow[]>`
+        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+        FROM exercise_library
+        WHERE is_active = true AND ${cat} = ANY(muscles)
+        ORDER BY name ASC
+      `.catch(() => [] as ExerciseRow[])
+    : await db.$queryRaw<ExerciseRow[]>`
+        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+        FROM exercise_library
+        WHERE is_active = true
+        ORDER BY name ASC
+      `.catch(() => [] as ExerciseRow[]);
 
   return (
     <div className="p-6 max-w-5xl space-y-6">
@@ -52,8 +75,33 @@ export default async function ExercicesPage() {
           <h1 className="text-xl font-bold text-white">Bibliothèque d&apos;exercices</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             {exercises.length} exercice{exercises.length !== 1 ? "s" : ""}
+            {cat && cat !== "Tous" ? ` · ${cat}` : ""}
           </p>
         </div>
+        <a
+          href={`/api/seed/exercises?secret=${process.env.CRON_SECRET ?? ""}`}
+          target="_blank"
+          className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors"
+        >
+          + Alimenter la bibliothèque
+        </a>
+      </div>
+
+      {/* Filtres par catégorie */}
+      <div className="flex flex-wrap gap-2">
+        {FILTER_GROUPS.map((g) => (
+          <Link
+            key={g}
+            href={g === "Tous" ? "/exercices" : `/exercices?cat=${encodeURIComponent(g)}`}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              (g === "Tous" && !cat) || cat === g
+                ? "bg-brand-500/10 text-brand-400 border-brand-500/30"
+                : "bg-gray-800 text-gray-400 border-gray-700 hover:text-gray-200"
+            }`}
+          >
+            {g}
+          </Link>
+        ))}
       </div>
 
       {/* Formulaire de création */}
@@ -119,9 +167,7 @@ export default async function ExercicesPage() {
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         {exercises.length === 0 ? (
           <div className="py-16 text-center text-gray-600 text-sm">
-            Aucun exercice dans la bibliothèque
-            <br />
-            <span className="text-gray-700 text-xs">Ajoutez vos premiers exercices ci-dessus</span>
+            Aucun exercice dans cette catégorie
           </div>
         ) : (
           <table className="w-full text-sm">
