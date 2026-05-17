@@ -87,7 +87,7 @@ async function getDashboardData() {
       SELECT DISTINCT ON (client_id) client_id, content, created_at
       FROM messages WHERE sender_role = 'client' AND is_read = false
       ORDER BY client_id, created_at DESC LIMIT 5
-    `;
+    `.catch(() => [] as MsgRow[]);
     unreadMessages = await Promise.all(msgRows.map(async (row) => {
       const client = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
       return { ...row, clientName: client ? `${client.firstName} ${client.lastName}` : row.client_id };
@@ -101,7 +101,7 @@ async function getDashboardData() {
     const checkinRows = await db.$queryRaw<CheckinRow[]>`
       SELECT id, client_id, energy, sleep, stress, submitted_at
       FROM weekly_checkins WHERE is_read = false ORDER BY submitted_at DESC LIMIT 5
-    `;
+    `.catch(() => [] as CheckinRow[]);
     unreadCheckins = await Promise.all(checkinRows.map(async (row) => {
       const client = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
       return { ...row, clientName: client ? `${client.firstName} ${client.lastName}` : row.client_id };
@@ -110,10 +110,22 @@ async function getDashboardData() {
 
   // Reboot mid check-ins
   try {
+    await db.$executeRaw`
+      CREATE TABLE IF NOT EXISTS reboot_mid_checkins (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        client_id TEXT NOT NULL UNIQUE,
+        energy INT,
+        sleep_quality INT,
+        weight DECIMAL(5,2),
+        feeling TEXT,
+        submitted_at TIMESTAMPTZ DEFAULT now()
+      )
+    `.catch(() => {});
     type RebootRow = { id: string; client_id: string; energy: number | null; sleep_quality: number | null; weight: number | null; feeling: string | null; submitted_at: Date };
     const rebootRows = await db.$queryRaw<RebootRow[]>`
       SELECT id, client_id, energy, sleep_quality, weight, feeling, submitted_at
-      FROM reboot_mid_checkins WHERE is_read = false ORDER BY submitted_at DESC LIMIT 5
+      FROM reboot_mid_checkins
+      ORDER BY submitted_at DESC LIMIT 5
     `.catch(() => [] as RebootRow[]);
     rebootCheckins = await Promise.all(rebootRows.map(async (row) => {
       const client = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
@@ -243,10 +255,10 @@ export default async function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white font-medium">{c.clientName}</p>
                   <p className="text-xs text-gray-500">
-                    {c.energy    !== null ? `Énergie ${ENERGY_EMOJIS[c.energy - 1]}` : ""}
-                    {c.sleep_quality !== null ? ` · Sommeil ${SLEEP_EMOJIS[c.sleep_quality - 1]}` : ""}
-                    {c.weight   !== null ? ` · ${c.weight} kg` : ""}
-                    {c.feeling  ? ` · “${c.feeling.slice(0, 40)}…”` : ""}
+                    {c.energy        != null ? `Énergie ${ENERGY_EMOJIS[(c.energy ?? 1) - 1]}` : ""}
+                    {c.sleep_quality != null ? ` · Sommeil ${SLEEP_EMOJIS[(c.sleep_quality ?? 1) - 1]}` : ""}
+                    {c.weight        != null ? ` · ${c.weight} kg` : ""}
+                    {c.feeling       ? ` · "${c.feeling.slice(0, 40)}…"` : ""}
                   </p>
                 </div>
                 <p className="text-xs text-gray-400">{new Date(c.submitted_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</p>
