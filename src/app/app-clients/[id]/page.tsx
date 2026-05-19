@@ -37,6 +37,46 @@ type ProgramTemplate = {
   category: string; weeks_duration: number; session_count: bigint;
 };
 
+type RebootCompletion = {
+  session_id: string;
+  muscle_group: string;
+  session_name: string;
+  completed_at: Date;
+};
+
+type RebootCheckin = {
+  session_id: string;
+  energy: number;
+  difficulty: string;
+  feeling: string | null;
+};
+
+type RebootModule = {
+  task_key: string;
+  completed_at: Date;
+};
+
+const REBOOT_MUSCLE_LABELS: Record<string, string> = {
+  pecs: "💪 Pectoraux",
+  dos: "🏋️ Dos & Biceps",
+  jambes: "🦵 Jambes",
+};
+
+const REBOOT_ENERGY: Record<number, string> = { 1: "😴", 2: "😪", 3: "🙂", 4: "😊", 5: "⚡" };
+
+const REBOOT_DIFFICULTY: Record<string, string> = {
+  easy: "Trop facile",
+  good: "Parfait",
+  hard: "Très dur",
+};
+
+const REBOOT_MODULE_LABELS: Record<string, string> = {
+  regularite: "🔥 Régularité",
+  hydratation: "💧 Hydratation",
+  sommeil: "😴 Sommeil",
+  nutrition: "🥗 Nutrition",
+};
+
 function fmt(val: unknown, unit: string): string {
   const n = Number(val);
   if (isNaN(n) || val === null || val === undefined) return "—";
@@ -102,6 +142,37 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     session_count: Number(t.session_count),
   }));
 
+  // Reboot activity
+  let rebootActivity = {
+    completions: [] as RebootCompletion[],
+    checkins: [] as RebootCheckin[],
+    modules: [] as RebootModule[],
+  };
+  try {
+    const [completions, checkins, modules] = await Promise.all([
+      db.$queryRaw<RebootCompletion[]>`
+        SELECT rc.session_id::text, rs.muscle_group, rs.name AS session_name, rc.completed_at
+        FROM reboot_completions rc
+        JOIN reboot_sessions rs ON rc.session_id = rs.id
+        WHERE rc.client_id = ${params.id}::uuid
+        ORDER BY rc.completed_at ASC
+      `.catch(() => [] as RebootCompletion[]),
+      db.$queryRaw<RebootCheckin[]>`
+        SELECT session_id::text, energy, difficulty, feeling
+        FROM reboot_session_checkins
+        WHERE client_id = ${params.id}
+        ORDER BY submitted_at ASC
+      `.catch(() => [] as RebootCheckin[]),
+      db.$queryRaw<RebootModule[]>`
+        SELECT task_key, completed_at
+        FROM reboot_task_completions
+        WHERE client_id = ${params.id}
+        ORDER BY completed_at ASC
+      `.catch(() => [] as RebootModule[]),
+    ]);
+    rebootActivity = { completions, checkins, modules };
+  } catch {}
+
   const latest = client.progressEntries[0] ?? null;
   const prevWeight = client.progressEntries.find((e, i) => i > 0 && e.weightKg !== null);
   const weightDelta = latest?.weightKg && prevWeight?.weightKg
@@ -117,6 +188,9 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const blockAction = blockClient.bind(null, client.id);
   const unblockAction = unblockClient.bind(null, client.id);
   const toggleRebootOnlyAction = toggleRebootOnly.bind(null, client.id, client.isRebootOnly);
+
+  const rebootTotal = rebootActivity.completions.length + rebootActivity.modules.length;
+  const hasRebootActivity = rebootTotal > 0;
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
@@ -287,6 +361,122 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           </div>
         </details>
       </div>
+
+      {/* Reboot 40 — Activité */}
+      {(client.isRebootOnly || hasRebootActivity) && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-white flex items-center gap-2">
+              <span className="text-brand-400">⚡</span>
+              Reboot 40
+            </h2>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+              rebootTotal >= 7
+                ? "bg-brand-500/20 text-brand-400"
+                : "bg-gray-800 text-gray-400"
+            }`}>
+              {rebootTotal}/7 étapes
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mb-5">
+            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-brand-500 rounded-full transition-all"
+                style={{ width: `${Math.round((rebootTotal / 7) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {!hasRebootActivity ? (
+            <p className="text-gray-600 text-sm text-center py-4">Aucune activité pour l&apos;instant</p>
+          ) : (
+            <div className="space-y-5">
+              {/* Séances */}
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5">
+                  Séances — {rebootActivity.completions.length}/3 complétées
+                </p>
+                <div className="space-y-2">
+                  {(["pecs", "dos", "jambes"] as const).map((muscle) => {
+                    const done = rebootActivity.completions.find((c) => c.muscle_group === muscle);
+                    const checkin = done
+                      ? rebootActivity.checkins.find((ch) => ch.session_id === done.session_id)
+                      : null;
+                    return (
+                      <div
+                        key={muscle}
+                        className={`rounded-lg p-3 ${
+                          done
+                            ? "bg-green-500/5 border border-green-500/15"
+                            : "bg-gray-800/40 border border-gray-800"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm ${done ? "text-green-400" : "text-gray-600"}`}>
+                              {done ? "✓" : "○"}
+                            </span>
+                            <span className={`text-sm font-medium ${done ? "text-white" : "text-gray-600"}`}>
+                              {REBOOT_MUSCLE_LABELS[muscle]}
+                            </span>
+                          </div>
+                          {done && (
+                            <span className="text-xs text-gray-500">{formatShort(done.completed_at)}</span>
+                          )}
+                        </div>
+                        {checkin && (
+                          <div className="mt-1.5 ml-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                            <span>
+                              {REBOOT_ENERGY[Number(checkin.energy)] ?? "—"}&nbsp;
+                              {REBOOT_DIFFICULTY[checkin.difficulty] ?? checkin.difficulty}
+                            </span>
+                            {checkin.feeling && (
+                              <span className="italic text-gray-600">&ldquo;{checkin.feeling}&rdquo;</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modules */}
+              {rebootActivity.modules.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5">
+                    Modules lifestyle — {rebootActivity.modules.length}/4 validés
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["regularite", "hydratation", "sommeil", "nutrition"] as const).map((key) => {
+                      const done = rebootActivity.modules.find((m) => m.task_key === key);
+                      return (
+                        <div
+                          key={key}
+                          className={`rounded-lg px-3 py-2.5 flex items-center justify-between ${
+                            done
+                              ? "bg-green-500/5 border border-green-500/15"
+                              : "bg-gray-800/40 border border-gray-800"
+                          }`}
+                        >
+                          <span className={`text-sm ${done ? "text-white" : "text-gray-600"}`}>
+                            {REBOOT_MODULE_LABELS[key]}
+                          </span>
+                          {done && (
+                            <span className="text-xs text-gray-500 ml-1">{formatShort(done.completed_at)}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
