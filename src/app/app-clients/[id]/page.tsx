@@ -7,6 +7,7 @@ import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
 import { createProgram } from "./programmes/actions";
 import { archiveClient, unarchiveClient, blockClient, unblockClient } from "./actions";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
+import { RebootActivity } from "./RebootActivity";
 
 type ProgressEntry = {
   id: string;
@@ -110,7 +111,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   return (
     <div className="p-6 space-y-6 max-w-4xl">
       <div>
-        <Link href="/app-clients" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← App Clients</Link>
+        <Link href="/app-clients" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">&larr; App Clients</Link>
         <div className="flex items-start justify-between mt-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
@@ -174,6 +175,8 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           <p className="text-gray-300 text-sm">{client!.objectives}</p>
         </div>
       )}
+
+      <RebootActivity clientId={client!.id} isRebootOnly={client!.isRebootOnly} />
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5">
