@@ -55,6 +55,22 @@ type MessageRow = {
   last_name: string;
 };
 
+type RebootEvent = {
+  type: "seance" | "whatsapp" | "module";
+  clientId: string;
+  firstName: string;
+  lastName: string;
+  label: string;
+  happenedAt: Date;
+};
+
+const REBOOT_MODULE_LABELS: Record<string, string> = {
+  regularite: "🔥 Régularité",
+  hydratation: "💧 Hydratation",
+  sommeil: "😴 Sommeil",
+  nutrition: "🥗 Nutrition",
+};
+
 function timeAgo(date: Date | string): string {
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (diff < 60) return "à l'instant";
@@ -136,6 +152,53 @@ async function getClientActivity() {
   return { recentActivities, unreadNotes, unreadMessages };
 }
 
+async function getRebootActivity(): Promise<RebootEvent[]> {
+  const events: RebootEvent[] = [];
+
+  try {
+    const rows = await db.$queryRaw<{
+      client_id: string; first_name: string; last_name: string;
+      label: string; happened_at: Date;
+    }[]>`
+      SELECT rc.client_id::text, c.first_name, c.last_name,
+        rs.name AS label, rc.completed_at AS happened_at
+      FROM reboot_completions rc
+      JOIN reboot_sessions rs ON rc.session_id = rs.id
+      JOIN clients c ON c.id = rc.client_id
+      ORDER BY rc.completed_at DESC LIMIT 10
+    `;
+    for (const r of rows) events.push({ type: "seance", clientId: r.client_id, firstName: r.first_name, lastName: r.last_name, label: r.label, happenedAt: r.happened_at });
+  } catch {}
+
+  try {
+    const rows = await db.$queryRaw<{
+      client_id: string; first_name: string; last_name: string; happened_at: Date;
+    }[]>`
+      SELECT rwc.client_id, c.first_name, c.last_name, rwc.sent_at AS happened_at
+      FROM reboot_whatsapp_completions rwc
+      JOIN clients c ON c.id::text = rwc.client_id
+      ORDER BY rwc.sent_at DESC LIMIT 10
+    `;
+    for (const r of rows) events.push({ type: "whatsapp", clientId: r.client_id, firstName: r.first_name, lastName: r.last_name, label: "Message WhatsApp envoyé", happenedAt: r.happened_at });
+  } catch {}
+
+  try {
+    const rows = await db.$queryRaw<{
+      client_id: string; first_name: string; last_name: string;
+      task_key: string; happened_at: Date;
+    }[]>`
+      SELECT rtc.client_id, c.first_name, c.last_name,
+        rtc.task_key, rtc.completed_at AS happened_at
+      FROM reboot_task_completions rtc
+      JOIN clients c ON c.id::text = rtc.client_id
+      ORDER BY rtc.completed_at DESC LIMIT 10
+    `;
+    for (const r of rows) events.push({ type: "module", clientId: r.client_id, firstName: r.first_name, lastName: r.last_name, label: REBOOT_MODULE_LABELS[r.task_key] ?? r.task_key, happenedAt: r.happened_at });
+  } catch {}
+
+  return events.sort((a, b) => new Date(b.happenedAt).getTime() - new Date(a.happenedAt).getTime()).slice(0, 15);
+}
+
 async function getDashboardData() {
   let totalProspects = 0;
   let byStatus: Record<string, number> = {};
@@ -168,11 +231,12 @@ async function getDashboardData() {
   }
 
   const { recentActivities, unreadNotes, unreadMessages } = await getClientActivity();
+  const rebootEvents = await getRebootActivity();
 
   return {
     totalProspects, byStatus, activeGroups, recentProspects,
     activeClients, revenue: activeClients * 3000,
-    recentActivities, unreadNotes, unreadMessages,
+    recentActivities, unreadNotes, unreadMessages, rebootEvents,
   };
 }
 
@@ -222,11 +286,8 @@ export default async function DashboardPage() {
           </div>
           <div className="space-y-2">
             {data.unreadMessages.map((msg) => (
-              <Link
-                key={msg.id}
-                href={`/app-clients/${msg.client_id}/messages`}
-                className="block bg-gray-900 border border-blue-500/20 rounded-lg px-4 py-3 hover:border-blue-500/40 transition-colors"
-              >
+              <Link key={msg.id} href={`/app-clients/${msg.client_id}/messages`}
+                className="block bg-gray-900 border border-blue-500/20 rounded-lg px-4 py-3 hover:border-blue-500/40 transition-colors">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
                     <span className="text-blue-400 font-bold text-xs">{msg.first_name[0]}{msg.last_name[0]}</span>
@@ -265,11 +326,8 @@ export default async function DashboardPage() {
           </div>
           <div className="space-y-2">
             {data.unreadNotes.map((note) => (
-              <Link
-                key={note.id}
-                href={`/app-clients/${note.client_id}/programmes/${note.program_id}/seances`}
-                className="block bg-gray-900 border border-orange-500/20 rounded-lg px-4 py-3 hover:border-orange-500/40 transition-colors"
-              >
+              <Link key={note.id} href={`/app-clients/${note.client_id}/programmes/${note.program_id}/seances/${note.workout_session_id}/progression`}
+                className="block bg-gray-900 border border-orange-500/20 rounded-lg px-4 py-3 hover:border-orange-500/40 transition-colors">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
                     <span className="text-orange-400 font-bold text-xs">{note.first_name[0]}{note.last_name[0]}</span>
@@ -290,6 +348,49 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {/* Reboot 40 Activity Feed */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-2">
+            <span className="text-brand-400">⚡</span> Activité Reboot 40
+          </h2>
+          <Link href="/app-clients" className="text-xs text-brand-400 hover:text-brand-300 font-medium">Voir clients →</Link>
+        </div>
+        {data.rebootEvents.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-6">Aucune activité Reboot pour l&apos;instant</p>
+        ) : (
+          <div className="space-y-2">
+            {data.rebootEvents.map((e, i) => {
+              const typeConfig = {
+                seance:   { icon: "🏋️", badge: "Séance",  color: "bg-brand-500/10 text-brand-400 border-brand-500/20" },
+                whatsapp: { icon: "💬", badge: "WhatsApp", color: "bg-green-500/10 text-green-400 border-green-500/20" },
+                module:   { icon: "📖", badge: "Module",   color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+              }[e.type];
+              return (
+                <Link key={`${e.type}-${e.clientId}-${i}`} href={`/app-clients/${e.clientId}`}
+                  className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 transition-colors gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center shrink-0">
+                      <span className="text-brand-400 font-bold text-xs">{e.firstName[0]}{e.lastName[0]}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white">{e.firstName} {e.lastName}</p>
+                      <p className="text-xs text-gray-500 truncate">{typeConfig.icon} {e.label}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`px-2 py-0.5 border text-xs rounded-full font-medium ${typeConfig.color}`}>
+                      {typeConfig.badge}
+                    </span>
+                    <span className="text-xs text-gray-500">{timeAgo(e.happenedAt)}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Activities */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
         <div className="flex items-center justify-between mb-4">
@@ -301,11 +402,8 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {data.recentActivities.map((a) => (
-              <Link
-                key={a.id}
-                href={`/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression`}
-                className="block bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 space-y-2 transition-colors"
-              >
+              <Link key={a.id} href={`/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression`}
+                className="block bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 space-y-2 transition-colors">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center shrink-0">
@@ -317,9 +415,7 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 text-xs rounded-full font-medium">
-                      ✓ Complété
-                    </span>
+                    <span className="px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 text-xs rounded-full font-medium">✓ Complété</span>
                     <span className="text-xs text-gray-500">{timeAgo(a.completed_at)}</span>
                   </div>
                 </div>
@@ -327,19 +423,13 @@ export default async function DashboardPage() {
                   <div className="flex items-center gap-3 pl-10">
                     {a.rpe !== null && (
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        a.rpe >= 8 ? "bg-red-500/10 text-red-400" :
-                        a.rpe >= 6 ? "bg-orange-500/10 text-orange-400" :
-                        "bg-green-500/10 text-green-400"
+                        a.rpe >= 8 ? "bg-red-500/10 text-red-400" : a.rpe >= 6 ? "bg-orange-500/10 text-orange-400" : "bg-green-500/10 text-green-400"
                       }`}>RPE {a.rpe}/10</span>
                     )}
-                    {a.duration_seconds ? (
-                      <span className="text-xs text-gray-500">⏱ {formatDuration(a.duration_seconds)}</span>
-                    ) : null}
+                    {a.duration_seconds ? <span className="text-xs text-gray-500">⏱ {formatDuration(a.duration_seconds)}</span> : null}
                   </div>
                 )}
-                {a.note && (
-                  <p className="pl-10 text-xs text-orange-300 italic">&ldquo;{a.note}&rdquo;</p>
-                )}
+                {a.note && <p className="pl-10 text-xs text-orange-300 italic">&ldquo;{a.note}&rdquo;</p>}
               </Link>
             ))}
           </div>
