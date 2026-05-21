@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { createExercise, deleteExercise } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import GenerateVideoButton from "@/components/exercices/GenerateVideoButton";
+import VimeoEditForm from "@/components/exercices/VimeoEditForm";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -27,10 +28,7 @@ const MUSCLE_GROUPS = [
   "Retour blessure - Cheville",
 ];
 
-const FILTER_GROUPS = [
-  "Tous",
-  ...MUSCLE_GROUPS,
-];
+const FILTER_GROUPS = ["Tous", ...MUSCLE_GROUPS];
 
 type ExerciseRow = {
   id: string;
@@ -54,19 +52,20 @@ export default async function ExercicesPage({
 
   const cat = searchParams.cat;
 
-  const exercises = cat && cat !== "Tous"
-    ? await db.$queryRaw<ExerciseRow[]>`
-        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
-        FROM exercise_library
-        WHERE is_active = true AND ${cat} = ANY(muscles)
-        ORDER BY name ASC
-      `.catch(() => [] as ExerciseRow[])
-    : await db.$queryRaw<ExerciseRow[]>`
-        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
-        FROM exercise_library
-        WHERE is_active = true
-        ORDER BY name ASC
-      `.catch(() => [] as ExerciseRow[]);
+  const exercises =
+    cat && cat !== "Tous"
+      ? await db.$queryRaw<ExerciseRow[]>`
+          SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+          FROM exercise_library
+          WHERE is_active = true AND ${cat} = ANY(muscles)
+          ORDER BY name ASC
+        `.catch(() => [] as ExerciseRow[])
+      : await db.$queryRaw<ExerciseRow[]>`
+          SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+          FROM exercise_library
+          WHERE is_active = true
+          ORDER BY name ASC
+        `.catch(() => [] as ExerciseRow[]);
 
   return (
     <div className="p-6 max-w-5xl space-y-6">
@@ -87,7 +86,7 @@ export default async function ExercicesPage({
         </a>
       </div>
 
-      {/* Filtres par catégorie */}
+      {/* Filtres */}
       <div className="flex flex-wrap gap-2">
         {FILTER_GROUPS.map((g) => (
           <Link
@@ -202,12 +201,12 @@ export default async function ExercicesPage({
                   <td className="px-5 py-4">
                     <div className="space-y-2">
                       {ex.vimeo_video_id && (
-                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs">✓ Vimeo</span>
+                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs">✓ Vimeo {ex.vimeo_video_id}</span>
                       )}
                       {ex.generated_video_url && (
                         <details className="mt-1">
                           <summary className="text-xs text-purple-400 cursor-pointer hover:text-purple-300">
-                            ▶ Voir vidéo IA
+                            ▶ Vidéo IA
                           </summary>
                           <video
                             src={ex.generated_video_url}
@@ -222,7 +221,8 @@ export default async function ExercicesPage({
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex items-center gap-2 justify-end">
+                    <div className="flex items-center gap-2 justify-end flex-wrap">
+                      <VimeoEditForm exerciseId={ex.id} currentVimeoId={ex.vimeo_video_id} />
                       <GenerateVideoButton
                         exerciseId={ex.id}
                         exerciseName={ex.name}
@@ -230,7 +230,7 @@ export default async function ExercicesPage({
                       />
                       <ConfirmButton
                         action={deleteExercise.bind(null, ex.id)}
-                        message={`Supprimer « ${ex.name} » ? Cet exercice sera retiré de toutes les séances.`}
+                        message={`Supprimer « ${ex.name} » ?`}
                         className="text-xs text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors"
                       >
                         Supprimer
