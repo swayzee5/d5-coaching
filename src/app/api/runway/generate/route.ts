@@ -6,12 +6,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "exerciseName requis" }, { status: 400 });
   }
 
+  const apiKey = (process.env.RUNWAY_API_KEY ?? "").trim();
+  if (!apiKey) {
+    return NextResponse.json({ error: "RUNWAY_API_KEY non configurée" }, { status: 500 });
+  }
+
   const promptText = `A fitness coach performing ${exerciseName} exercise with perfect form, side view, clean white studio background, professional lighting, 4K quality, smooth movement`;
 
   const res = await fetch("https://api.dev.runwayml.com/v1/text_to_video", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "X-Runway-Version": "2024-11-06",
     },
