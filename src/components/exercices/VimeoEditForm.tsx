@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateVimeoId } from "../exercices/actions";
+import { updateVimeoId } from "@/app/exercices/actions";
 
 export default function VimeoEditForm({
   exerciseId,
