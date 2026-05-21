@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       model: "gen4_turbo",
       promptText,
-      ratio: "1280:720",
+      ratio: "1280:768",
       duration: 5,
     }),
   });
