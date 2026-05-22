@@ -1,9 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { createExercise, deleteExercise } from "./actions";
-import { ConfirmButton } from "@/components/ConfirmButton";
-import ExerciseRow from "@/components/exercices/ExerciseRow";
+import { createExercise } from "./actions";
+import ExerciseTable from "@/components/exercices/ExerciseTable";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -16,41 +15,37 @@ const MUSCLE_GROUPS = [
   "Retour blessure - Dos", "Retour blessure - Cheville",
 ];
 
-const FILTER_GROUPS = ["Tous", ...MUSCLE_GROUPS];
+const FILTER_GROUPS = ["Tous", "Avec vidéo", "Sans vidéo", ...MUSCLE_GROUPS];
 
 type ExerciseRow = {
-  id: string;
-  name: string;
-  description: string | null;
-  muscles: string[];
-  vimeo_video_id: string | null;
-  generated_video_url: string | null;
-  is_active: boolean;
+  id: string; name: string; description: string | null;
+  muscles: string[]; vimeo_video_id: string | null;
+  generated_video_url: string | null; is_active: boolean;
 };
 
 export default async function ExercicesPage({
   searchParams,
 }: {
-  searchParams: { cat?: string };
+  searchParams: { cat?: string; q?: string };
 }) {
   await db.$executeRaw`
     ALTER TABLE exercise_library ADD COLUMN IF NOT EXISTS generated_video_url TEXT
   `.catch(() => {});
 
   const cat = searchParams.cat;
+  const q = searchParams.q?.toLowerCase() ?? "";
 
-  const exercises =
-    cat && cat !== "Tous"
-      ? await db.$queryRaw<ExerciseRow[]>`
-          SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
-          FROM exercise_library WHERE is_active = true AND ${cat} = ANY(muscles)
-          ORDER BY name ASC
-        `.catch(() => [] as ExerciseRow[])
-      : await db.$queryRaw<ExerciseRow[]>`
-          SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
-          FROM exercise_library WHERE is_active = true
-          ORDER BY name ASC
-        `.catch(() => [] as ExerciseRow[]);
+  let exercises = await (
+    cat === "Avec vidéo"
+      ? db.$queryRaw<ExerciseRow[]>`SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active FROM exercise_library WHERE is_active = true AND (vimeo_video_id IS NOT NULL OR generated_video_url IS NOT NULL) ORDER BY name ASC`
+      : cat === "Sans vidéo"
+      ? db.$queryRaw<ExerciseRow[]>`SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active FROM exercise_library WHERE is_active = true AND vimeo_video_id IS NULL AND generated_video_url IS NULL ORDER BY name ASC`
+      : cat && cat !== "Tous"
+      ? db.$queryRaw<ExerciseRow[]>`SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active FROM exercise_library WHERE is_active = true AND ${cat} = ANY(muscles) ORDER BY name ASC`
+      : db.$queryRaw<ExerciseRow[]>`SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active FROM exercise_library WHERE is_active = true ORDER BY name ASC`
+  ).catch(() => [] as ExerciseRow[]);
+
+  if (q) exercises = exercises.filter((e) => e.name.toLowerCase().includes(q));
 
   const withVideo = exercises.filter((e) => e.vimeo_video_id).length;
   const withoutVideo = exercises.length - withVideo;
@@ -65,34 +60,37 @@ export default async function ExercicesPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/exercices/import-vimeo"
-            className="text-sm px-4 py-2 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-lg transition-colors font-medium"
-          >
+          <Link href="/exercices/import-vimeo"
+            className="text-sm px-4 py-2 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-lg transition-colors font-medium">
             📥 Import Vimeo
           </Link>
-          <a
-            href={`/api/seed/exercises?secret=${process.env.CRON_SECRET ?? ""}`}
-            target="_blank"
-            className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors"
-          >
+          <a href={`/api/seed/exercises?secret=${process.env.CRON_SECRET ?? ""}`} target="_blank"
+            className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors">
             + Alimenter
           </a>
         </div>
       </div>
 
+      {/* Recherche */}
+      <form method="GET" className="flex gap-2">
+        {cat && <input type="hidden" name="cat" value={cat} />}
+        <input name="q" defaultValue={searchParams.q ?? ""} placeholder="Rechercher un exercice..."
+          className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors" />
+        <button type="submit" className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-sm transition-colors">Rechercher</button>
+      </form>
+
       {/* Filtres */}
       <div className="flex flex-wrap gap-2">
         {FILTER_GROUPS.map((g) => (
-          <Link
-            key={g}
+          <Link key={g}
             href={g === "Tous" ? "/exercices" : `/exercices?cat=${encodeURIComponent(g)}`}
             className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
               (g === "Tous" && !cat) || cat === g
                 ? "bg-brand-500/10 text-brand-400 border-brand-500/30"
+                : g === "Sans vidéo" ? "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
+                : g === "Avec vidéo" ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"
                 : "bg-gray-800 text-gray-400 border-gray-700 hover:text-gray-200"
-            }`}
-          >
+            }`}>
             {g}
           </Link>
         ))}
@@ -140,28 +138,7 @@ export default async function ExercicesPage({
         </form>
       </div>
 
-      {/* Liste */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {exercises.length === 0 ? (
-          <div className="py-16 text-center text-gray-600 text-sm">Aucun exercice dans cette catégorie</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800">
-                <th className="text-left text-xs text-gray-500 uppercase tracking-wider px-5 py-3">Exercice</th>
-                <th className="text-left text-xs text-gray-500 uppercase tracking-wider px-5 py-3">Muscles</th>
-                <th className="text-left text-xs text-gray-500 uppercase tracking-wider px-5 py-3">Vidéo</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/50">
-              {exercises.map((ex) => (
-                <ExerciseRow key={ex.id} ex={ex} />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <ExerciseTable exercises={exercises} />
     </div>
   );
 }
