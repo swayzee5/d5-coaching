@@ -8,9 +8,7 @@ export async function createExercise(formData: FormData) {
   const description = (formData.get("description") as string) || null;
   const vimeoVideoId = (formData.get("vimeoVideoId") as string) || null;
   const muscles = formData.getAll("muscles") as string[];
-
   if (!name?.trim()) return;
-
   await db.exerciseLibrary.create({
     data: {
       name: name.trim(),
@@ -19,7 +17,6 @@ export async function createExercise(formData: FormData) {
       muscles,
     },
   });
-
   revalidatePath("/exercices");
 }
 
@@ -28,16 +25,20 @@ export async function deleteExercise(id: string) {
   revalidatePath("/exercices");
 }
 
+export async function bulkDeleteExercises(formData: FormData) {
+  const ids = formData.getAll("ids") as string[];
+  if (!ids.length) return;
+  await db.exerciseLibrary.deleteMany({ where: { id: { in: ids } } });
+  revalidatePath("/exercices");
+}
+
 export async function updateVimeoId(formData: FormData) {
   const id = formData.get("id") as string;
   const vimeoVideoId = (formData.get("vimeoVideoId") as string)?.trim() || null;
-
   if (!id) return;
-
   await db.exerciseLibrary.update({
     where: { id },
     data: { vimeoVideoId },
   });
-
   revalidatePath("/exercices");
 }
