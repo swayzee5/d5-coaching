@@ -52,23 +52,33 @@ export default async function ExercicesPage({
           ORDER BY name ASC
         `.catch(() => [] as ExerciseRow[]);
 
+  const withVideo = exercises.filter((e) => e.vimeo_video_id).length;
+  const withoutVideo = exercises.length - withVideo;
+
   return (
     <div className="p-6 max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Bibliothèque d&apos;exercices</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            {exercises.length} exercice{exercises.length !== 1 ? "s" : ""}
-            {cat && cat !== "Tous" ? ` · ${cat}` : ""}
+            {exercises.length} exercices · {withVideo} avec vidéo · {withoutVideo} sans
           </p>
         </div>
-        <a
-          href={`/api/seed/exercises?secret=${process.env.CRON_SECRET ?? ""}`}
-          target="_blank"
-          className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors"
-        >
-          + Alimenter la bibliothèque
-        </a>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/exercices/import-vimeo"
+            className="text-sm px-4 py-2 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-lg transition-colors font-medium"
+          >
+            📥 Import Vimeo
+          </Link>
+          <a
+            href={`/api/seed/exercises?secret=${process.env.CRON_SECRET ?? ""}`}
+            target="_blank"
+            className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors"
+          >
+            + Alimenter
+          </a>
+        </div>
       </div>
 
       {/* Filtres */}
