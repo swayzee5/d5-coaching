@@ -60,6 +60,10 @@ export default async function ExercicesPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/exercices/doublons"
+            className="text-sm px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg transition-colors font-medium">
+            🔍 Doublons
+          </Link>
           <Link href="/exercices/import-vimeo"
             className="text-sm px-4 py-2 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-lg transition-colors font-medium">
             📥 Import Vimeo
