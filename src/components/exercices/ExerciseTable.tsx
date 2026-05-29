@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { bulkDeleteExercises } from "@/app/exercices/actions";
-import { updateVimeoId } from "@/app/exercices/actions";
-import { deleteExercise } from "@/app/exercices/actions";
+import { bulkDeleteExercises, updateVimeoId, deleteExercise, updateExercise } from "@/app/exercices/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import GenerateVideoButton from "./GenerateVideoButton";
+
+const MUSCLE_GROUPS = [
+  "Pectoraux", "Dos", "Épaules", "Biceps", "Triceps", "Abdominaux",
+  "Quadriceps", "Ischio-jambiers", "Fessiers", "Mollets", "Cardio / Mobilité",
+  "Retour blessure - Épaule", "Retour blessure - Genou",
+  "Retour blessure - Dos", "Retour blessure - Cheville",
+];
 
 type Exercise = {
   id: string;
@@ -36,13 +41,79 @@ function VimeoEditForm({ exerciseId, currentVimeoId }: { exerciseId: string; cur
   );
 }
 
+function EditForm({ ex, onClose }: { ex: Exercise; onClose: () => void }) {
+  const [isPending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => { startTransition(async () => { await updateExercise(fd); onClose(); }); }}
+      className="space-y-4 pt-2"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <input type="hidden" name="id" value={ex.id} />
+      <div>
+        <label className="block text-xs text-gray-400 mb-1">Nom</label>
+        <input
+          name="name"
+          defaultValue={ex.name}
+          required
+          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+        />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-400 mb-1">Description</label>
+        <textarea
+          name="description"
+          defaultValue={ex.description ?? ""}
+          rows={3}
+          placeholder="Instructions d’exécution..."
+          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 resize-none"
+        />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-400 mb-2">Groupes musculaires</label>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {MUSCLE_GROUPS.map((m) => (
+            <label key={m} className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                name="muscles"
+                value={m}
+                defaultChecked={ex.muscles.includes(m)}
+                className="rounded border-gray-600 bg-gray-700 text-brand-500 focus:ring-brand-500 focus:ring-offset-0"
+              />
+              <span className="text-xs text-gray-300">{m}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          {isPending ? "Enregistrement..." : "✓ Enregistrer"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors"
+        >
+          Annuler
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ExerciseRowInner({ ex, checked, onCheck }: { ex: Exercise; checked: boolean; onCheck: (id: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   return (
     <>
       <tr className={`hover:bg-gray-800/40 transition-colors cursor-pointer select-none ${
         checked ? "bg-red-500/5" : ""
-      }`} onClick={() => setOpen((o) => !o)}>
+      }`} onClick={() => { setOpen((o) => !o); if (editing) setEditing(false); }}>
         <td className="pl-4 pr-2 py-4" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
@@ -75,6 +146,12 @@ function ExerciseRowInner({ ex, checked, onCheck }: { ex: Exercise; checked: boo
         </td>
         <td className="px-3 py-4">
           <div className="flex items-center gap-2 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpen(true); setEditing(true); }}
+              className="text-xs px-2 py-1 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 rounded transition-colors"
+            >
+              ✏ Modifier
+            </button>
             <VimeoEditForm exerciseId={ex.id} currentVimeoId={ex.vimeo_video_id} />
             <GenerateVideoButton exerciseId={ex.id} exerciseName={ex.name} hasVideo={!!ex.generated_video_url} />
             <ConfirmButton action={deleteExercise.bind(null, ex.id)}
@@ -87,28 +164,41 @@ function ExerciseRowInner({ ex, checked, onCheck }: { ex: Exercise; checked: boo
       </tr>
       {open && (
         <tr className="bg-gray-800/20">
-          <td colSpan={5} className="px-8 pb-6 pt-2">
-            <div className="space-y-4">
-              {ex.description && <p className="text-sm text-gray-300 leading-relaxed">{ex.description}</p>}
-              {ex.vimeo_video_id && (
-                <div className="rounded-xl overflow-hidden" style={{ maxWidth: 480 }}>
-                  <div style={{ padding: "56.25% 0 0 0", position: "relative" }}>
-                    <iframe
-                      src={`https://player.vimeo.com/video/${ex.vimeo_video_id}?badge=0&autopause=0&player_id=0&app_id=58479`}
-                      allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
-                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-                      title={ex.name}
-                    />
-                  </div>
+          <td colSpan={5} className="px-8 pb-6 pt-3">
+            {editing ? (
+              <EditForm ex={ex} onClose={() => setEditing(false)} />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+                    className="text-xs px-3 py-1.5 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 rounded-lg transition-colors"
+                  >
+                    ✏ Modifier les infos
+                  </button>
                 </div>
-              )}
-              {ex.generated_video_url && (
-                <video src={ex.generated_video_url} controls className="rounded-xl w-full max-w-sm h-auto bg-black" />
-              )}
-              {!ex.description && !ex.vimeo_video_id && !ex.generated_video_url && (
-                <p className="text-gray-600 text-sm">Aucune description ni vidéo pour cet exercice.</p>
-              )}
-            </div>
+                {ex.description && <p className="text-sm text-gray-300 leading-relaxed">{ex.description}</p>}
+                {ex.vimeo_video_id && (
+                  <div className="rounded-xl overflow-hidden" style={{ maxWidth: 480 }}>
+                    <div style={{ padding: "56.25% 0 0 0", position: "relative" }}>
+                      <iframe
+                        src={`https://player.vimeo.com/video/${ex.vimeo_video_id}?badge=0&autopause=0&player_id=0&app_id=58479`}
+                        allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+                        title={ex.name}
+                      />
+                    </div>
+                  </div>
+                )}
+                {ex.generated_video_url && (
+                  <video src={ex.generated_video_url} controls className="rounded-xl w-full max-w-sm h-auto bg-black" />
+                )}
+                {!ex.description && !ex.vimeo_video_id && !ex.generated_video_url && (
+                  <p className="text-gray-600 text-sm">Aucune description ni vidéo. Clique sur « Modifier les infos » pour en ajouter.</p>
+                )}
+              </div>
+            )}
           </td>
         </tr>
       )}
@@ -146,7 +236,6 @@ export default function ExerciseTable({ exercises }: { exercises: Exercise[] }) 
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      {/* Barre de sélection */}
       {selected.size > 0 && (
         <div className="flex items-center justify-between px-5 py-3 bg-red-500/10 border-b border-red-500/20">
           <p className="text-sm text-red-400 font-medium">{selected.size} exercice(s) sélectionné(s)</p>

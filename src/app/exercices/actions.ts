@@ -20,6 +20,19 @@ export async function createExercise(formData: FormData) {
   revalidatePath("/exercices");
 }
 
+export async function updateExercise(formData: FormData) {
+  const id = formData.get("id") as string;
+  const name = (formData.get("name") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
+  const muscles = formData.getAll("muscles") as string[];
+  if (!id || !name) return;
+  await db.exerciseLibrary.update({
+    where: { id },
+    data: { name, description, muscles },
+  });
+  revalidatePath("/exercices");
+}
+
 export async function deleteExercise(id: string) {
   await db.exerciseLibrary.delete({ where: { id } });
   revalidatePath("/exercices");
