@@ -38,6 +38,40 @@ async function fetchAllVimeoVideos(): Promise<VimeoVideo[]> {
   return videos;
 }
 
+const NON_EXERCISE_BLOCKLIST = [
+  "témoignage", "temoignage", "testimonial",
+  "smoothie", "recette", "cuisine", "repas", "nutrition",
+  "alimentaire", "petit dejeuner", "déjeuner", "diner", "snack",
+  "boisson", "shake", "protéine poudre", "complement", "supplément",
+  "transformation", "avant apres", "avant après", "before after",
+  "résultat", "resultat", "success story",
+  "interview", "podcast", "webinar", "webinaire",
+  "motivation", "présentation", "presentation",
+  "bienvenue", "welcome", "intro", "trailer",
+  "vente", "offre", "promo", "réduction", "reduction",
+  "inscription", "rejoindre", "consultation", "appel stratégique",
+  "publicité", "publicite", "annonce",
+  "avis client", "avis de",
+];
+
+const EXERCISE_KEYWORDS = [
+  "squat", "fente", "lunge", "deadlift", "soulev", "tirage", "rowing",
+  "row", "traction", "dips", "pompe", "push", "pull", "press", "developp",
+  "curl", "extension", "kickback", "hip thrust", "hip hinge", "gainage",
+  "planche", "crunch", "burpee", "jumping", "saut", "step", "swing",
+  "snatch", "clean", "thruster", "overhead", "rdl", "nordic",
+  "glute bridge", "mountain climber", "russian twist", "bicycle",
+  "leg raise", "knee raise", "bird dog", "dead bug", "hollow", "superman",
+  "face pull", "upright row", "lateral raise", "front raise", "shrug",
+  "hyperextension", "good morning",
+  "pectoral", "pecto", "biceps", "triceps", "epaule", "shoulder",
+  "fessier", "glute", "quadriceps", "quad", "ischios", "mollet", "calf",
+  "abdominaux", "abdo", "core", "lombaire", "haltere", "kettlebell",
+  "elastique", "resistance band", "barbell", "dumbbell", "cable", "trx",
+  "exercice", "exercise", "mouvement", "workout", "cardio", "mobilit",
+  "etirement", "stretching", "echauffement", "entrainement", "seance",
+];
+
 function normalize(s: string): string {
   return s
     .toLowerCase()
@@ -46,6 +80,16 @@ function normalize(s: string): string {
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isBlocklisted(name: string): boolean {
+  const n = normalize(name);
+  return NON_EXERCISE_BLOCKLIST.some((kw) => n.includes(normalize(kw)));
+}
+
+function looksLikeExercise(name: string): boolean {
+  const n = normalize(name);
+  return EXERCISE_KEYWORDS.some((kw) => n.includes(normalize(kw)));
 }
 
 function score(a: string, b: string): number {
@@ -63,7 +107,7 @@ function score(a: string, b: string): number {
 export default async function ImportVimeoPage({
   searchParams,
 }: {
-  searchParams: { q?: string; done?: string };
+  searchParams: { q?: string; matched?: string; created?: string; skipped?: string };
 }) {
   const [videos, exercises] = await Promise.all([
     fetchAllVimeoVideos(),
@@ -79,20 +123,31 @@ export default async function ImportVimeoPage({
   const linkedCount = exercises.filter((e) => e.vimeo_video_id).length;
   const totalExercises = exercises.length;
 
-  // Compute auto-match preview
   const THRESHOLD = 60;
   const previews = videos.map((video) => {
     const vimeoId = video.uri.split("/").pop() ?? "";
+    const blocked = isBlocklisted(video.name);
+    const isExercise = looksLikeExercise(video.name);
     let bestEx: ExerciseRow | null = null;
     let bestScore = 0;
-    for (const ex of exercises) {
-      const s = score(video.name, ex.name);
-      if (s > bestScore) { bestScore = s; bestEx = ex; }
+    if (!blocked) {
+      for (const ex of exercises) {
+        const s = score(video.name, ex.name);
+        if (s > bestScore) { bestScore = s; bestEx = ex; }
+      }
     }
-    return { video, vimeoId, bestEx, bestScore, willMatch: bestScore >= THRESHOLD };
+    return { video, vimeoId, bestEx, bestScore, blocked, isExercise };
   });
-  const willMatchCount = previews.filter((p) => p.willMatch && !p.bestEx?.vimeo_video_id).length;
-  const willCreateCount = previews.filter((p) => !p.willMatch).length;
+
+  const willMatchCount = previews.filter(
+    (p) => !p.blocked && p.bestScore >= THRESHOLD && !p.bestEx?.vimeo_video_id
+  ).length;
+  const willCreateCount = previews.filter(
+    (p) => !p.blocked && p.bestScore < THRESHOLD && p.isExercise
+  ).length;
+  const willSkipCount = previews.filter(
+    (p) => p.blocked || (!p.isExercise && p.bestScore < THRESHOLD)
+  ).length;
 
   function thumbUrl(v: VimeoVideo): string {
     const sizes = v.pictures?.sizes ?? [];
@@ -103,6 +158,8 @@ export default async function ImportVimeoPage({
     const m = Math.floor(s / 60);
     return `${m}:${String(s % 60).padStart(2, "0")}`;
   }
+
+  const didRun = searchParams.matched !== undefined;
 
   return (
     <div className="p-6 max-w-5xl space-y-6">
@@ -122,11 +179,12 @@ export default async function ImportVimeoPage({
           <div>
             <p className="text-white font-semibold">🤖 Matching automatique</p>
             <p className="text-gray-400 text-sm mt-1">
-              Associe automatiquement les vidéos aux exercices par nom.
+              Associe automatiquement les vidéos aux exercices par nom. Les témoignages, recettes et pubs sont ignorés.
             </p>
-            <div className="flex gap-4 mt-3 text-sm">
+            <div className="flex gap-4 mt-3 text-sm flex-wrap">
               <span className="text-green-400">✓ {willMatchCount} associations trouvées</span>
-              <span className="text-blue-400">+ {willCreateCount} nouveaux exercices à créer</span>
+              <span className="text-blue-400">+ {willCreateCount} nouveaux exercices</span>
+              <span className="text-gray-500">◌ {willSkipCount} vidéos ignorées</span>
             </div>
           </div>
           <form action={autoMatchAndAssign}>
@@ -138,9 +196,9 @@ export default async function ImportVimeoPage({
             </button>
           </form>
         </div>
-        {searchParams.done && (
+        {didRun && (
           <div className="mt-3 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
-            ✓ Terminé : {searchParams.done}
+            ✓ Terminé — {searchParams.matched} associations · {searchParams.created} créés · {searchParams.skipped} ignorés
           </div>
         )}
       </div>
@@ -167,7 +225,11 @@ export default async function ImportVimeoPage({
             <div
               key={video.uri}
               className={`bg-gray-900 border rounded-xl p-4 flex items-center gap-4 ${
-                alreadyLinked ? "border-green-500/30 bg-green-500/5" : "border-gray-800"
+                alreadyLinked
+                  ? "border-green-500/30 bg-green-500/5"
+                  : preview?.blocked
+                  ? "border-gray-800 opacity-50"
+                  : "border-gray-800"
               }`}
             >
               {thumb ? (
@@ -183,9 +245,12 @@ export default async function ImportVimeoPage({
                   <span className="text-gray-500 text-xs">ID: {vimeoId}</span>
                   <span className="text-gray-500 text-xs">{formatDuration(video.duration)}</span>
                   {alreadyLinked && (
-                    <span className="text-green-400 text-xs">✓ Lié à &laquo;{alreadyLinked.name}&raquo;</span>
+                    <span className="text-green-400 text-xs">✓ Lié à «{alreadyLinked.name}»</span>
                   )}
-                  {!alreadyLinked && preview && preview.bestScore >= THRESHOLD && preview.bestEx && (
+                  {!alreadyLinked && preview?.blocked && (
+                    <span className="text-gray-500 text-xs">◌ Ignoré (non-exercice)</span>
+                  )}
+                  {!alreadyLinked && !preview?.blocked && preview && preview.bestScore >= THRESHOLD && preview.bestEx && (
                     <span className="text-brand-400 text-xs">🤖 Suggestion : {preview.bestEx.name} ({preview.bestScore}%)</span>
                   )}
                 </div>
