@@ -42,3 +42,17 @@ export async function updateVimeoId(formData: FormData) {
   });
   revalidatePath("/exercices");
 }
+
+export async function toggleFavorite(id: string) {
+  const exercise = await db.exerciseLibrary.findUnique({
+    where: { id },
+    select: { isFavorite: true },
+  });
+  if (!exercise) return;
+  await db.exerciseLibrary.update({
+    where: { id },
+    data: { isFavorite: !exercise.isFavorite },
+  });
+  revalidatePath("/exercices");
+  revalidatePath("/programmes");
+}
