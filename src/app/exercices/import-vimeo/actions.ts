@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export async function assignVimeoToExercise(formData: FormData) {
   const exerciseId = formData.get("exerciseId") as string;
@@ -15,7 +16,6 @@ export async function assignVimeoToExercise(formData: FormData) {
   revalidatePath("/exercices");
 }
 
-// Vidéos contenant ces mots → ignorées (témoignages, recettes, pubs…)
 const NON_EXERCISE_BLOCKLIST = [
   "témoignage", "temoignage", "testimonial",
   "smoothie", "recette", "cuisine", "repas", "nutrition",
@@ -32,37 +32,22 @@ const NON_EXERCISE_BLOCKLIST = [
   "avis client", "avis de",
 ];
 
-// Au moins un de ces mots doit être présent pour CRÉER un nouvel exercice
 const EXERCISE_KEYWORDS = [
-  // Mouvements
-  "squat", "fente", "lunge", "deadlift", "soulevé", "souleve",
-  "tirage", "rowing", "row", "traction", "dips", "pompe",
-  "push", "pull", "press", "développé", "developpe",
-  "curl", "extension", "kickback", "hip thrust", "hip hinge",
-  "gainage", "planche", "crunch", "burpee", "jumping", "saut",
-  "step", "swing", "snatch", "clean", "thruster", "overhead",
-  "rdl", "nordic", "glute bridge", "mountain climber",
-  "russian twist", "bicycle", "leg raise", "knee raise",
-  "bird dog", "dead bug", "hollow body", "superman",
-  "face pull", "upright row", "lateral raise", "front raise",
-  "shrug", "hyperextension", "good morning",
-  // Parties du corps
-  "pectoral", "pecto", "biceps", "triceps",
-  "épaule", "epaule", "shoulder",
-  "dos ", "back", "trapèze", "trapeze",
-  "fessier", "glute", "quadriceps", "quad",
-  "ischios", "ischio", "mollet", "calf",
-  "abdominaux", "abdo", "core", "lombaire",
-  "bras ", "jambe", "leg ",
-  // Équipement
-  "haltère", "haltere", "kettlebell",
-  "élastique", "elastique", "resistance band",
-  "barre ", "barbell", "dumbbell", "cable ", "trx",
-  // Termes génériques
-  "exercice", "exercise", "mouvement", "workout",
-  "cardio", "mobilité", "mobilite", "étirement", "etirement",
-  "stretching", "échauffement", "echauffement",
-  "séance", "seance", "entraînement", "entrainement",
+  "squat", "fente", "lunge", "deadlift", "soulev", "tirage", "rowing",
+  "row", "traction", "dips", "pompe", "push", "pull", "press", "developp",
+  "curl", "extension", "kickback", "hip thrust", "hip hinge", "gainage",
+  "planche", "crunch", "burpee", "jumping", "saut", "step", "swing",
+  "snatch", "clean", "thruster", "overhead", "rdl", "nordic",
+  "glute bridge", "mountain climber", "russian twist", "bicycle",
+  "leg raise", "knee raise", "bird dog", "dead bug", "hollow", "superman",
+  "face pull", "upright row", "lateral raise", "front raise", "shrug",
+  "hyperextension", "good morning",
+  "pectoral", "pecto", "biceps", "triceps", "epaule", "shoulder",
+  "fessier", "glute", "quadriceps", "quad", "ischios", "mollet", "calf",
+  "abdominaux", "abdo", "core", "lombaire", "haltere", "kettlebell",
+  "elastique", "resistance band", "barbell", "dumbbell", "cable", "trx",
+  "exercice", "exercise", "mouvement", "workout", "cardio", "mobilit",
+  "etirement", "stretching", "echauffement", "entrainement", "seance",
 ];
 
 function normalize(s: string): string {
@@ -97,15 +82,10 @@ function score(a: string, b: string): number {
   return total > 0 ? Math.round((common / total) * 80) : 0;
 }
 
-export async function autoMatchAndAssign(): Promise<{
-  matched: number;
-  created: number;
-  skipped: number;
-}> {
+export async function autoMatchAndAssign(): Promise<void> {
   const token = process.env.VIMEO_ACCESS_TOKEN;
-  if (!token) return { matched: 0, created: 0, skipped: 0 };
+  if (!token) redirect("/exercices/import-vimeo?matched=0&created=0&skipped=0");
 
-  // 1. Fetch all Vimeo videos
   const videos: { uri: string; name: string }[] = [];
   let url: string | null =
     "https://api.vimeo.com/me/videos?per_page=100&fields=uri,name";
@@ -123,7 +103,6 @@ export async function autoMatchAndAssign(): Promise<{
     url = data.paging?.next ? `https://api.vimeo.com${data.paging.next}` : null;
   }
 
-  // 2. Fetch all exercises
   type ExRow = { id: string; name: string; vimeo_video_id: string | null };
   const exercises = await db.$queryRaw<ExRow[]>`
     SELECT id::text, name, vimeo_video_id FROM exercise_library WHERE is_active = true
@@ -137,43 +116,32 @@ export async function autoMatchAndAssign(): Promise<{
   for (const video of videos) {
     const vimeoId = video.uri.split("/").pop() ?? "";
 
-    // Skip non-exercise content (témoignages, smoothies, pubs…)
     if (isBlocklisted(video.name)) {
       skipped++;
       continue;
     }
 
-    // Find best matching exercise
     let bestEx: ExRow | null = null;
     let bestScore = 0;
     for (const ex of exercises) {
       const s = score(video.name, ex.name);
-      if (s > bestScore) {
-        bestScore = s;
-        bestEx = ex;
-      }
+      if (s > bestScore) { bestScore = s; bestEx = ex; }
     }
 
     if (bestScore >= THRESHOLD && bestEx) {
-      // Already assigned? Skip
       if (bestEx.vimeo_video_id && bestEx.vimeo_video_id !== vimeoId) continue;
       if (bestEx.vimeo_video_id === vimeoId) continue;
 
       await db.exerciseLibrary
-        .update({
-          where: { id: bestEx.id },
-          data: { vimeoVideoId: vimeoId },
-        })
+        .update({ where: { id: bestEx.id }, data: { vimeoVideoId: vimeoId } })
         .catch(() => {});
       matched++;
     } else {
-      // Only create if it actually looks like an exercise
       if (!looksLikeExercise(video.name)) {
         skipped++;
         continue;
       }
 
-      // Detect muscle group
       const nameLower = normalize(video.name);
       let muscles: string[] = [];
       if (nameLower.match(/triceps/)) muscles = ["Triceps"];
@@ -189,14 +157,7 @@ export async function autoMatchAndAssign(): Promise<{
       else if (nameLower.match(/mobilit|etirement|stretching|echauffement/)) muscles = ["Cardio / Mobilité"];
 
       await db.exerciseLibrary
-        .create({
-          data: {
-            name: video.name,
-            vimeoVideoId: vimeoId,
-            muscles,
-            isActive: true,
-          },
-        })
+        .create({ data: { name: video.name, vimeoVideoId: vimeoId, muscles, isActive: true } })
         .catch(() => {});
       created++;
       exercises.push({ id: "", name: video.name, vimeo_video_id: vimeoId });
@@ -205,5 +166,5 @@ export async function autoMatchAndAssign(): Promise<{
 
   revalidatePath("/exercices/import-vimeo");
   revalidatePath("/exercices");
-  return { matched, created, skipped };
+  redirect(`/exercices/import-vimeo?matched=${matched}&created=${created}&skipped=${skipped}`);
 }
