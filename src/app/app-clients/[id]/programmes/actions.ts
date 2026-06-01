@@ -25,7 +25,6 @@ export async function createProgram(formData: FormData) {
     },
   });
 
-  // Notify client by email
   const client = await db.appClient.findUnique({
     where: { id: clientId },
     select: { email: true, firstName: true },
@@ -107,9 +106,13 @@ export async function createSessionFromTemplate(formData: FormData) {
   `;
 
   for (const ex of exercises) {
-    const libEx = await db.$queryRaw<{ id: string }[]>`
-      SELECT id::text FROM exercise_library WHERE name = ${ex.exercise_name} AND is_active = true LIMIT 1
-    `.catch(() => [] as { id: string }[]);
+    // Look up exercise in library to get id AND vimeoVideoId
+    const libEx = await db.$queryRaw<{ id: string; vimeo_video_id: string | null }[]>`
+      SELECT id::text, vimeo_video_id
+      FROM exercise_library
+      WHERE LOWER(TRIM(name)) = LOWER(TRIM(${ex.exercise_name})) AND is_active = true
+      LIMIT 1
+    `.catch(() => [] as { id: string; vimeo_video_id: string | null }[]);
 
     await db.sessionExercise.create({
       data: {
@@ -119,6 +122,7 @@ export async function createSessionFromTemplate(formData: FormData) {
         sets: ex.sets,
         reps: ex.reps,
         restSeconds: ex.rest_seconds,
+        vimeoVideoId: libEx[0]?.vimeo_video_id ?? null,
         orderIndex: ex.order_index,
         notes: ex.notes,
       },
