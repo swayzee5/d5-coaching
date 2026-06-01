@@ -12,6 +12,9 @@ async function getExercisesByMuscle(keywords: string[], limit = 8): Promise<LibE
     `SELECT id::text, name, vimeo_video_id
      FROM exercise_library
      WHERE vimeo_video_id IS NOT NULL AND is_active = true
+       AND LOWER(name) NOT LIKE '%(seance)%'
+       AND LOWER(name) NOT LIKE '%(programme)%'
+       AND LOWER(name) NOT LIKE '%(séance)%'
        AND (${conditions})
      ORDER BY name
      LIMIT ${limit}`
@@ -107,7 +110,7 @@ const TEMPLATE_DEFS = [
     limit: 6,
   },
   {
-    name: "Séance Mollets & Mollets",
+    name: "Séance Mollets",
     category: "Jambes",
     durationMinutes: 30,
     muscles: ["mollets", "gastrocné", "soléaire", "calves"],
@@ -194,7 +197,6 @@ export async function GET(req: NextRequest) {
 
   const reset = req.nextUrl.searchParams.get("reset") === "1";
 
-  // Ensure tables exist
   await db.$executeRaw`
     CREATE TABLE IF NOT EXISTS seance_templates (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -222,9 +224,12 @@ export async function GET(req: NextRequest) {
     await db.$executeRaw`TRUNCATE seance_templates CASCADE`;
   }
 
-  // Check how many exercises with videos we have
   const totalVideos = await db.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*) as count FROM exercise_library WHERE vimeo_video_id IS NOT NULL AND is_active = true
+    SELECT COUNT(*) as count FROM exercise_library
+    WHERE vimeo_video_id IS NOT NULL AND is_active = true
+      AND LOWER(name) NOT LIKE '%(seance)%'
+      AND LOWER(name) NOT LIKE '%(programme)%'
+      AND LOWER(name) NOT LIKE '%(séance)%'
   `.catch(() => [{ count: BigInt(0) }]);
 
   const videoCount = Number(totalVideos[0]?.count ?? 0);
@@ -235,7 +240,6 @@ export async function GET(req: NextRequest) {
   const allDefs = [...TEMPLATE_DEFS, ...COMPOUND_TEMPLATES];
 
   for (const def of allDefs) {
-    // Skip if already exists (unless reset)
     if (!reset) {
       const exists = await db.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*) as count FROM seance_templates WHERE name = ${def.name}
@@ -247,12 +251,10 @@ export async function GET(req: NextRequest) {
     const exercises = await getExercisesByMuscle(def.muscles, limit);
 
     if (exercises.length < 3) {
-      // Not enough exercises with videos — skip
       skipped++;
       continue;
     }
 
-    // Insert template
     const rows = await db.$queryRaw<{ id: string }[]>`
       INSERT INTO seance_templates (name, category, duration_minutes)
       VALUES (${def.name}, ${def.category}, ${def.durationMinutes})
