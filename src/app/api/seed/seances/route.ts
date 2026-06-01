@@ -3,6 +3,12 @@ import { db } from "@/lib/db";
 
 type LibEx = { id: string; name: string; vimeo_video_id: string };
 
+const EXCLUDE_FILTER = `
+  AND LOWER(name) NOT LIKE '%(seance)%'
+  AND LOWER(name) NOT LIKE '%(séance)%'
+  AND LOWER(name) NOT LIKE '%(programme)%'
+`;
+
 async function getExercisesByMuscle(keywords: string[], limit = 8): Promise<LibEx[]> {
   const conditions = keywords
     .map((k) => `EXISTS(SELECT 1 FROM unnest(muscles) m WHERE LOWER(m) ILIKE LOWER('%${k.replace(/'/g, "''")}%'))`)
@@ -12,179 +18,152 @@ async function getExercisesByMuscle(keywords: string[], limit = 8): Promise<LibE
     `SELECT id::text, name, vimeo_video_id
      FROM exercise_library
      WHERE vimeo_video_id IS NOT NULL AND is_active = true
-       AND LOWER(name) NOT LIKE '%(seance)%'
-       AND LOWER(name) NOT LIKE '%(programme)%'
-       AND LOWER(name) NOT LIKE '%(séance)%'
+       ${EXCLUDE_FILTER}
        AND (${conditions})
      ORDER BY name
      LIMIT ${limit}`
   ).catch(() => [] as LibEx[]);
 }
 
-const TEMPLATE_DEFS = [
+async function getExercisesByName(keywords: string[], limit = 8): Promise<LibEx[]> {
+  const conditions = keywords
+    .map((k) => `LOWER(name) ILIKE LOWER('%${k.replace(/'/g, "''")}%')`)
+    .join(" OR ");
+
+  return db.$queryRawUnsafe<LibEx[]>(
+    `SELECT id::text, name, vimeo_video_id
+     FROM exercise_library
+     WHERE vimeo_video_id IS NOT NULL AND is_active = true
+       ${EXCLUDE_FILTER}
+       AND (${conditions})
+     ORDER BY name
+     LIMIT ${limit}`
+  ).catch(() => [] as LibEx[]);
+}
+
+async function getExercisesByMuscleOrName(muscleKws: string[], nameKws: string[], limit = 8): Promise<LibEx[]> {
+  const muscleConds = muscleKws
+    .map((k) => `EXISTS(SELECT 1 FROM unnest(muscles) m WHERE LOWER(m) ILIKE LOWER('%${k.replace(/'/g, "''")}%'))`)
+    .join(" OR ");
+  const nameConds = nameKws
+    .map((k) => `LOWER(name) ILIKE LOWER('%${k.replace(/'/g, "''")}%')`)
+    .join(" OR ");
+
+  return db.$queryRawUnsafe<LibEx[]>(
+    `SELECT id::text, name, vimeo_video_id
+     FROM exercise_library
+     WHERE vimeo_video_id IS NOT NULL AND is_active = true
+       ${EXCLUDE_FILTER}
+       AND (${muscleConds} OR ${nameConds})
+     ORDER BY name
+     LIMIT ${limit}`
+  ).catch(() => [] as LibEx[]);
+}
+
+const TEMPLATE_DEFS: {
+  name: string;
+  category: string;
+  durationMinutes: number;
+  muscles?: string[];
+  nameKws?: string[];
+  sets: number;
+  reps: string;
+  rest: number;
+  limit?: number;
+}[] = [
+  // ── JAMBES ──────────────────────────────────────────────────────────────────
   {
-    name: "Séance Pectoraux",
-    category: "Pectoraux",
+    name: "Séance Jambes",
+    category: "Jambes",
+    durationMinutes: 65,
+    muscles: ["quadriceps", "quads", "ischio", "femoral", "fessiers", "glutes", "mollets", "jambes", "legs"],
+    sets: 4, reps: "12", rest: 90,
+    limit: 8,
+  },
+  {
+    name: "Séance Jambes B",
+    category: "Jambes",
+    durationMinutes: 60,
+    muscles: ["ischio", "femoral", "fessiers", "glutes", "gluteus", "mollets", "abducteurs", "adducteurs"],
+    sets: 4, reps: "15", rest: 90,
+    limit: 8,
+  },
+  // ── HAUT DU CORPS ────────────────────────────────────────────────────────────
+  {
+    name: "Séance Haut du corps",
+    category: "Haut du corps",
+    durationMinutes: 65,
+    muscles: ["pectoral", "pecs", "dos", "dorsal", "épaule", "epaule", "biceps", "triceps"],
+    sets: 3, reps: "12", rest: 90,
+    limit: 8,
+  },
+  {
+    name: "Séance Haut du corps B",
+    category: "Haut du corps",
+    durationMinutes: 60,
+    muscles: ["pectoral", "pecs", "dos", "dorsal", "épaule", "epaule", "biceps", "triceps", "bras"],
+    sets: 4, reps: "10", rest: 90,
+    limit: 8,
+  },
+  // ── PECS ────────────────────────────────────────────────────────────────────
+  {
+    name: "Séance Pecs",
+    category: "Pecs",
     durationMinutes: 60,
     muscles: ["pectoral", "pecs", "poitrine", "chest"],
     sets: 4, reps: "10", rest: 90,
+    limit: 8,
   },
   {
-    name: "Séance Pectoraux — Variante",
-    category: "Pectoraux",
-    durationMinutes: 60,
+    name: "Séance Pecs B",
+    category: "Pecs",
+    durationMinutes: 55,
     muscles: ["pectoral", "pecs", "poitrine", "chest"],
     sets: 3, reps: "12", rest: 90,
     limit: 6,
   },
+  // ── PECS / DOS ───────────────────────────────────────────────────────────────
   {
-    name: "Séance Dos",
-    category: "Dos",
-    durationMinutes: 65,
-    muscles: ["dos", "dorsal", "grand dorsal", "latissimus", "trapèze", "trapeze", "rhomboïde", "rhomboide"],
+    name: "Séance Pecs / Dos",
+    category: "Pecs / Dos",
+    durationMinutes: 70,
+    muscles: ["pectoral", "pecs", "poitrine", "chest", "dos", "dorsal", "grand dorsal", "latissimus"],
     sets: 4, reps: "10", rest: 90,
+    limit: 8,
   },
   {
-    name: "Séance Dos — Haut du dos",
-    category: "Dos",
-    durationMinutes: 60,
-    muscles: ["dos", "trapèze", "trapeze", "rhomboïde", "rhomboide", "postérieur", "posterieur"],
-    sets: 4, reps: "12", rest: 90,
-    limit: 6,
+    name: "Séance Pecs / Dos B",
+    category: "Pecs / Dos",
+    durationMinutes: 65,
+    muscles: ["pectoral", "pecs", "dos", "dorsal", "trapèze", "trapeze", "rhomboïde"],
+    sets: 3, reps: "12", rest: 90,
+    limit: 8,
   },
+  // ── ÉPAULES ──────────────────────────────────────────────────────────────────
   {
     name: "Séance Épaules",
     category: "Épaules",
     durationMinutes: 55,
     muscles: ["épaule", "epaule", "deltoïde", "deltoide", "delta", "shoulder"],
     sets: 4, reps: "12", rest: 90,
+    limit: 8,
   },
   {
-    name: "Séance Biceps",
-    category: "Bras",
-    durationMinutes: 40,
-    muscles: ["biceps"],
-    sets: 4, reps: "12", rest: 90,
-  },
-  {
-    name: "Séance Triceps",
-    category: "Bras",
-    durationMinutes: 40,
-    muscles: ["triceps"],
-    sets: 4, reps: "12", rest: 90,
-  },
-  {
-    name: "Séance Bras",
-    category: "Bras",
+    name: "Séance Épaules B",
+    category: "Épaules",
     durationMinutes: 50,
-    muscles: ["biceps", "triceps", "bras", "avant-bras"],
-    sets: 3, reps: "12", rest: 90,
-  },
-  {
-    name: "Séance Jambes — Quadriceps",
-    category: "Jambes",
-    durationMinutes: 65,
-    muscles: ["quadriceps", "quads", "jambes", "legs"],
-    sets: 4, reps: "12", rest: 90,
-  },
-  {
-    name: "Séance Jambes — Ischios & Fessiers",
-    category: "Jambes",
-    durationMinutes: 60,
-    muscles: ["ischio", "femoral", "fessiers", "glutes", "gluteus", "hanches"],
-    sets: 4, reps: "12", rest: 90,
-  },
-  {
-    name: "Séance Fessiers Femme A",
-    category: "Fessiers",
-    durationMinutes: 55,
-    muscles: ["fessiers", "glutes", "gluteus", "hanches"],
-    sets: 4, reps: "12", rest: 90,
-  },
-  {
-    name: "Séance Fessiers Femme B",
-    category: "Fessiers",
-    durationMinutes: 55,
-    muscles: ["fessiers", "glutes", "gluteus", "abducteurs", "adducteurs"],
+    muscles: ["épaule", "epaule", "deltoïde", "deltoide", "delta", "trapèze", "trapeze"],
     sets: 3, reps: "15", rest: 90,
-    limit: 6,
-  },
-  {
-    name: "Séance Mollets",
-    category: "Jambes",
-    durationMinutes: 30,
-    muscles: ["mollets", "gastrocné", "soléaire", "calves"],
-    sets: 5, reps: "20", rest: 60,
-    limit: 5,
-  },
-  {
-    name: "Séance Gainage & Abdominaux",
-    category: "Gainage",
-    durationMinutes: 40,
-    muscles: ["abdominaux", "abdos", "abs", "core", "gainage", "obliques"],
-    sets: 3, reps: "15", rest: 60,
-  },
-  {
-    name: "Séance Abdominaux",
-    category: "Abdominaux",
-    durationMinutes: 35,
-    muscles: ["abdominaux", "abdos", "abs", "obliques"],
-    sets: 3, reps: "20", rest: 60,
     limit: 7,
   },
+  // ── CARDIO ──────────────────────────────────────────────────────────────────
   {
-    name: "Séance Cardio & Mobilité",
+    name: "Séance Cardio",
     category: "Cardio",
-    durationMinutes: 45,
-    muscles: ["cardio", "mobilité", "mobilite", "souplesse", "full body", "corps entier"],
+    durationMinutes: 40,
+    muscles: ["cardio"],
+    nameKws: ["marche", "course", "skierg", "escaliers", "vélo", "rameur", "corde", "cardio", "hiit"],
     sets: 3, reps: "10", rest: 60,
-  },
-];
-
-const PUSH_MUSCLES = ["pectoral", "pecs", "poitrine", "épaule", "epaule", "deltoïde", "deltoide", "triceps"];
-const PULL_MUSCLES = ["dos", "dorsal", "grand dorsal", "latissimus", "biceps", "trapèze", "trapeze", "rhomboïde"];
-const LEGS_MUSCLES = ["quadriceps", "quads", "ischio", "femoral", "fessiers", "glutes", "mollets", "jambes"];
-const FULLBODY_MUSCLES = [...new Set([...PUSH_MUSCLES, ...PULL_MUSCLES, ...LEGS_MUSCLES])];
-
-const COMPOUND_TEMPLATES = [
-  {
-    name: "Séance Push (Pecs + Épaules + Triceps)",
-    category: "Push / Pull / Legs",
-    durationMinutes: 65,
-    muscles: PUSH_MUSCLES,
-    sets: 4, reps: "10", rest: 90,
-    limit: 8,
-  },
-  {
-    name: "Séance Pull (Dos + Biceps)",
-    category: "Push / Pull / Legs",
-    durationMinutes: 60,
-    muscles: PULL_MUSCLES,
-    sets: 4, reps: "10", rest: 90,
-    limit: 7,
-  },
-  {
-    name: "Séance Legs Day",
-    category: "Push / Pull / Legs",
-    durationMinutes: 70,
-    muscles: LEGS_MUSCLES,
-    sets: 4, reps: "12", rest: 90,
-    limit: 8,
-  },
-  {
-    name: "Full Body Express",
-    category: "Full Body",
-    durationMinutes: 50,
-    muscles: FULLBODY_MUSCLES,
-    sets: 3, reps: "12", rest: 90,
-    limit: 8,
-  },
-  {
-    name: "Full Body Force",
-    category: "Full Body",
-    durationMinutes: 60,
-    muscles: FULLBODY_MUSCLES,
-    sets: 4, reps: "8", rest: 90,
     limit: 6,
   },
 ];
@@ -224,34 +203,44 @@ export async function GET(req: NextRequest) {
     await db.$executeRaw`TRUNCATE seance_templates CASCADE`;
   }
 
-  const totalVideos = await db.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*) as count FROM exercise_library
-    WHERE vimeo_video_id IS NOT NULL AND is_active = true
-      AND LOWER(name) NOT LIKE '%(seance)%'
-      AND LOWER(name) NOT LIKE '%(programme)%'
-      AND LOWER(name) NOT LIKE '%(séance)%'
-  `.catch(() => [{ count: BigInt(0) }]);
+  const totalVideos = await db.$queryRawUnsafe<{ count: bigint }[]>(
+    `SELECT COUNT(*) as count FROM exercise_library
+     WHERE vimeo_video_id IS NOT NULL AND is_active = true
+       ${EXCLUDE_FILTER}`
+  ).catch(() => [{ count: BigInt(0) }]);
 
   const videoCount = Number(totalVideos[0]?.count ?? 0);
 
   let inserted = 0;
   let skipped = 0;
+  const details: { name: string; exercises: number; status: string }[] = [];
 
-  const allDefs = [...TEMPLATE_DEFS, ...COMPOUND_TEMPLATES];
-
-  for (const def of allDefs) {
+  for (const def of TEMPLATE_DEFS) {
     if (!reset) {
       const exists = await db.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*) as count FROM seance_templates WHERE name = ${def.name}
       `.catch(() => [{ count: BigInt(0) }]);
-      if (Number(exists[0]?.count) > 0) { skipped++; continue; }
+      if (Number(exists[0]?.count) > 0) {
+        skipped++;
+        details.push({ name: def.name, exercises: 0, status: "exists" });
+        continue;
+      }
     }
 
-    const limit = (def as { limit?: number }).limit ?? 8;
-    const exercises = await getExercisesByMuscle(def.muscles, limit);
+    const limit = def.limit ?? 8;
+    let exercises: LibEx[];
 
-    if (exercises.length < 3) {
+    if (def.nameKws && def.muscles) {
+      exercises = await getExercisesByMuscleOrName(def.muscles, def.nameKws, limit);
+    } else if (def.nameKws) {
+      exercises = await getExercisesByName(def.nameKws, limit);
+    } else {
+      exercises = await getExercisesByMuscle(def.muscles!, limit);
+    }
+
+    if (exercises.length < 2) {
       skipped++;
+      details.push({ name: def.name, exercises: exercises.length, status: "not enough" });
       continue;
     }
 
@@ -271,13 +260,14 @@ export async function GET(req: NextRequest) {
     }
 
     inserted++;
+    details.push({ name: def.name, exercises: exercises.length, status: "created" });
   }
 
   return NextResponse.json({
-    message: reset ? "Templates réinitialisés et recréés" : "Séances seedées",
+    message: reset ? "Templates réinitialisés" : "Séances seedées",
     exercisesWithVideos: videoCount,
     inserted,
     skipped,
-    total: allDefs.length,
+    details,
   });
 }
