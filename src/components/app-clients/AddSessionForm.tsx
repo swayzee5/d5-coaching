@@ -13,15 +13,25 @@ type SeanceTemplate = {
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Pectoraux": "💪",
-  "Dos": "💪",
-  "Épaules": "💪",
+  "Dos": "🏋️",
+  "Épaules": "🎯",
   "Bras": "💪",
-  "Jambes Homme": "🦵",
+  "Jambes": "🦵",
   "Jambes Femme": "🦵",
+  "Fessiers": "🦵",
+  "Push / Pull / Legs": "⚡",
   "Full Body": "⚡",
   "Gainage": "🔥",
+  "Abdominaux": "🔥",
   "Cardio": "🏃",
 };
+
+const CATEGORY_ORDER = [
+  "Pectoraux", "Dos", "Épaules", "Bras",
+  "Jambes", "Fessiers", "Jambes Femme",
+  "Push / Pull / Legs", "Full Body",
+  "Gainage", "Abdominaux", "Cardio",
+];
 
 export default function AddSessionForm({
   programId,
@@ -40,6 +50,12 @@ export default function AddSessionForm({
     return acc;
   }, {});
 
+  // Sort categories by defined order, unknown categories go last
+  const sortedCategories = [
+    ...CATEGORY_ORDER.filter((c) => byCategory[c]?.length),
+    ...Object.keys(byCategory).filter((c) => !CATEGORY_ORDER.includes(c)),
+  ];
+
   const DAY_NAMES = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
   return (
@@ -54,7 +70,7 @@ export default function AddSessionForm({
               : "bg-gray-800 text-gray-400 hover:text-gray-200"
           }`}
         >
-          ✦ Depuis un template
+          ✶ Depuis un template
         </button>
         <button
           onClick={() => setMode("manual")}
@@ -76,35 +92,39 @@ export default function AddSessionForm({
               Aucun template de séance disponible.
             </p>
           )}
-          {Object.entries(byCategory).map(([cat, sessions]) => (
-            <div key={cat}>
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
-                {CATEGORY_ICONS[cat] ?? "📋"} {cat}
-              </p>
-              <div className="space-y-1">
-                {sessions.map((s) => (
-                  <form key={s.id} action={createSessionFromTemplate}>
-                    <input type="hidden" name="programId" value={programId} />
-                    <input type="hidden" name="clientId" value={clientId} />
-                    <input type="hidden" name="seanceTemplateId" value={s.id} />
-                    <button
-                      type="submit"
-                      className="w-full flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-left"
-                    >
-                      <div>
-                        <p className="text-white text-sm">{s.name}</p>
-                        <p className="text-gray-500 text-xs">
-                          {s.exercise_count} exercices
-                          {s.duration_minutes ? ` · ~${s.duration_minutes} min` : ""}
-                        </p>
-                      </div>
-                      <span className="text-brand-400 text-xs font-medium shrink-0">Importer →</span>
-                    </button>
-                  </form>
-                ))}
+          {sortedCategories.map((cat) => {
+            const sessions = byCategory[cat];
+            if (!sessions?.length) return null;
+            return (
+              <div key={cat}>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+                  {CATEGORY_ICONS[cat] ?? "📋"} {cat}
+                </p>
+                <div className="space-y-1">
+                  {sessions.map((s) => (
+                    <form key={s.id} action={createSessionFromTemplate}>
+                      <input type="hidden" name="programId" value={programId} />
+                      <input type="hidden" name="clientId" value={clientId} />
+                      <input type="hidden" name="seanceTemplateId" value={s.id} />
+                      <button
+                        type="submit"
+                        className="w-full flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-left"
+                      >
+                        <div>
+                          <p className="text-white text-sm">{s.name}</p>
+                          <p className="text-gray-500 text-xs">
+                            {s.exercise_count} exercices
+                            {s.duration_minutes ? ` · ~${s.duration_minutes} min` : ""}
+                          </p>
+                        </div>
+                        <span className="text-brand-400 text-xs font-medium shrink-0">Importer →</span>
+                      </button>
+                    </form>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

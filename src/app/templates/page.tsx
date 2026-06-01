@@ -33,10 +33,13 @@ const SEANCE_CATEGORY_COLORS: Record<string, string> = {
   "Dos": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   "Épaules": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
   "Bras": "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  "Jambes Homme": "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  "Jambes": "bg-orange-500/10 text-orange-400 border-orange-500/20",
   "Jambes Femme": "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  "Fessiers": "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  "Push / Pull / Legs": "bg-amber-500/10 text-amber-400 border-amber-500/20",
   "Full Body": "bg-green-500/10 text-green-400 border-green-500/20",
   "Gainage": "bg-red-500/10 text-red-400 border-red-500/20",
+  "Abdominaux": "bg-red-500/10 text-red-400 border-red-500/20",
   "Cardio": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 };
 
@@ -45,10 +48,13 @@ const SEANCE_CATEGORY_ICONS: Record<string, string> = {
   "Dos": "🏋️",
   "Épaules": "🎯",
   "Bras": "💪",
-  "Jambes Homme": "🦵",
+  "Jambes": "🦵",
   "Jambes Femme": "🦵",
+  "Fessiers": "🦵",
+  "Push / Pull / Legs": "⚡",
   "Full Body": "⚡",
   "Gainage": "🔥",
+  "Abdominaux": "🔥",
   "Cardio": "🏃",
 };
 
@@ -144,7 +150,12 @@ export default async function TemplatesPage() {
   }, {});
 
   const programCategoryOrder = ["Débutant", "Intermédiaire", "Avancé", "Femme", "Rééducation", "Général"];
-  const seanceCategoryOrder = ["Pectoraux", "Dos", "Épaules", "Bras", "Jambes Homme", "Jambes Femme", "Full Body", "Gainage", "Cardio", "Général"];
+  const seanceCategoryOrder = [
+    "Pectoraux", "Dos", "Épaules", "Bras",
+    "Jambes", "Fessiers", "Jambes Femme",
+    "Push / Pull / Legs", "Full Body",
+    "Gainage", "Abdominaux", "Cardio", "Général",
+  ];
 
   return (
     <div className="p-6 space-y-12 max-w-5xl">
@@ -210,7 +221,7 @@ export default async function TemplatesPage() {
                           href={`/templates/${t.id}/apply`}
                           className="flex-1 text-center px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors"
                         >
-                          ✦ Appliquer
+                          ✶ Appliquer
                         </Link>
                       </div>
                     </div>
