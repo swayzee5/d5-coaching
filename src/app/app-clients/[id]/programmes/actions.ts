@@ -106,7 +106,6 @@ export async function createSessionFromTemplate(formData: FormData) {
   `;
 
   for (const ex of exercises) {
-    // Look up exercise in library to get id AND vimeoVideoId
     const libEx = await db.$queryRaw<{ id: string; vimeo_video_id: string | null }[]>`
       SELECT id::text, vimeo_video_id
       FROM exercise_library
@@ -129,7 +128,16 @@ export async function createSessionFromTemplate(formData: FormData) {
     });
   }
 
-  redirect(`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`);
+  revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
+}
+
+export async function deleteSession(formData: FormData) {
+  const sessionId = formData.get("sessionId") as string;
+  const programId = formData.get("programId") as string;
+  const clientId = formData.get("clientId") as string;
+  if (!sessionId) return;
+  await db.trainingSession.delete({ where: { id: sessionId } });
+  revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
 }
 
 export async function renameSession(

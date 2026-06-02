@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSession } from "../actions";
 import AddSessionForm from "@/components/app-clients/AddSessionForm";
+import DeleteSessionButton from "@/components/app-clients/DeleteSessionButton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Programme — D5 CRM" };
@@ -39,7 +40,6 @@ export default async function ProgramDetailPage({
 
   if (!program || program.clientId !== clientId) notFound();
 
-  // Load seance templates
   const seanceTemplatesRaw = await db.$queryRaw<SeanceTemplate[]>`
     SELECT st.id::text, st.name, st.category, st.duration_minutes,
       COUNT(ste.id) AS exercise_count
@@ -70,7 +70,7 @@ export default async function ProgramDetailPage({
                 )}
                 {program.startDate && (
                   <span className="text-gray-400 text-sm">
-                    Début :
+                    Début :
                     {new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(
                       new Date(program.startDate)
                     )}
@@ -124,12 +124,19 @@ export default async function ProgramDetailPage({
                     </p>
                   </div>
                 </div>
-                <Link
-                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`}
-                  className="text-gray-600 hover:text-gray-400 text-xs px-2 py-1 rounded hover:bg-gray-800 transition-colors"
-                >
-                  ✏️ Modifier
-                </Link>
+                <div className="flex items-center gap-1">
+                  <Link
+                    href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}`}
+                    className="text-gray-600 hover:text-gray-400 text-xs px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                  >
+                    ✏️ Modifier
+                  </Link>
+                  <DeleteSessionButton
+                    sessionId={session.id}
+                    programId={programId}
+                    clientId={clientId}
+                  />
+                </div>
               </div>
               <div className="flex gap-2 pt-3 border-t border-gray-800">
                 <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/voir`}
