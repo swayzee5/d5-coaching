@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createSession } from "../actions";
 import AddSessionForm from "@/components/app-clients/AddSessionForm";
 import DeleteSessionButton from "@/components/app-clients/DeleteSessionButton";
+import ProgramStatusBar from "@/components/app-clients/ProgramStatusBar";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Programme — D5 CRM" };
@@ -40,14 +41,24 @@ export default async function ProgramDetailPage({
 
   if (!program || program.clientId !== clientId) notFound();
 
-  const seanceTemplatesRaw = await db.$queryRaw<SeanceTemplate[]>`
-    SELECT st.id::text, st.name, st.category, st.duration_minutes,
-      COUNT(ste.id) AS exercise_count
-    FROM seance_templates st
-    LEFT JOIN seance_template_exercises ste ON ste.seance_template_id = st.id
-    GROUP BY st.id
-    ORDER BY st.category, st.name
-  `.catch(() => [] as SeanceTemplate[]);
+  // Load status (column may not exist yet if migration not run — fallback to DRAFT)
+  const statusRow = await db
+    .$queryRaw<{ status: string }[]>`
+      SELECT status FROM training_programs WHERE id = ${programId}::uuid LIMIT 1
+    `
+    .catch(() => [] as { status: string }[]);
+  const programStatus = statusRow[0]?.status ?? "DRAFT";
+
+  const seanceTemplatesRaw = await db
+    .$queryRaw<SeanceTemplate[]>`
+      SELECT st.id::text, st.name, st.category, st.duration_minutes,
+        COUNT(ste.id) AS exercise_count
+      FROM seance_templates st
+      LEFT JOIN seance_template_exercises ste ON ste.seance_template_id = st.id
+      GROUP BY st.id
+      ORDER BY st.category, st.name
+    `
+    .catch(() => [] as SeanceTemplate[]);
 
   const seanceTemplates = seanceTemplatesRaw.map((t) => ({
     ...t,
@@ -57,7 +68,10 @@ export default async function ProgramDetailPage({
   return (
     <div className="p-6 max-w-3xl space-y-6">
       <div>
-        <Link href={`/app-clients/${clientId}`} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
+        <Link
+          href={`/app-clients/${clientId}`}
+          className="text-gray-500 hover:text-gray-300 text-sm transition-colors"
+        >
           ← {program.client.firstName} {program.client.lastName}
         </Link>
         <div className="mt-4">
@@ -70,27 +84,36 @@ export default async function ProgramDetailPage({
                 )}
                 {program.startDate && (
                   <span className="text-gray-400 text-sm">
-                    Début :
-                    {new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(
-                      new Date(program.startDate)
-                    )}
+                    Début :{" "}
+                    {new Intl.DateTimeFormat("fr-FR", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    }).format(new Date(program.startDate))}
                   </span>
                 )}
               </div>
             </div>
-            <span className={`mt-1 px-3 py-1 text-xs rounded-full font-medium ${
-              program.isActive ? "bg-green-500/10 text-green-400" : "bg-gray-700 text-gray-400"
-            }`}>
+            <span
+              className={`mt-1 px-3 py-1 text-xs rounded-full font-medium ${
+                program.isActive
+                  ? "bg-green-500/10 text-green-400"
+                  : "bg-gray-700 text-gray-400"
+              }`}
+            >
               {program.isActive ? "Actif" : "Inactif"}
             </span>
           </div>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="flex gap-6 px-5 py-4 bg-gray-900 border border-gray-800 rounded-xl">
         <div>
           <p className="text-2xl font-black text-white">{program.sessions.length}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Séance{program.sessions.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Séance{program.sessions.length !== 1 ? "s" : ""}
+          </p>
         </div>
         <div>
           <p className="text-2xl font-black text-white">
@@ -100,12 +123,22 @@ export default async function ProgramDetailPage({
         </div>
       </div>
 
+      {/* Status workflow */}
+      <ProgramStatusBar
+        programId={programId}
+        clientId={clientId}
+        status={programStatus}
+      />
+
+      {/* Sessions */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Séances</h2>
 
         {program.sessions.length === 0 ? (
           <div className="bg-gray-900 border border-gray-800 border-dashed rounded-xl py-12 text-center">
-            <p className="text-gray-600 text-sm">Aucune séance — ajoutez-en une ci-dessous</p>
+            <p className="text-gray-600 text-sm">
+              Aucune séance — ajoutez-en une ci-dessous
+            </p>
           </div>
         ) : (
           program.sessions.map((session, i) => (
@@ -118,9 +151,14 @@ export default async function ProgramDetailPage({
                   <div>
                     <p className="font-medium text-white text-sm">{session.name}</p>
                     <p className="text-gray-500 text-xs mt-0.5">
-                      {session.dayOfWeek !== null ? DAY_NAMES[session.dayOfWeek] + " · " : ""}
-                      {session._count.exercises} exercice{session._count.exercises !== 1 ? "s" : ""}
-                      {session.durationMinutes ? ` · ~${session.durationMinutes} min` : ""}
+                      {session.dayOfWeek !== null
+                        ? DAY_NAMES[session.dayOfWeek] + " · "
+                        : ""}
+                      {session._count.exercises} exercice
+                      {session._count.exercises !== 1 ? "s" : ""}
+                      {session.durationMinutes
+                        ? ` · ~${session.durationMinutes} min`
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -139,16 +177,22 @@ export default async function ProgramDetailPage({
                 </div>
               </div>
               <div className="flex gap-2 pt-3 border-t border-gray-800">
-                <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/voir`}
-                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium">
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/voir`}
+                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                >
                   👁 Voir
                 </Link>
-                <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/commencer`}
-                  className="flex-1 text-center py-2 text-xs text-white bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors font-medium">
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/commencer`}
+                  className="flex-1 text-center py-2 text-xs text-white bg-brand-500 hover:bg-brand-400 rounded-lg transition-colors font-medium"
+                >
                   ▶ Commencer
                 </Link>
-                <Link href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/resultats`}
-                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium">
+                <Link
+                  href={`/app-clients/${clientId}/programmes/${programId}/seances/${session.id}/resultats`}
+                  className="flex-1 text-center py-2 text-xs text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                >
                   📊 Résultats
                 </Link>
               </div>
@@ -157,6 +201,7 @@ export default async function ProgramDetailPage({
         )}
       </div>
 
+      {/* Add session */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
         <h2 className="font-semibold text-white mb-4 text-sm">Ajouter une séance</h2>
         <AddSessionForm

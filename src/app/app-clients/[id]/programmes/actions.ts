@@ -25,10 +25,9 @@ export async function createProgram(formData: FormData) {
     },
   });
 
-  const client = await db.appClient.findUnique({
-    where: { id: clientId },
-    select: { email: true, firstName: true },
-  }).catch(() => null);
+  const client = await db.appClient
+    .findUnique({ where: { id: clientId }, select: { email: true, firstName: true } })
+    .catch(() => null);
 
   if (client) {
     sendProgramAssignedEmail({
@@ -106,12 +105,14 @@ export async function createSessionFromTemplate(formData: FormData) {
   `;
 
   for (const ex of exercises) {
-    const libEx = await db.$queryRaw<{ id: string; vimeo_video_id: string | null }[]>`
-      SELECT id::text, vimeo_video_id
-      FROM exercise_library
-      WHERE LOWER(TRIM(name)) = LOWER(TRIM(${ex.exercise_name})) AND is_active = true
-      LIMIT 1
-    `.catch(() => [] as { id: string; vimeo_video_id: string | null }[]);
+    const libEx = await db
+      .$queryRaw<{ id: string; vimeo_video_id: string | null }[]>`
+        SELECT id::text, vimeo_video_id
+        FROM exercise_library
+        WHERE LOWER(TRIM(name)) = LOWER(TRIM(${ex.exercise_name})) AND is_active = true
+        LIMIT 1
+      `
+      .catch(() => [] as { id: string; vimeo_video_id: string | null }[]);
 
     await db.sessionExercise.create({
       data: {
@@ -126,6 +127,48 @@ export async function createSessionFromTemplate(formData: FormData) {
         notes: ex.notes,
       },
     });
+  }
+
+  revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
+}
+
+export async function updateProgramStatus(formData: FormData) {
+  const programId = formData.get("programId") as string;
+  const clientId = formData.get("clientId") as string;
+  const newStatus = formData.get("status") as string;
+
+  if (!programId || !newStatus) return;
+
+  const allowed = ["DRAFT", "SAVED", "PUBLISHED"];
+  if (!allowed.includes(newStatus)) return;
+
+  await db.$executeRaw`
+    UPDATE training_programs
+    SET status = ${newStatus}, updated_at = NOW()
+    WHERE id = ${programId}::uuid
+  `;
+
+  if (newStatus === "PUBLISHED") {
+    const program = await db.trainingProgram
+      .findUnique({
+        where: { id: programId },
+        include: {
+          client: { select: { email: true, firstName: true } },
+          sessions: { select: { id: true } },
+        },
+      })
+      .catch(() => null);
+
+    if (program) {
+      sendProgramAssignedEmail({
+        firstName: program.client.firstName,
+        email: program.client.email,
+        programName: program.name,
+        startDate: program.startDate ? program.startDate.toISOString() : null,
+        sessionCount: program.sessions.length,
+        weeksDuration: program.weeksDuration,
+      }).catch((err) => console.error("[publish-email]", err));
+    }
   }
 
   revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
