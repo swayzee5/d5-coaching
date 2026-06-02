@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
     }
 
-    // Sanitize filename
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const blobPath = `nutrition/${clientId}/${Date.now()}-${safeName}`;
 
@@ -41,7 +40,8 @@ export async function POST(request: NextRequest) {
       uploadedAt: record.uploadedAt.toISOString(),
     });
   } catch (error) {
-    console.error("[upload-nutrition]", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[upload-nutrition]", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

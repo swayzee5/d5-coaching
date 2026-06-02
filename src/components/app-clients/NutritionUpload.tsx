@@ -45,7 +45,6 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
     setUploading(true);
     setError("");
 
-    // Use filename (without extension) as default name if not filled
     const effectiveName = planName.trim() ||
       file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
 
@@ -56,15 +55,19 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
       fd.append("name", effectiveName);
 
       const res = await fetch("/api/upload-nutrition", { method: "POST", body: fd });
-      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
 
-      const created: SerializedFile = await res.json();
-      setFiles((prev) => [created, ...prev]);
+      if (!res.ok) {
+        setError(data?.error ?? "Erreur lors de l'upload.");
+        return;
+      }
+
+      setFiles((prev) => [data, ...prev]);
       setPlanName("");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
-    } catch {
-      setError("Erreur lors de l'upload. Réessaie.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau.");
     } finally {
       setUploading(false);
     }
@@ -97,7 +100,11 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-500/20 file:text-brand-400 file:text-xs file:font-semibold hover:file:bg-brand-500/30 file:cursor-pointer"
         />
-        {error && <p className="text-red-400 text-xs">{error}</p>}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+            <p className="text-red-400 text-xs font-mono break-all">{error}</p>
+          </div>
+        )}
         <button
           type="submit"
           disabled={uploading || !file}
