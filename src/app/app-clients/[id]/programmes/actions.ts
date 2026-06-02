@@ -132,6 +132,13 @@ export async function createSessionFromTemplate(formData: FormData) {
   revalidatePath(`/app-clients/${clientId}/programmes/${programId}`);
 }
 
+async function ensureStatusColumn() {
+  await db.$executeRaw`
+    ALTER TABLE training_programs
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'DRAFT'
+  `.catch(() => {});
+}
+
 export async function updateProgramStatus(formData: FormData) {
   const programId = formData.get("programId") as string;
   const clientId = formData.get("clientId") as string;
@@ -141,6 +148,9 @@ export async function updateProgramStatus(formData: FormData) {
 
   const allowed = ["DRAFT", "SAVED", "PUBLISHED"];
   if (!allowed.includes(newStatus)) return;
+
+  // Auto-create column if it doesn't exist yet
+  await ensureStatusColumn();
 
   await db.$executeRaw`
     UPDATE training_programs
