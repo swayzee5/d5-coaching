@@ -19,8 +19,8 @@ interface Props {
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return "";
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
 function formatDate(iso: string): string {
@@ -41,15 +41,19 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || !planName.trim()) return;
+    if (!file) return;
     setUploading(true);
     setError("");
+
+    // Use filename (without extension) as default name if not filled
+    const effectiveName = planName.trim() ||
+      file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
 
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("clientId", clientId);
-      fd.append("name", planName.trim());
+      fd.append("name", effectiveName);
 
       const res = await fetch("/api/upload-nutrition", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
@@ -60,7 +64,7 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
     } catch {
-      setError("Erreur lors de l’upload. Réessaie.");
+      setError("Erreur lors de l'upload. Réessaie.");
     } finally {
       setUploading(false);
     }
@@ -71,7 +75,6 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Upload form */}
       <form
         onSubmit={handleUpload}
         className="bg-gray-800/40 border border-gray-700 rounded-xl p-4 space-y-3"
@@ -81,10 +84,9 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
         </p>
         <input
           type="text"
-          placeholder='ex : "Plan semaine 3"'
+          placeholder='Nom (ex : "Plan semaine 3") — optionnel'
           value={planName}
           onChange={(e) => setPlanName(e.target.value)}
-          required
           className={inputCls}
         />
         <input
@@ -98,7 +100,7 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
         {error && <p className="text-red-400 text-xs">{error}</p>}
         <button
           type="submit"
-          disabled={uploading || !file || !planName.trim()}
+          disabled={uploading || !file}
           className="flex items-center gap-2 px-3 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition-colors"
         >
           {uploading ? (
@@ -110,7 +112,6 @@ export function NutritionUpload({ clientId, files: initial }: Props) {
         </button>
       </form>
 
-      {/* Files list */}
       {files.length === 0 ? (
         <p className="text-gray-600 text-xs text-center py-4">
           Aucun plan envoyé

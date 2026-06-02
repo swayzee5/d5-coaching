@@ -92,41 +92,41 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   let programs: Program[] = [];
   let programTemplates: ProgramTemplate[] = [];
 
-  // Tier 1: full query with relations
+  // Load client (with relations)
   try {
-    const [c, p] = await Promise.all([
-      db.appClient.findUnique({
-        where: { id: params.id },
-        include: {
-          progressEntries: { orderBy: { entryDate: "desc" }, take: 30 },
-          nutritionFiles: { where: { isActive: true }, orderBy: { uploadedAt: "desc" } },
-        },
-      }),
-      db.trainingProgram.findMany({
-        where: { clientId: params.id },
-        orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-        include: { _count: { select: { sessions: true } } },
-      }),
-    ]);
-    client = c as ClientDetail | null;
-    programs = p as Program[];
+    client = await db.appClient.findUnique({
+      where: { id: params.id },
+      include: {
+        progressEntries: { orderBy: { entryDate: "desc" }, take: 30 },
+        nutritionFiles: { where: { isActive: true }, orderBy: { uploadedAt: "desc" } },
+      },
+    }) as ClientDetail | null;
   } catch (err) {
     console.error("[client-detail:full]", err);
   }
 
-  // Tier 2: basic query without relations (avoids FK join issues)
+  // Fallback: load client without relations
   if (!client) {
     try {
       const c = await db.appClient.findUnique({ where: { id: params.id } });
-      if (c) {
-        client = { ...c, progressEntries: [], nutritionFiles: [] } as unknown as ClientDetail;
-      }
+      if (c) client = { ...c, progressEntries: [], nutritionFiles: [] } as unknown as ClientDetail;
     } catch (err) {
       console.error("[client-detail:fallback]", err);
     }
   }
 
   if (!client) notFound();
+
+  // Load programmes separately so a client query failure doesn't hide them
+  try {
+    programs = await db.trainingProgram.findMany({
+      where: { clientId: params.id },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      include: { _count: { select: { sessions: true } } },
+    }) as Program[];
+  } catch (err) {
+    console.error("[client-detail:programmes]", err);
+  }
 
   programTemplates = await db.$queryRaw<ProgramTemplate[]>`
     SELECT pt.id::text, pt.name, pt.description, pt.category, pt.weeks_duration,
@@ -362,7 +362,6 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         </details>
       </div>
 
-      {/* Reboot 40 — Activité */}
       {(client.isRebootOnly || hasRebootActivity) && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
@@ -378,8 +377,6 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               {rebootTotal}/7 étapes
             </span>
           </div>
-
-          {/* Progress bar */}
           <div className="mb-5">
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
               <div
@@ -388,12 +385,10 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               />
             </div>
           </div>
-
           {!hasRebootActivity ? (
             <p className="text-gray-600 text-sm text-center py-4">Aucune activité pour l&apos;instant</p>
           ) : (
             <div className="space-y-5">
-              {/* Séances */}
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5">
                   Séances — {rebootActivity.completions.length}/3 complétées
@@ -442,8 +437,6 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
                   })}
                 </div>
               </div>
-
-              {/* Modules */}
               {rebootActivity.modules.length > 0 && (
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5">
