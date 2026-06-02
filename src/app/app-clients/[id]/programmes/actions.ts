@@ -25,21 +25,7 @@ export async function createProgram(formData: FormData) {
     },
   });
 
-  const client = await db.appClient
-    .findUnique({ where: { id: clientId }, select: { email: true, firstName: true } })
-    .catch(() => null);
-
-  if (client) {
-    sendProgramAssignedEmail({
-      firstName: client.firstName,
-      email: client.email,
-      programName: name.trim(),
-      startDate: startDate || null,
-      sessionCount: 0,
-      weeksDuration: weeksDuration ? parseInt(weeksDuration) : null,
-    }).catch((err) => console.error("[program-email]", err));
-  }
-
+  // Email sent only when programme is published (see updateProgramStatus)
   redirect(`/app-clients/${clientId}/programmes/${program.id}`);
 }
 
@@ -149,7 +135,6 @@ export async function updateProgramStatus(formData: FormData) {
   const allowed = ["DRAFT", "SAVED", "PUBLISHED"];
   if (!allowed.includes(newStatus)) return;
 
-  // Auto-create column if it doesn't exist yet
   await ensureStatusColumn();
 
   await db.$executeRaw`
