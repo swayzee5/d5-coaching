@@ -1,47 +1,32 @@
-import { put } from "@vercel/blob";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
+  const body = (await request.json()) as HandleUploadBody;
+
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const clientId = formData.get("clientId") as string | null;
-    const name = formData.get("name") as string | null;
-
-    if (!file || !clientId || !name) {
-      return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
-    }
-
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const blobPath = `nutrition/${clientId}/${Date.now()}-${safeName}`;
-
-    const blob = await put(blobPath, file, {
-      access: "public",
-      contentType: file.type || "application/octet-stream",
-    });
-
-    const record = await db.appNutritionFile.create({
-      data: {
-        clientId,
-        name,
-        fileUrl: blob.url,
-        fileName: file.name,
-        fileSize: file.size,
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ],
+        maximumSizeInBytes: 50 * 1024 * 1024,
+      }),
+      onUploadCompleted: async () => {
+        // DB save handled separately by /api/upload-nutrition/save
       },
     });
 
-    return NextResponse.json({
-      id: record.id,
-      name: record.name,
-      fileUrl: record.fileUrl,
-      fileName: record.fileName,
-      fileSize: record.fileSize,
-      uploadedAt: record.uploadedAt.toISOString(),
-    });
+    return NextResponse.json(jsonResponse);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[upload-nutrition]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[upload-nutrition:token]", msg);
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }
