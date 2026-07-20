@@ -73,6 +73,20 @@ export async function updateExercise(
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }
 
+export async function reorderExercises(
+  sessionId: string,
+  clientId: string,
+  programId: string,
+  orderedIds: string[]
+) {
+  await db.$transaction(
+    orderedIds.map((id, index) =>
+      db.sessionExercise.update({ where: { id }, data: { orderIndex: index } })
+    )
+  );
+  revalidatePath(sessionPath(clientId, programId, sessionId));
+}
+
 export async function renameSession(
   sessionId: string,
   clientId: string,

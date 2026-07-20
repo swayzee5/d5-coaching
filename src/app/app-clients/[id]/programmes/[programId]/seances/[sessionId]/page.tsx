@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ExercisePicker } from "@/components/programme/ExercisePicker";
-import { ExerciseRow } from "@/components/programme/ExerciseRow";
+import { ExerciseList } from "@/components/programme/ExerciseList";
 import { RenameSessionInput } from "@/components/programme/RenameSessionInput";
-import { addExercise, removeExercise, updateExercise, renameSession, moveExercise } from "./actions";
+import { addExercise, removeExercise, updateExercise, renameSession, reorderExercises } from "./actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Séance — D5 CRM" };
@@ -39,10 +39,20 @@ export default async function SessionBuilderPage({
 
   const addAction = addExercise.bind(null, sessionId, clientId, programId);
   const renameAction = renameSession.bind(null, sessionId, clientId, programId);
+  const reorderAction = reorderExercises.bind(null, sessionId, clientId, programId);
+
+  const exercises = session.exercises.map((ex) => ({
+    id: ex.id,
+    name: ex.name,
+    sets: ex.sets,
+    reps: ex.reps,
+    restSeconds: ex.restSeconds,
+    notes: ex.notes,
+    vimeoVideoId: (ex as any).vimeoVideoId ?? null,
+  }));
 
   return (
     <div className="p-6 max-w-3xl space-y-6">
-      {/* Breadcrumb */}
       <div>
         <Link
           href={`/app-clients/${clientId}/programmes/${programId}`}
@@ -61,47 +71,22 @@ export default async function SessionBuilderPage({
         </div>
       </div>
 
-      {/* Exercises table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {session.exercises.length === 0 ? (
+        {exercises.length === 0 ? (
           <div className="py-16 text-center space-y-1">
             <p className="text-gray-500 text-sm">Aucun exercice dans cette séance</p>
-            <p className="text-gray-600 text-xs">Utilisez le bouton &quot;Ajouter un exercice&quot; ci-dessus</p>
+            <p className="text-gray-600 text-xs">Utilisez le bouton « Ajouter un exercice » ci-dessus</p>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-12 gap-4 px-5 py-3 border-b border-gray-800">
-              <div className="col-span-5 text-xs text-gray-500 uppercase tracking-wider">Exercice</div>
-              <div className="col-span-2 text-xs text-gray-500 uppercase tracking-wider text-center">Séries</div>
-              <div className="col-span-2 text-xs text-gray-500 uppercase tracking-wider text-center">Reps</div>
-              <div className="col-span-2 text-xs text-gray-500 uppercase tracking-wider text-center">Repos (s)</div>
-              <div className="col-span-1"></div>
-            </div>
-            <div className="divide-y divide-gray-800/50">
-              {session.exercises.map((ex, i) => (
-                <ExerciseRow
-                  key={ex.id}
-                  exercise={{
-                    id: ex.id,
-                    name: ex.name,
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    restSeconds: ex.restSeconds,
-                    notes: ex.notes,
-                    vimeoVideoId: (ex as any).vimeoVideoId ?? null,
-                  }}
-                  updateAction={updateExercise.bind(null, ex.id, clientId, programId, sessionId)}
-                  removeAction={removeExercise.bind(null, ex.id, clientId, programId, sessionId)}
-                  moveUpAction={i > 0 ? moveExercise.bind(null, ex.id, clientId, programId, sessionId, "up") : undefined}
-                  moveDownAction={i < session.exercises.length - 1 ? moveExercise.bind(null, ex.id, clientId, programId, sessionId, "down") : undefined}
-                />
-              ))}
-            </div>
-          </>
+          <ExerciseList
+            initialExercises={exercises}
+            reorderAction={reorderAction}
+            updateAction={(id) => updateExercise.bind(null, id, clientId, programId, sessionId)}
+            removeAction={(id) => removeExercise.bind(null, id, clientId, programId, sessionId)}
+          />
         )}
       </div>
 
-      {/* Add custom exercise */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
         <h3 className="text-sm font-semibold text-white mb-3">Exercice personnalisé</h3>
         <form action={addAction} className="flex gap-3">
@@ -115,10 +100,7 @@ export default async function SessionBuilderPage({
           <input type="hidden" name="sets" value="3" />
           <input type="hidden" name="reps" value="10" />
           <input type="hidden" name="restSeconds" value="60" />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-          >
+          <button type="submit" className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors">
             Ajouter
           </button>
         </form>
