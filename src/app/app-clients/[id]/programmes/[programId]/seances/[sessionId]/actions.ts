@@ -84,6 +84,44 @@ export async function removeExercise(
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }
 
+export async function renameSession(
+  sessionId: string,
+  clientId: string,
+  programId: string,
+  formData: FormData
+) {
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) return;
+  await db.trainingSession.update({ where: { id: sessionId }, data: { name } });
+  revalidatePath(sessionPath(clientId, programId, sessionId));
+}
+
+export async function moveExercise(
+  exerciseId: string,
+  clientId: string,
+  programId: string,
+  sessionId: string,
+  direction: "up" | "down"
+) {
+  const exercises = await db.sessionExercise.findMany({
+    where: { sessionId },
+    orderBy: { orderIndex: "asc" },
+    select: { id: true, orderIndex: true },
+  });
+  const idx = exercises.findIndex((e) => e.id === exerciseId);
+  if (idx === -1) return;
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= exercises.length) return;
+
+  const current = exercises[idx];
+  const swap = exercises[swapIdx];
+  await db.$transaction([
+    db.sessionExercise.update({ where: { id: current.id }, data: { orderIndex: swap.orderIndex } }),
+    db.sessionExercise.update({ where: { id: swap.id }, data: { orderIndex: current.orderIndex } }),
+  ]);
+  revalidatePath(sessionPath(clientId, programId, sessionId));
+}
+
 export async function updateExercise(
   exerciseId: string,
   clientId: string,

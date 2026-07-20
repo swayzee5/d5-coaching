@@ -21,15 +21,20 @@ export function ExerciseRow({
   exercise,
   updateAction,
   removeAction,
+  moveUpAction,
+  moveDownAction,
 }: {
   exercise: Exercise;
   updateAction: (formData: FormData) => Promise<void>;
   removeAction: () => Promise<void>;
+  moveUpAction?: () => Promise<void>;
+  moveDownAction?: () => Promise<void>;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
   const [showNotes, setShowNotes] = useState(!!exercise.notes);
   const [notesValue, setNotesValue] = useState(exercise.notes ?? "");
+  const [vimeoValue, setVimeoValue] = useState(exercise.vimeoVideoId ?? "");
 
   function autoSave() {
     formRef.current?.requestSubmit();
@@ -46,7 +51,21 @@ export function ExerciseRow({
         <input type="hidden" name="notes" value={notesValue} />
         <div className="flex items-center gap-2 px-4 py-3 hover:bg-gray-800/20 transition-colors">
           <div className="w-44 shrink-0 min-w-0">
-            <p className="font-medium text-white text-sm truncate" title={exercise.name}>{exercise.name}</p>
+            <div className="flex items-center gap-1.5">
+              <div
+                title={vimeoValue ? `Vidéo : ${vimeoValue}` : "Aucune vidéo"}
+                className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                  vimeoValue
+                    ? "bg-blue-500/20 text-blue-400"
+                    : "bg-gray-800 text-gray-600"
+                }`}
+              >
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+              <p className="font-medium text-white text-sm truncate" title={exercise.name}>{exercise.name}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
@@ -119,11 +138,37 @@ export function ExerciseRow({
             <div className="flex flex-col items-center shrink-0">
               <span className="text-gray-600 text-[10px] mb-0.5">Vidéo</span>
               <input
-                type="text" name="vimeoVideoId" defaultValue={exercise.vimeoVideoId ?? ""}
+                type="text" name="vimeoVideoId" value={vimeoValue}
+                onChange={(e) => setVimeoValue(e.target.value)}
                 placeholder="Vimeo" onBlur={autoSave}
                 className="w-20 bg-gray-800 border border-blue-800/40 rounded px-1 py-1.5 text-xs text-blue-300 text-center focus:outline-none focus:border-blue-500 placeholder-gray-600"
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => moveUpAction && startTransition(() => moveUpAction())}
+              disabled={!moveUpAction || isPending}
+              className="p-0.5 text-gray-600 hover:text-gray-300 disabled:opacity-20 transition-colors"
+              title="Monter"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => moveDownAction && startTransition(() => moveDownAction())}
+              disabled={!moveDownAction || isPending}
+              className="p-0.5 text-gray-600 hover:text-gray-300 disabled:opacity-20 transition-colors"
+              title="Descendre"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
 
           <button
