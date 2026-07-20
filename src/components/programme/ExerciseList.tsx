@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, useEffect } from "react";
 
-type Exercise = {
+type ExerciseWithActions = {
   id: string;
   name: string;
   sets: number | null;
@@ -10,6 +10,8 @@ type Exercise = {
   restSeconds: number | null;
   notes: string | null;
   vimeoVideoId?: string | null;
+  updateAction: (formData: FormData) => Promise<void>;
+  removeAction: () => Promise<void>;
 };
 
 function VimeoThumb({ videoId }: { videoId: string }) {
@@ -22,21 +24,11 @@ function VimeoThumb({ videoId }: { videoId: string }) {
       .catch(() => null);
   }, [videoId]);
 
-  if (!thumb) {
-    return (
-      <div className="w-14 h-10 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
-        <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative w-14 h-10 rounded overflow-hidden shrink-0">
-      <img src={thumb} alt="" className="w-full h-full object-cover" />
-      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-        <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+    <div className="relative w-14 h-10 rounded overflow-hidden shrink-0 bg-blue-500/10 flex items-center justify-center">
+      {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+        <svg className="w-3 h-3 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">
           <path d="M8 5v14l11-7z" />
         </svg>
       </div>
@@ -46,16 +38,12 @@ function VimeoThumb({ videoId }: { videoId: string }) {
 
 function ExerciseItem({
   exercise,
-  updateAction,
-  removeAction,
   onDragStart,
   onDragOver,
   onDrop,
   isDragging,
 }: {
-  exercise: Exercise;
-  updateAction: (formData: FormData) => Promise<void>;
-  removeAction: () => Promise<void>;
+  exercise: ExerciseWithActions;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
@@ -69,7 +57,7 @@ function ExerciseItem({
 
   function handleRemove() {
     if (!confirm(`Retirer « ${exercise.name} » ?`)) return;
-    startTransition(() => removeAction());
+    startTransition(() => exercise.removeAction());
   }
 
   return (
@@ -79,17 +67,17 @@ function ExerciseItem({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={`flex items-center gap-3 px-4 py-3 border-b border-gray-800/50 last:border-0 hover:bg-gray-800/20 transition-all ${
-        isDragging ? "opacity-40 bg-gray-700/20" : ""
+        isDragging ? "opacity-40 bg-gray-700/20 scale-[0.99]" : ""
       } ${isPending ? "opacity-50" : ""}`}
     >
       {/* Drag handle */}
-      <div className="shrink-0 cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400 touch-none">
+      <div className="shrink-0 cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
         </svg>
       </div>
 
-      {/* Miniature vidéo ou placeholder */}
+      {/* Miniature */}
       {vimeoValue ? (
         <VimeoThumb videoId={vimeoValue} />
       ) : (
@@ -107,7 +95,7 @@ function ExerciseItem({
       </div>
 
       {/* Champs */}
-      <form ref={formRef} action={updateAction} className="flex items-center gap-2 flex-1">
+      <form ref={formRef} action={exercise.updateAction} className="flex items-center gap-2 flex-1">
         <input type="hidden" name="vimeoVideoId" value={vimeoValue} />
         <div className="flex flex-col items-center">
           <span className="text-gray-600 text-[10px] mb-0.5">Sér.</span>
@@ -131,10 +119,8 @@ function ExerciseItem({
         </div>
       </form>
 
-      {/* Supprimer */}
       <button type="button" onClick={handleRemove} disabled={isPending}
-        className="shrink-0 p-1.5 text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors rounded"
-        title="Retirer">
+        className="shrink-0 p-1.5 text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors rounded" title="Retirer">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -146,13 +132,9 @@ function ExerciseItem({
 export function ExerciseList({
   initialExercises,
   reorderAction,
-  updateAction,
-  removeAction,
 }: {
-  initialExercises: Exercise[];
+  initialExercises: ExerciseWithActions[];
   reorderAction: (ids: string[]) => Promise<void>;
-  updateAction: (id: string) => (formData: FormData) => Promise<void>;
-  removeAction: (id: string) => () => Promise<void>;
 }) {
   const [exercises, setExercises] = useState(initialExercises);
   const [isPending, startTransition] = useTransition();
@@ -187,8 +169,6 @@ export function ExerciseList({
         <ExerciseItem
           key={ex.id}
           exercise={ex}
-          updateAction={updateAction(ex.id)}
-          removeAction={removeAction(ex.id)}
           onDragStart={() => handleDragStart(i, ex.id)}
           onDragOver={(e) => handleDragOver(e, i)}
           onDrop={handleDrop}

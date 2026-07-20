@@ -49,6 +49,8 @@ export default async function SessionBuilderPage({
     restSeconds: ex.restSeconds,
     notes: ex.notes,
     vimeoVideoId: (ex as any).vimeoVideoId ?? null,
+    updateAction: updateExercise.bind(null, ex.id, clientId, programId, sessionId),
+    removeAction: removeExercise.bind(null, ex.id, clientId, programId, sessionId),
   }));
 
   return (
@@ -81,8 +83,6 @@ export default async function SessionBuilderPage({
           <ExerciseList
             initialExercises={exercises}
             reorderAction={reorderAction}
-            updateAction={(id) => updateExercise.bind(null, id, clientId, programId, sessionId)}
-            removeAction={(id) => removeExercise.bind(null, id, clientId, programId, sessionId)}
           />
         )}
       </div>
