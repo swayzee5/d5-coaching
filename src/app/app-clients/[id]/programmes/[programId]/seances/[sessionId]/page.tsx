@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ExercisePicker } from "@/components/programme/ExercisePicker";
 import { ExerciseRow } from "@/components/programme/ExerciseRow";
+import { RenameSessionInput } from "@/components/programme/RenameSessionInput";
 import { addExercise, removeExercise, updateExercise, renameSession, moveExercise } from "./actions";
 import type { Metadata } from "next";
 
@@ -51,14 +52,7 @@ export default async function SessionBuilderPage({
         </Link>
         <div className="flex items-center justify-between mt-4">
           <div>
-            <form action={renameAction}>
-              <input
-                name="name"
-                defaultValue={session.name}
-                onBlur={(e) => e.currentTarget.form?.requestSubmit()}
-                className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-gray-700 focus:border-brand-500 focus:outline-none transition-colors"
-              />
-            </form>
+            <RenameSessionInput defaultValue={session.name} renameAction={renameAction} />
             {session.dayOfWeek !== null && (
               <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
             )}
