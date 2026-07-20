@@ -84,6 +84,47 @@ export async function updateExercise(
   revalidatePath(sessionPath(clientId, programId, sessionId));
 }
 
+export async function saveSessionAsTemplate(
+  sessionId: string,
+  name: string,
+  category: string
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const session = await db.trainingSession.findUnique({
+      where: { id: sessionId },
+      include: { exercises: { orderBy: { orderIndex: "asc" } } },
+    });
+    if (!session) return { ok: false, message: "Séance introuvable" };
+
+    const [template] = await db.$queryRaw<{ id: string }[]>`
+      INSERT INTO seance_templates (name, category, duration_minutes, notes)
+      VALUES (${name}, ${category}, ${session.durationMinutes ?? null}, ${session.notes ?? null})
+      RETURNING id::text
+    `;
+
+    for (const ex of session.exercises) {
+      await db.$executeRaw`
+        INSERT INTO seance_template_exercises
+          (seance_template_id, exercise_name, sets, reps, rest_seconds, order_index, notes)
+        VALUES (
+          ${template.id}::uuid,
+          ${ex.name},
+          ${ex.sets ?? null},
+          ${ex.reps ?? null},
+          ${ex.restSeconds ?? null},
+          ${ex.orderIndex},
+          ${ex.notes ?? null}
+        )
+      `;
+    }
+
+    return { ok: true, message: `✅ Template « ${name} » sauvegardé (${session.exercises.length} exercices)` };
+  } catch (e) {
+    console.error("[saveSessionAsTemplate]", e);
+    return { ok: false, message: "Erreur lors de la sauvegarde" };
+  }
+}
+
 export async function reorderExercises(
   sessionId: string,
   clientId: string,

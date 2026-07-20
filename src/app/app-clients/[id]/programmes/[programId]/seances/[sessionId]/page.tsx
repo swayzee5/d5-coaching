@@ -6,7 +6,8 @@ import Link from "next/link";
 import { ExercisePicker } from "@/components/programme/ExercisePicker";
 import { ExerciseList } from "@/components/programme/ExerciseList";
 import { RenameSessionInput } from "@/components/programme/RenameSessionInput";
-import { addExercise, removeExercise, updateExercise, renameSession, reorderExercises } from "./actions";
+import { SaveAsTemplateButton } from "@/components/programme/SaveAsTemplateButton";
+import { addExercise, removeExercise, updateExercise, renameSession, reorderExercises, saveSessionAsTemplate } from "./actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Séance — D5 CRM" };
@@ -69,7 +70,16 @@ export default async function SessionBuilderPage({
               <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
             )}
           </div>
-          <ExercisePicker library={library} addAction={addAction} />
+          <div className="flex items-center gap-2">
+            <SaveAsTemplateButton
+              sessionName={session.name}
+              saveAction={async (name, category) => {
+                "use server";
+                return saveSessionAsTemplate(sessionId, name, category);
+              }}
+            />
+            <ExercisePicker library={library} addAction={addAction} />
+          </div>
         </div>
       </div>
 
