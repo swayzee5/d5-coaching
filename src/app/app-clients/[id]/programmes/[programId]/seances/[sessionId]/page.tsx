@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ExercisePicker } from "@/components/programme/ExercisePicker";
 import { ExerciseRow } from "@/components/programme/ExerciseRow";
-import { addExercise, removeExercise, updateExercise } from "./actions";
+import { addExercise, removeExercise, updateExercise, renameSession, moveExercise } from "./actions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Séance — D5 CRM" };
@@ -37,6 +37,7 @@ export default async function SessionBuilderPage({
   if (!session || session.program.clientId !== clientId) notFound();
 
   const addAction = addExercise.bind(null, sessionId, clientId, programId);
+  const renameAction = renameSession.bind(null, sessionId, clientId, programId);
 
   return (
     <div className="p-6 max-w-3xl space-y-6">
@@ -50,7 +51,14 @@ export default async function SessionBuilderPage({
         </Link>
         <div className="flex items-center justify-between mt-4">
           <div>
-            <h1 className="text-xl font-bold text-white">{session.name}</h1>
+            <form action={renameAction}>
+              <input
+                name="name"
+                defaultValue={session.name}
+                onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+                className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-gray-700 focus:border-brand-500 focus:outline-none transition-colors"
+              />
+            </form>
             {session.dayOfWeek !== null && (
               <p className="text-gray-400 text-sm mt-0.5">{DAY_NAMES[session.dayOfWeek]}</p>
             )}
@@ -76,7 +84,7 @@ export default async function SessionBuilderPage({
               <div className="col-span-1"></div>
             </div>
             <div className="divide-y divide-gray-800/50">
-              {session.exercises.map((ex) => (
+              {session.exercises.map((ex, i) => (
                 <ExerciseRow
                   key={ex.id}
                   exercise={{
@@ -86,9 +94,12 @@ export default async function SessionBuilderPage({
                     reps: ex.reps,
                     restSeconds: ex.restSeconds,
                     notes: ex.notes,
+                    vimeoVideoId: (ex as any).vimeoVideoId ?? null,
                   }}
                   updateAction={updateExercise.bind(null, ex.id, clientId, programId, sessionId)}
                   removeAction={removeExercise.bind(null, ex.id, clientId, programId, sessionId)}
+                  moveUpAction={i > 0 ? moveExercise.bind(null, ex.id, clientId, programId, sessionId, "up") : undefined}
+                  moveDownAction={i < session.exercises.length - 1 ? moveExercise.bind(null, ex.id, clientId, programId, sessionId, "down") : undefined}
                 />
               ))}
             </div>
