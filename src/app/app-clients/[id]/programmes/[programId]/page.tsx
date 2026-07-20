@@ -28,7 +28,7 @@ export default async function ProgramDetailPage({
 }) {
   const { id: clientId, programId } = params;
 
-  const program = await db.trainingProgram.findUnique({
+  let program = await db.trainingProgram.findUnique({
     where: { id: programId },
     include: {
       client: { select: { id: true, firstName: true, lastName: true } },
@@ -37,6 +37,16 @@ export default async function ProgramDetailPage({
         include: { _count: { select: { exercises: true } } },
       },
     },
+  }).catch(async () => {
+    // Fallback: try without the exercises count (in case of schema mismatch)
+    return db.trainingProgram.findUnique({
+      where: { id: programId },
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+        sessions: { orderBy: { orderIndex: "asc" } },
+      },
+    }).then(p => p ? { ...p, sessions: p.sessions.map(s => ({ ...s, _count: { exercises: 0 } })) } : null)
+      .catch(() => null);
   });
 
   if (!program || program.clientId !== clientId) notFound();
