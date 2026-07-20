@@ -21,10 +21,14 @@ export function ExerciseRow({
   exercise,
   updateAction,
   removeAction,
+  moveUpAction,
+  moveDownAction,
 }: {
   exercise: Exercise;
   updateAction: (formData: FormData) => Promise<void>;
   removeAction: () => Promise<void>;
+  moveUpAction?: () => Promise<void>;
+  moveDownAction?: () => Promise<void>;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -124,6 +128,31 @@ export function ExerciseRow({
                 className="w-20 bg-gray-800 border border-blue-800/40 rounded px-1 py-1.5 text-xs text-blue-300 text-center focus:outline-none focus:border-blue-500 placeholder-gray-600"
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => moveUpAction && startTransition(() => moveUpAction())}
+              disabled={!moveUpAction || isPending}
+              className="p-0.5 text-gray-600 hover:text-gray-300 disabled:opacity-20 transition-colors"
+              title="Monter"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => moveDownAction && startTransition(() => moveDownAction())}
+              disabled={!moveDownAction || isPending}
+              className="p-0.5 text-gray-600 hover:text-gray-300 disabled:opacity-20 transition-colors"
+              title="Descendre"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
 
           <button
