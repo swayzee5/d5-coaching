@@ -21,6 +21,16 @@ export async function addExercise(
 
   if (!name?.trim()) return;
 
+  // Récupérer le vimeoVideoId depuis la bibliothèque
+  let vimeoVideoId: string | null = null;
+  if (libraryExerciseId) {
+    const libEx = await db.exerciseLibrary.findUnique({
+      where: { id: libraryExerciseId },
+      select: { vimeoVideoId: true },
+    }).catch(() => null);
+    vimeoVideoId = (libEx as any)?.vimeoVideoId ?? null;
+  }
+
   const count = await db.sessionExercise.count({ where: { sessionId } });
 
   await db.sessionExercise.create({
@@ -32,7 +42,8 @@ export async function addExercise(
       reps: reps?.trim() || null,
       restSeconds: restSeconds ? parseInt(restSeconds) : null,
       orderIndex: count,
-    },
+      vimeoVideoId,
+    } as any,
   });
 
   revalidatePath(sessionPath(clientId, programId, sessionId));
