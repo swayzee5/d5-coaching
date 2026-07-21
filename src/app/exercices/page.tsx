@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { createExercise, deleteExercise } from "./actions";
+import { createExercise, deleteExercise, updateExerciseVimeo } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import GenerateVideoButton from "@/components/exercices/GenerateVideoButton";
+import { VimeoIdInput } from "@/components/exercices/VimeoIdInput";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -201,9 +202,11 @@ export default async function ExercicesPage({
                   </td>
                   <td className="px-5 py-4">
                     <div className="space-y-2">
-                      {ex.vimeo_video_id && (
-                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs">✓ Vimeo</span>
-                      )}
+                      <VimeoIdInput
+                        exerciseId={ex.id}
+                        initialVimeoId={ex.vimeo_video_id}
+                        updateAction={updateExerciseVimeo}
+                      />
                       {ex.generated_video_url && (
                         <details className="mt-1">
                           <summary className="text-xs text-purple-400 cursor-pointer hover:text-purple-300">
@@ -215,9 +218,6 @@ export default async function ExercicesPage({
                             className="mt-2 rounded-lg w-48 h-28 object-cover bg-black"
                           />
                         </details>
-                      )}
-                      {!ex.vimeo_video_id && !ex.generated_video_url && (
-                        <span className="text-gray-600 text-xs">—</span>
                       )}
                     </div>
                   </td>

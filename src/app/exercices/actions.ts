@@ -27,3 +27,11 @@ export async function deleteExercise(id: string) {
   await db.exerciseLibrary.delete({ where: { id } });
   revalidatePath("/exercices");
 }
+
+export async function updateExerciseVimeo(id: string, vimeoVideoId: string | null) {
+  await db.exerciseLibrary.update({
+    where: { id },
+    data: { vimeoVideoId: vimeoVideoId?.trim() || null },
+  });
+  revalidatePath("/exercices");
+}
