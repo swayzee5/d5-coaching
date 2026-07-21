@@ -109,7 +109,7 @@ export default async function SessionBuilderPage({
           <input type="hidden" name="libraryExerciseId" value="" />
           <input type="hidden" name="sets" value="3" />
           <input type="hidden" name="reps" value="10" />
-          <input type="hidden" name="restSeconds" value="60" />
+          <input type="hidden" name="restSeconds" value="90" />
           <button type="submit" className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors">
             Ajouter
           </button>
