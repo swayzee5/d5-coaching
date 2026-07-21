@@ -141,6 +141,14 @@ export function ExerciseList({
   const dragIndexRef = useRef<number | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  // Sync from server when data changes (new exercise added, reorder saved, etc.)
+  // Skip during active drag to avoid resetting optimistic order
+  useEffect(() => {
+    if (!draggingId) {
+      setExercises(initialExercises);
+    }
+  }, [initialExercises]);
+
   function handleDragStart(index: number, id: string) {
     dragIndexRef.current = index;
     setDraggingId(id);
