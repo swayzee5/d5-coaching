@@ -103,9 +103,9 @@ function ExerciseItem({
             className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-gray-600 text-[10px] mb-0.5">Rep.</span>
-          <input type="text" name="reps" defaultValue={exercise.reps ?? ""} placeholder="—" onBlur={autoSave}
-            className="w-12 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
+          <span className="text-gray-600 text-[10px] mb-0.5">Rép./Durée</span>
+          <input type="text" name="reps" defaultValue={exercise.reps ?? ""} placeholder="10 / 30min" onBlur={autoSave}
+            className="w-16 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
         </div>
         <div className="flex flex-col items-center">
           <span className="text-gray-600 text-[10px] mb-0.5">Repos</span>
