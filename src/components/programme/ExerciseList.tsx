@@ -14,18 +14,12 @@ type ExerciseWithActions = {
   removeAction: () => Promise<void>;
 };
 
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m === 0) return `${s}s`;
-  return s === 0 ? `${m}min` : `${m}min ${s}s`;
-}
-
-function parseRepsField(reps: string | null): { mode: "reps" | "time"; repsText: string; timeSeconds: number } {
+function parseRepsField(reps: string | null): { mode: "reps" | "time"; repsText: string; mins: number; secs: number } {
   if (reps && /^\d+s$/.test(reps)) {
-    return { mode: "time", repsText: "", timeSeconds: parseInt(reps) };
+    const total = parseInt(reps);
+    return { mode: "time", repsText: "", mins: Math.floor(total / 60), secs: total % 60 };
   }
-  return { mode: "reps", repsText: reps ?? "", timeSeconds: 90 };
+  return { mode: "reps", repsText: reps ?? "", mins: 0, secs: 0 };
 }
 
 function VimeoThumb({ videoId }: { videoId: string }) {
@@ -70,9 +64,10 @@ function ExerciseItem({
   const initial = parseRepsField(exercise.reps);
   const [mode, setMode] = useState<"reps" | "time">(initial.mode);
   const [repsText, setRepsText] = useState(initial.repsText);
-  const [timeSeconds, setTimeSeconds] = useState(initial.timeSeconds);
+  const [mins, setMins] = useState(initial.mins);
+  const [secs, setSecs] = useState(initial.secs);
 
-  const repsFormValue = mode === "reps" ? repsText : `${timeSeconds}s`;
+  const repsFormValue = mode === "reps" ? repsText : `${mins * 60 + secs}s`;
 
   function autoSave() { formRef.current?.requestSubmit(); }
 
@@ -149,17 +144,32 @@ function ExerciseItem({
               className="w-14 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
             />
           ) : (
-            <div className="flex flex-col items-center">
-              <input
-                type="number"
-                value={timeSeconds}
-                onChange={(e) => setTimeSeconds(Math.max(0, Number(e.target.value)))}
-                min={0}
-                step={5}
-                onBlur={autoSave}
-                className="w-14 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
-              />
-              <span className="text-[9px] text-gray-500 mt-0.5">{formatDuration(timeSeconds)}</span>
+            <div className="flex items-center gap-0.5">
+              <div className="flex flex-col items-center">
+                <span className="text-gray-600 text-[9px] mb-0.5">min</span>
+                <input
+                  type="number"
+                  value={mins}
+                  onChange={(e) => setMins(Math.max(0, Number(e.target.value)))}
+                  min={0}
+                  max={99}
+                  onBlur={autoSave}
+                  className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
+                />
+              </div>
+              <span className="text-gray-500 text-xs mt-3">:</span>
+              <div className="flex flex-col items-center">
+                <span className="text-gray-600 text-[9px] mb-0.5">sec</span>
+                <input
+                  type="number"
+                  value={secs}
+                  onChange={(e) => setSecs(Math.min(59, Math.max(0, Number(e.target.value))))}
+                  min={0}
+                  max={59}
+                  onBlur={autoSave}
+                  className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
+                />
+              </div>
             </div>
           )}
         </div>
