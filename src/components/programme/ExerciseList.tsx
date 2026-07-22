@@ -82,119 +82,103 @@ function ExerciseItem({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className={`flex items-center gap-3 px-4 py-3 border-b border-gray-800/50 last:border-0 hover:bg-gray-800/20 transition-all ${
-        isDragging ? "opacity-40 bg-gray-700/20 scale-[0.99]" : ""
+      className={`border-b border-gray-800/50 last:border-0 hover:bg-gray-800/20 transition-all ${
+        isDragging ? "opacity-40 bg-gray-700/20" : ""
       } ${isPending ? "opacity-50" : ""}`}
     >
-      {/* Drag handle */}
-      <div className="shrink-0 cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-        </svg>
-      </div>
-
-      {/* Miniature */}
-      {vimeoValue ? (
-        <VimeoThumb videoId={vimeoValue} />
-      ) : (
-        <div className="w-14 h-10 rounded bg-gray-800 flex items-center justify-center shrink-0">
-          <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.845v6.31a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      {/* Ligne 1 : drag + thumbnail + nom + supprimer */}
+      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+        <div className="shrink-0 cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
           </svg>
         </div>
-      )}
 
-      {/* Nom */}
-      <div className="w-36 shrink-0 min-w-0">
-        <p className="font-medium text-white text-sm truncate" title={exercise.name}>{exercise.name}</p>
-        {exercise.notes && <p className="text-xs text-gray-500 truncate">{exercise.notes}</p>}
+        {vimeoValue ? (
+          <VimeoThumb videoId={vimeoValue} />
+        ) : (
+          <div className="w-14 h-10 rounded bg-gray-800 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.845v6.31a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-white text-sm truncate" title={exercise.name}>{exercise.name}</p>
+          {exercise.notes && <p className="text-xs text-gray-500 truncate">{exercise.notes}</p>}
+        </div>
+
+        <button type="button" onClick={handleRemove} disabled={isPending}
+          className="shrink-0 p-2 text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors rounded" title="Retirer">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      {/* Champs */}
-      <form ref={formRef} action={exercise.updateAction} className="flex items-center gap-2 flex-1">
+      {/* Ligne 2 : champs éditables (scroll horizontal sur mobile) */}
+      <form ref={formRef} action={exercise.updateAction}
+        className="flex items-end gap-3 px-4 pb-3 pl-[72px] overflow-x-auto scrollbar-none">
         <input type="hidden" name="vimeoVideoId" value={vimeoValue} />
         <input type="hidden" name="reps" value={repsFormValue} />
 
         {/* Séries */}
-        <div className="flex flex-col items-center">
-          <span className="text-gray-600 text-[10px] mb-0.5">Sér.</span>
+        <div className="flex flex-col items-center shrink-0">
+          <span className="text-gray-500 text-[10px] mb-1">Sér.</span>
           <input type="number" name="sets" defaultValue={exercise.sets ?? ""} min={1} max={99} placeholder="—" onBlur={autoSave}
-            className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
+            className="w-12 h-9 bg-gray-800 border border-gray-700 rounded px-1 text-sm text-white text-center focus:outline-none focus:border-brand-500" />
         </div>
 
-        {/* Reps / Temps avec toggle */}
-        <div className="flex flex-col items-center gap-0.5">
-          <div className="flex rounded overflow-hidden border border-gray-700 text-[9px]">
+        {/* Reps / Temps */}
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <div className="flex rounded overflow-hidden border border-gray-700 text-[10px]">
             <button type="button" onClick={() => setMode("reps")}
-              className={`px-1.5 py-0.5 transition-colors ${mode === "reps" ? "bg-gray-600 text-white" : "text-gray-600 hover:text-gray-400"}`}>
+              className={`px-2 py-0.5 transition-colors ${mode === "reps" ? "bg-gray-600 text-white" : "text-gray-600 hover:text-gray-400"}`}>
               Rép.
             </button>
             <button type="button" onClick={() => setMode("time")}
-              className={`px-1.5 py-0.5 border-l border-gray-700 transition-colors ${mode === "time" ? "bg-brand-600 text-white" : "text-gray-600 hover:text-gray-400"}`}>
+              className={`px-2 py-0.5 border-l border-gray-700 transition-colors ${mode === "time" ? "bg-brand-600 text-white" : "text-gray-600 hover:text-gray-400"}`}>
               ⏱
             </button>
           </div>
           {mode === "reps" ? (
-            <input
-              type="text"
-              value={repsText}
-              onChange={(e) => setRepsText(e.target.value)}
-              placeholder="10"
-              onBlur={autoSave}
-              className="w-14 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
-            />
+            <input type="text" value={repsText} onChange={(e) => setRepsText(e.target.value)}
+              placeholder="10" onBlur={autoSave}
+              className="w-16 h-9 bg-gray-800 border border-gray-700 rounded px-1 text-sm text-white text-center focus:outline-none focus:border-brand-500" />
           ) : (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-1">
               <div className="flex flex-col items-center">
-                <span className="text-gray-600 text-[9px] mb-0.5">min</span>
-                <input
-                  type="number"
-                  value={mins}
-                  onChange={(e) => setMins(Math.max(0, Number(e.target.value)))}
-                  min={0}
-                  max={99}
-                  onBlur={autoSave}
-                  className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
-                />
+                <span className="text-gray-500 text-[9px] mb-0.5">min</span>
+                <input type="number" value={mins} onChange={(e) => setMins(Math.max(0, Number(e.target.value)))}
+                  min={0} max={99} onBlur={autoSave}
+                  className="w-12 h-9 bg-gray-800 border border-gray-700 rounded px-1 text-sm text-white text-center focus:outline-none focus:border-brand-500" />
               </div>
-              <span className="text-gray-500 text-xs mt-3">:</span>
+              <span className="text-gray-500 text-sm">:</span>
               <div className="flex flex-col items-center">
-                <span className="text-gray-600 text-[9px] mb-0.5">sec</span>
-                <input
-                  type="number"
-                  value={secs}
-                  onChange={(e) => setSecs(Math.min(59, Math.max(0, Number(e.target.value))))}
-                  min={0}
-                  max={59}
-                  onBlur={autoSave}
-                  className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
-                />
+                <span className="text-gray-500 text-[9px] mb-0.5">sec</span>
+                <input type="number" value={secs} onChange={(e) => setSecs(Math.min(59, Math.max(0, Number(e.target.value))))}
+                  min={0} max={59} onBlur={autoSave}
+                  className="w-12 h-9 bg-gray-800 border border-gray-700 rounded px-1 text-sm text-white text-center focus:outline-none focus:border-brand-500" />
               </div>
             </div>
           )}
         </div>
 
         {/* Repos */}
-        <div className="flex flex-col items-center">
-          <span className="text-gray-600 text-[10px] mb-0.5">Repos</span>
+        <div className="flex flex-col items-center shrink-0">
+          <span className="text-gray-500 text-[10px] mb-1">Repos (s)</span>
           <input type="number" name="restSeconds" defaultValue={exercise.restSeconds ?? ""} min={0} placeholder="—" onBlur={autoSave}
-            className="w-12 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
+            className="w-16 h-9 bg-gray-800 border border-gray-700 rounded px-1 text-sm text-white text-center focus:outline-none focus:border-brand-500" />
         </div>
 
         {/* Vimeo ID */}
-        <div className="flex flex-col items-center">
-          <span className="text-gray-600 text-[10px] mb-0.5">Vimeo ID</span>
+        <div className="flex flex-col items-center shrink-0">
+          <span className="text-gray-500 text-[10px] mb-1">Vimeo ID</span>
           <input type="text" value={vimeoValue} onChange={(e) => setVimeoValue(e.target.value)} placeholder="—" onBlur={autoSave}
-            className="w-20 bg-gray-800 border border-blue-800/40 rounded px-1 py-1.5 text-xs text-blue-300 text-center focus:outline-none focus:border-blue-500" />
+            className="w-24 h-9 bg-gray-800 border border-blue-800/40 rounded px-1 text-sm text-blue-300 text-center focus:outline-none focus:border-blue-500" />
         </div>
       </form>
-
-      <button type="button" onClick={handleRemove} disabled={isPending}
-        className="shrink-0 p-1.5 text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors rounded" title="Retirer">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
     </div>
   );
 }
