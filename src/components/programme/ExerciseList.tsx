@@ -14,6 +14,20 @@ type ExerciseWithActions = {
   removeAction: () => Promise<void>;
 };
 
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s}s`;
+  return s === 0 ? `${m}min` : `${m}min ${s}s`;
+}
+
+function parseRepsField(reps: string | null): { mode: "reps" | "time"; repsText: string; timeSeconds: number } {
+  if (reps && /^\d+s$/.test(reps)) {
+    return { mode: "time", repsText: "", timeSeconds: parseInt(reps) };
+  }
+  return { mode: "reps", repsText: reps ?? "", timeSeconds: 90 };
+}
+
 function VimeoThumb({ videoId }: { videoId: string }) {
   const [thumb, setThumb] = useState<string | null>(null);
 
@@ -52,6 +66,13 @@ function ExerciseItem({
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
   const [vimeoValue, setVimeoValue] = useState(exercise.vimeoVideoId ?? "");
+
+  const initial = parseRepsField(exercise.reps);
+  const [mode, setMode] = useState<"reps" | "time">(initial.mode);
+  const [repsText, setRepsText] = useState(initial.repsText);
+  const [timeSeconds, setTimeSeconds] = useState(initial.timeSeconds);
+
+  const repsFormValue = mode === "reps" ? repsText : `${timeSeconds}s`;
 
   function autoSave() { formRef.current?.requestSubmit(); }
 
@@ -97,21 +118,60 @@ function ExerciseItem({
       {/* Champs */}
       <form ref={formRef} action={exercise.updateAction} className="flex items-center gap-2 flex-1">
         <input type="hidden" name="vimeoVideoId" value={vimeoValue} />
+        <input type="hidden" name="reps" value={repsFormValue} />
+
+        {/* Séries */}
         <div className="flex flex-col items-center">
           <span className="text-gray-600 text-[10px] mb-0.5">Sér.</span>
           <input type="number" name="sets" defaultValue={exercise.sets ?? ""} min={1} max={99} placeholder="—" onBlur={autoSave}
             className="w-10 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-gray-600 text-[10px] mb-0.5">Rép./Durée</span>
-          <input type="text" name="reps" defaultValue={exercise.reps ?? ""} placeholder="10 / 30min" onBlur={autoSave}
-            className="w-16 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
+
+        {/* Reps / Temps avec toggle */}
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="flex rounded overflow-hidden border border-gray-700 text-[9px]">
+            <button type="button" onClick={() => setMode("reps")}
+              className={`px-1.5 py-0.5 transition-colors ${mode === "reps" ? "bg-gray-600 text-white" : "text-gray-600 hover:text-gray-400"}`}>
+              Rép.
+            </button>
+            <button type="button" onClick={() => setMode("time")}
+              className={`px-1.5 py-0.5 border-l border-gray-700 transition-colors ${mode === "time" ? "bg-brand-600 text-white" : "text-gray-600 hover:text-gray-400"}`}>
+              ⏱
+            </button>
+          </div>
+          {mode === "reps" ? (
+            <input
+              type="text"
+              value={repsText}
+              onChange={(e) => setRepsText(e.target.value)}
+              placeholder="10"
+              onBlur={autoSave}
+              className="w-14 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
+            />
+          ) : (
+            <div className="flex flex-col items-center">
+              <input
+                type="number"
+                value={timeSeconds}
+                onChange={(e) => setTimeSeconds(Math.max(0, Number(e.target.value)))}
+                min={0}
+                step={5}
+                onBlur={autoSave}
+                className="w-14 bg-gray-800 border border-gray-700 rounded px-1 py-1 text-xs text-white text-center focus:outline-none focus:border-brand-500"
+              />
+              <span className="text-[9px] text-gray-500 mt-0.5">{formatDuration(timeSeconds)}</span>
+            </div>
+          )}
         </div>
+
+        {/* Repos */}
         <div className="flex flex-col items-center">
           <span className="text-gray-600 text-[10px] mb-0.5">Repos</span>
           <input type="number" name="restSeconds" defaultValue={exercise.restSeconds ?? ""} min={0} placeholder="—" onBlur={autoSave}
             className="w-12 bg-gray-800 border border-gray-700 rounded px-1 py-1.5 text-xs text-white text-center focus:outline-none focus:border-brand-500" />
         </div>
+
+        {/* Vimeo ID */}
         <div className="flex flex-col items-center">
           <span className="text-gray-600 text-[10px] mb-0.5">Vimeo ID</span>
           <input type="text" value={vimeoValue} onChange={(e) => setVimeoValue(e.target.value)} placeholder="—" onBlur={autoSave}
@@ -141,8 +201,6 @@ export function ExerciseList({
   const dragIndexRef = useRef<number | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  // Sync from server when data changes (new exercise added, reorder saved, etc.)
-  // Skip during active drag to avoid resetting optimistic order
   useEffect(() => {
     if (!draggingId) {
       setExercises(initialExercises);
