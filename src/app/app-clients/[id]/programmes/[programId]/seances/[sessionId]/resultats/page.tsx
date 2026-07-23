@@ -11,14 +11,16 @@ export default async function ResultatsPage({
 }) {
   const { id: clientId, programId, sessionId } = params;
 
-  const [session, completions] = await Promise.all([
-    db.trainingSession.findUnique({
-      where: { id: sessionId },
-      include: {
-        program: { select: { id: true, name: true, clientId: true } },
-      },
-    }),
-    db.sessionCompletion.findMany({
+  const session = await db.trainingSession.findUnique({
+    where: { id: sessionId },
+    include: { program: { select: { id: true, name: true, clientId: true } } },
+  });
+
+  if (!session || session.program.clientId !== clientId) notFound();
+
+  let completions: Awaited<ReturnType<typeof db.sessionCompletion.findMany>> = [];
+  try {
+    completions = await db.sessionCompletion.findMany({
       where: { sessionId },
       orderBy: { completedAt: "desc" },
       include: {
@@ -27,10 +29,10 @@ export default async function ResultatsPage({
           orderBy: { setNumber: "asc" },
         },
       },
-    }),
-  ]);
-
-  if (!session || session.program.clientId !== clientId) notFound();
+    });
+  } catch {
+    // Table may not exist yet in production
+  }
 
   return (
     <div className="p-6 max-w-2xl space-y-6">
