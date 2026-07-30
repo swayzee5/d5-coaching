@@ -22,6 +22,28 @@ export default async function CommencerPage({
 
   if (!session || session.program.clientId !== clientId) notFound();
 
+  // Fetch last completion to show previous weights as reference
+  let previousResults: Record<string, { setNumber: number; weightActual: string | null; repsActual: string | null }[]> = {};
+  try {
+    const lastCompletion = await db.sessionCompletion.findFirst({
+      where: { sessionId },
+      orderBy: { completedAt: "desc" },
+      include: { setResults: { orderBy: { setNumber: "asc" } } },
+    });
+    if (lastCompletion) {
+      for (const sr of lastCompletion.setResults) {
+        if (!previousResults[sr.exerciseId]) previousResults[sr.exerciseId] = [];
+        previousResults[sr.exerciseId].push({
+          setNumber: sr.setNumber,
+          weightActual: sr.weightActual,
+          repsActual: sr.repsActual,
+        });
+      }
+    }
+  } catch {
+    // Tables may not exist yet
+  }
+
   return (
     <div className="p-6 max-w-xl space-y-6">
       <div>
@@ -63,6 +85,7 @@ export default async function CommencerPage({
             restSeconds: ex.restSeconds,
             notes: ex.notes,
           }))}
+          previousResults={previousResults}
         />
       )}
     </div>

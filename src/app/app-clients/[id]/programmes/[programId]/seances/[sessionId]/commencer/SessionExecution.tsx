@@ -12,11 +12,14 @@ type Exercise = {
   notes: string | null;
 };
 
+type PrevSet = { setNumber: number; weightActual: string | null; repsActual: string | null };
+
 type Props = {
   sessionId: string;
   clientId: string;
   programId: string;
   exercises: Exercise[];
+  previousResults: Record<string, PrevSet[]>;
 };
 
 export default function SessionExecution({
@@ -24,14 +27,16 @@ export default function SessionExecution({
   clientId,
   programId,
   exercises,
+  previousResults,
 }: Props) {
   const [results, setResults] = useState<Record<string, SetResultInput[]>>(() => {
     const init: Record<string, SetResultInput[]> = {};
     for (const ex of exercises) {
-      init[ex.id] = Array.from({ length: ex.sets ?? 3 }, () => ({
+      const prev = previousResults[ex.id] ?? [];
+      init[ex.id] = Array.from({ length: ex.sets ?? 3 }, (_, i) => ({
         completed: false,
-        weightActual: "",
-        repsActual: ex.reps ?? "10",
+        weightActual: prev[i]?.weightActual ?? "",
+        repsActual: prev[i]?.repsActual ?? ex.reps ?? "10",
       }));
     }
     return init;
@@ -59,13 +64,7 @@ export default function SessionExecution({
 
   const handleTerminer = () => {
     startTransition(async () => {
-      await saveCompletion({
-        sessionId,
-        clientId,
-        programId,
-        results,
-        initiatedBy: "coach",
-      });
+      await saveCompletion({ sessionId, clientId, programId, results, initiatedBy: "coach" });
     });
   };
 
@@ -91,63 +90,105 @@ export default function SessionExecution({
       {/* Exercices */}
       {exercises.map((ex) => {
         const sets = results[ex.id] ?? [];
+        const prev = previousResults[ex.id] ?? [];
+        const hasPrev = prev.some((p) => p.weightActual || p.repsActual);
+
         return (
           <div key={ex.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-800">
               <p className="font-semibold text-white text-sm">{ex.name}</p>
-              {ex.restSeconds && (
-                <p className="text-xs text-gray-500 mt-0.5">Repos : {ex.restSeconds}s</p>
-              )}
-            </div>
-            <div className="divide-y divide-gray-800/50">
-              <div className="grid grid-cols-12 gap-2 px-4 py-2">
-                <div className="col-span-1 text-xs text-gray-600 uppercase">#</div>
-                <div className="col-span-4 text-xs text-gray-600 uppercase">Charge (kg)</div>
-                <div className="col-span-4 text-xs text-gray-600 uppercase">Reps</div>
-                <div className="col-span-3 text-xs text-gray-600 uppercase text-right">OK</div>
+              <div className="flex items-center gap-3 mt-0.5">
+                {ex.restSeconds && (
+                  <p className="text-xs text-gray-500">Repos : {ex.restSeconds}s</p>
+                )}
+                {hasPrev && (
+                  <p className="text-xs text-brand-400/70">↩ Dernière séance pré-remplie</p>
+                )}
               </div>
-              {sets.map((set, setIndex) => (
-                <div
-                  key={setIndex}
-                  className={`grid grid-cols-12 gap-2 px-4 py-2.5 items-center transition-colors ${
-                    set.completed ? "bg-green-500/5" : ""
-                  }`}
-                >
-                  <div className="col-span-1">
-                    <span className="text-xs text-gray-500 font-medium">{setIndex + 1}</span>
+            </div>
+
+            {/* En-têtes */}
+            <div className="grid grid-cols-12 gap-2 px-4 py-2 border-b border-gray-800/50">
+              <div className="col-span-1 text-xs text-gray-600">#</div>
+              <div className="col-span-4 text-center">
+                <span className="text-xs text-gray-600 uppercase">Charge kg</span>
+              </div>
+              <div className="col-span-4 text-center">
+                <span className="text-xs text-gray-600 uppercase">Reps</span>
+              </div>
+              <div className="col-span-3 text-right">
+                <span className="text-xs text-gray-600 uppercase">OK</span>
+              </div>
+            </div>
+
+            <div className="divide-y divide-gray-800/50">
+              {sets.map((set, setIndex) => {
+                const p = prev[setIndex];
+                const prevLabel = p?.weightActual
+                  ? `${p.weightActual}kg${p.repsActual ? ` × ${p.repsActual}` : ""}`
+                  : p?.repsActual
+                  ? p.repsActual
+                  : null;
+
+                return (
+                  <div
+                    key={setIndex}
+                    className={`grid grid-cols-12 gap-2 px-4 py-2.5 items-start transition-colors ${
+                      set.completed ? "bg-green-500/5" : ""
+                    }`}
+                  >
+                    <div className="col-span-1 pt-2.5">
+                      <span className="text-xs text-gray-500 font-medium">{setIndex + 1}</span>
+                    </div>
+
+                    {/* Charge */}
+                    <div className="col-span-4 flex flex-col gap-0.5">
+                      <input
+                        type="number"
+                        placeholder="–"
+                        value={set.weightActual}
+                        onChange={(e) => updateSet(ex.id, setIndex, "weightActual", e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors text-center"
+                      />
+                      {p?.weightActual && (
+                        <span className="text-[10px] text-gray-600 text-center">
+                          préc. {p.weightActual}kg
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Reps */}
+                    <div className="col-span-4 flex flex-col gap-0.5">
+                      <input
+                        type="text"
+                        value={set.repsActual}
+                        onChange={(e) => updateSet(ex.id, setIndex, "repsActual", e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors text-center"
+                      />
+                      {p?.repsActual && (
+                        <span className="text-[10px] text-gray-600 text-center">
+                          préc. {p.repsActual}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Valider */}
+                    <div className="col-span-3 flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => updateSet(ex.id, setIndex, "completed", !set.completed)}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors text-sm font-bold ${
+                          set.completed
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-700 text-gray-500 hover:bg-gray-600"
+                        }`}
+                      >
+                        {set.completed ? "✓" : "○"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="col-span-4">
-                    <input
-                      type="number"
-                      placeholder="–"
-                      value={set.weightActual}
-                      onChange={(e) => updateSet(ex.id, setIndex, "weightActual", e.target.value)}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors text-center"
-                    />
-                  </div>
-                  <div className="col-span-4">
-                    <input
-                      type="text"
-                      value={set.repsActual}
-                      onChange={(e) => updateSet(ex.id, setIndex, "repsActual", e.target.value)}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors text-center"
-                    />
-                  </div>
-                  <div className="col-span-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => updateSet(ex.id, setIndex, "completed", !set.completed)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors text-sm font-bold ${
-                        set.completed
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-700 text-gray-500 hover:bg-gray-600"
-                      }`}
-                    >
-                      {set.completed ? "✓" : "○"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
