@@ -1,3 +1,8 @@
+// Cette page lit ET ecrit en base. Sans force-dynamic, Next essaie de la
+// prerendre pendant `next build` : le build depend alors de la disponibilite de
+// la base, et les programmes modeles sont crees a chaque build.
+export const dynamic = "force-dynamic";
+
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";

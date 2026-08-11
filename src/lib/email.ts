@@ -1,6 +1,19 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Instanciation paresseuse : `new Resend(undefined)` leve une exception des
+// l'import. Comme ce module est importe par des routes et des server actions,
+// l'absence de RESEND_API_KEY faisait echouer `next build` pendant la collecte
+// des pages, et pas seulement l'envoi d'un email.
+let client: Resend | null = null;
+
+function resend(): Resend {
+  if (!client) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) throw new Error("RESEND_API_KEY est absente de l'environnement");
+    client = new Resend(apiKey);
+  }
+  return client;
+}
 const FROM = "D5 Coaching <noreply@d5coaching-distance.com>";
 const APP_URL = "https://app.d5coaching-distance.com";
 
@@ -14,7 +27,7 @@ export async function sendWelcomeEmail({
   email: string;
   password: string;
 }) {
-  await resend.emails.send({
+  await resend().emails.send({
     from: FROM,
     to: email,
     subject: `Bienvenue chez D5 Coaching, ${firstName} !`,
@@ -58,7 +71,7 @@ export async function sendProgramCreatedEmail({
   email: string;
   programName: string;
 }) {
-  await resend.emails.send({
+  await resend().emails.send({
     from: FROM,
     to: email,
     subject: `Nouveau programme disponible : ${programName}`,
@@ -97,7 +110,7 @@ export async function sendMeasurementsReminderEmail({
   firstName: string;
   email: string;
 }) {
-  await resend.emails.send({
+  await resend().emails.send({
     from: FROM,
     to: email,
     subject: "N’oublie pas de saisir tes mesures 📊",
