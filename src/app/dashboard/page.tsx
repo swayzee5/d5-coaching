@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
-import { markAllNotesRead } from "./actions";
+import { markAllNotesRead, markAllCheckinsRead } from "./actions";
 
 type GroupWithParticipants = {
   id: string; name: string; status: string; maxSize: number;
@@ -35,13 +35,27 @@ type ActivityRow = {
   activity_type: string | null;
 };
 
+type CheckinRow = {
+  id: string;
+  energy: number;
+  sleep: number;
+  stress: number;
+  weight: string | number | null;
+  note: string | null;
+  is_read: boolean;
+  submitted_at: Date;
+  client_id: string;
+  first_name: string;
+  last_name: string;
+};
+
 type NoteRow = {
   id: string;
   content: string;
   created_at: Date;
   workout_session_id: string;
-  session_name: string;
-  program_id: string;
+  session_name: string | null;
+  program_id: string | null;
   client_id: string;
   first_name: string;
   last_name: string;
@@ -90,6 +104,7 @@ function formatDuration(s: number | null): string {
 async function getClientActivity() {
   let recentActivities: ActivityRow[] = [];
   let unreadNotes: NoteRow[] = [];
+  let unreadCheckins: CheckinRow[] = [];
   let unreadMessages: MessageRow[] = [];
 
   try {
@@ -128,8 +143,8 @@ async function getClientActivity() {
         c.first_name, c.last_name
       FROM session_notes sn
       JOIN workout_sessions ws ON ws.id = sn.workout_session_id
-      JOIN training_sessions ts ON ts.id = ws.training_session_id
-      JOIN training_programs tp ON tp.id = ws.program_id
+      LEFT JOIN training_sessions ts ON ts.id = ws.training_session_id
+      LEFT JOIN training_programs tp ON tp.id = ws.program_id
       JOIN clients c ON c.id = sn.client_id
       WHERE sn.is_read = false
       ORDER BY sn.created_at DESC
@@ -151,7 +166,21 @@ async function getClientActivity() {
     `) as MessageRow[];
   } catch { /* messages table not yet created */ }
 
-  return { recentActivities, unreadNotes, unreadMessages };
+  try {
+    unreadCheckins = (await db.$queryRaw`
+      SELECT
+        wc.id, wc.energy, wc.sleep, wc.stress, wc.weight, wc.note,
+        wc.is_read, wc.submitted_at,
+        c.id AS client_id, c.first_name, c.last_name
+      FROM weekly_checkins wc
+      JOIN clients c ON c.id = wc.client_id
+      WHERE wc.is_read = false
+      ORDER BY wc.submitted_at DESC
+      LIMIT 10
+    `) as CheckinRow[];
+  } catch { /* weekly_checkins pas encore creee par l'app client */ }
+
+  return { recentActivities, unreadNotes, unreadMessages, unreadCheckins };
 }
 
 async function getRebootActivity(): Promise<RebootEvent[]> {
@@ -232,14 +261,32 @@ async function getDashboardData() {
     console.error("[dashboard:main]", err);
   }
 
-  const { recentActivities, unreadNotes, unreadMessages } = await getClientActivity();
+  const { recentActivities, unreadNotes, unreadMessages, unreadCheckins } = await getClientActivity();
   const rebootEvents = await getRebootActivity();
 
   return {
     totalProspects, byStatus, activeGroups, recentProspects,
     activeClients, revenue: activeClients * 3000,
-    recentActivities, unreadNotes, unreadMessages, rebootEvents,
+    recentActivities, unreadNotes, unreadMessages, unreadCheckins, rebootEvents,
   };
+}
+
+// Énergie et sommeil : plus c'est haut, mieux c'est. Stress : l'inverse.
+function CheckinStat({
+  label, value, higherIsBetter,
+}: { label: string; value: number; higherIsBetter: boolean }) {
+  const good = higherIsBetter ? value >= 4 : value <= 2;
+  const bad = higherIsBetter ? value <= 2 : value >= 4;
+  const tone = good
+    ? "bg-green-500/10 text-green-400"
+    : bad
+    ? "bg-red-500/10 text-red-400"
+    : "bg-gray-800 text-gray-300";
+  return (
+    <span className={`text-xs px-2 py-1 rounded-full ${tone}`}>
+      {label} {value}/5
+    </span>
+  );
 }
 
 const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
@@ -302,6 +349,65 @@ export default async function DashboardPage() {
                     <p className="text-sm text-gray-300 italic">&ldquo;{msg.content}&rdquo;</p>
                   </div>
                 </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Priority: unread weekly check-ins */}
+      {data.unreadCheckins.length > 0 && (
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500" />
+              </span>
+              <h2 className="text-sm font-semibold text-purple-300 uppercase tracking-wide">Check-ins non lus</h2>
+              <span className="px-2 py-0.5 bg-purple-500 text-white text-xs font-bold rounded-full">{data.unreadCheckins.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/checkins" className="text-xs text-purple-400 hover:text-purple-300 border border-purple-500/30 rounded-lg px-3 py-1.5 hover:bg-purple-500/10 transition-colors">
+                Tout l&apos;historique
+              </Link>
+              <form action={markAllCheckinsRead}>
+                <button type="submit" className="text-xs text-purple-400 hover:text-purple-300 border border-purple-500/30 rounded-lg px-3 py-1.5 hover:bg-purple-500/10 transition-colors">
+                  Tout marquer lu
+                </button>
+              </form>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {data.unreadCheckins.map((c) => (
+              <Link
+                key={c.id}
+                href={`/app-clients/${c.client_id}`}
+                className="block bg-gray-900/60 border border-gray-800 hover:border-purple-500/30 rounded-lg px-4 py-3 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-sm font-semibold text-white">
+                    {c.first_name} {c.last_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(c.submitted_at).toLocaleDateString("fr-FR", {
+                      weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  <CheckinStat label="Énergie" value={c.energy} higherIsBetter />
+                  <CheckinStat label="Sommeil" value={c.sleep} higherIsBetter />
+                  <CheckinStat label="Stress" value={c.stress} higherIsBetter={false} />
+                  {c.weight != null && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300">
+                      {Number(c.weight)} kg
+                    </span>
+                  )}
+                </div>
+                {c.note && (
+                  <p className="text-sm text-gray-300 italic mt-2">&ldquo;{c.note}&rdquo;</p>
+                )}
               </Link>
             ))}
           </div>
