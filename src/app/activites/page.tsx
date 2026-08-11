@@ -12,9 +12,13 @@ type ActivityRow = {
   started_at: Date;
   duration_seconds: number | null;
   rpe: number | null;
-  session_id: string;
-  session_name: string;
-  program_id: string;
+  // NULL pour une activité libre : elle n'est rattachée ni à une séance de
+  // programme, ni à un programme.
+  session_id: string | null;
+  session_name: string | null;
+  program_id: string | null;
+  activity_type: string | null;
+  source: string | null;
   client_id: string;
   first_name: string;
   last_name: string;
@@ -42,11 +46,19 @@ function formatDateTime(d: Date | string): string {
   });
 }
 
-async function getAllActivities(): Promise<ActivityRow[]> {
+// Un catch silencieux renvoyait un tableau vide : une table manquante
+// s'affichait donc comme « aucune activité », sans aucun signal. On distingue
+// desormais les deux cas.
+type ActivityResult =
+  | { ok: true; rows: ActivityRow[] }
+  | { ok: false; message: string };
+
+async function getAllActivities(): Promise<ActivityResult> {
   try {
-    return (await db.$queryRaw`
+    const rows = (await db.$queryRaw`
       SELECT
         ws.id, ws.completed_at, ws.started_at, ws.duration_seconds, ws.rpe,
+        ws.activity_type, ws.source,
         ts.id   AS session_id,
         ts.name AS session_name,
         tp.id   AS program_id,
@@ -58,20 +70,26 @@ async function getAllActivities(): Promise<ActivityRow[]> {
           ORDER BY created_at ASC LIMIT 1
         ) AS note
       FROM workout_sessions ws
-      JOIN training_sessions ts ON ts.id = ws.training_session_id
-      JOIN training_programs tp ON tp.id = ws.program_id
+      LEFT JOIN training_sessions ts ON ts.id = ws.training_session_id
+      LEFT JOIN training_programs tp ON tp.id = ws.program_id
       JOIN clients c ON c.id = ws.client_id
       WHERE ws.status = 'completed'
       ORDER BY ws.completed_at DESC
       LIMIT 50
     `) as ActivityRow[];
-  } catch {
-    return [];
+    return { ok: true, rows };
+  } catch (err) {
+    console.error("[activites] requête en échec", err);
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "Erreur inconnue",
+    };
   }
 }
 
 export default async function ActivitesPage() {
-  const activities = await getAllActivities();
+  const result = await getAllActivities();
+  const activities = result.ok ? result.rows : [];
 
   return (
     <div className="p-6 max-w-3xl space-y-6">
@@ -85,7 +103,18 @@ export default async function ActivitesPage() {
         </div>
       </div>
 
-      {activities.length === 0 ? (
+      {!result.ok ? (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-5 py-6">
+          <p className="text-red-400 text-sm font-medium">
+            Impossible de charger les activités
+          </p>
+          <p className="text-gray-400 text-xs mt-1.5">
+            Ce n&apos;est pas une absence d&apos;activité : la requête a échoué. Souvent
+            une table pas encore créée côté app client.
+          </p>
+          <p className="text-gray-500 text-xs mt-2 font-mono break-words">{result.message}</p>
+        </div>
+      ) : activities.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl py-16 text-center">
           <p className="text-gray-500 text-sm">Aucune activité enregistrée</p>
           <p className="text-gray-600 text-xs mt-1">Les séances apparaissent dès que vos clients les valident</p>
@@ -95,7 +124,12 @@ export default async function ActivitesPage() {
           {activities.map((a) => (
             <Link
               key={a.id}
-              href={`/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression`}
+              // Une activité libre n'a pas de page de progression de séance.
+              href={
+                a.program_id && a.session_id
+                  ? `/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression`
+                  : `/app-clients/${a.client_id}`
+              }
               className="block bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-5 py-4 transition-colors space-y-3"
             >
               {/* Header row */}
@@ -113,15 +147,23 @@ export default async function ActivitesPage() {
                     <p className="text-xs text-gray-500">{formatDateTime(a.completed_at)}</p>
                   </div>
                 </div>
-                <span className="shrink-0 px-2.5 py-1 bg-green-500/10 text-green-400 border border-green-500/20 text-xs rounded-full font-medium">
-                  ✓ Activé terminée
+                <span
+                  className={`shrink-0 px-2.5 py-1 text-xs rounded-full font-medium border ${
+                    a.session_name
+                      ? "bg-green-500/10 text-green-400 border-green-500/20"
+                      : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                  }`}
+                >
+                  {a.session_name ? "✓ Séance terminée" : "✓ Activité libre"}
                 </span>
               </div>
 
               {/* Session name */}
               <div className="flex items-center gap-2 pl-13">
                 <div className="w-2 h-2 rounded-full bg-brand-400 shrink-0" />
-                <p className="text-sm text-gray-300 font-medium">{a.session_name}</p>
+                <p className="text-sm text-gray-300 font-medium">
+                  {a.session_name ?? a.activity_type ?? "Activité libre"}
+                </p>
               </div>
 
               {/* Stats row */}

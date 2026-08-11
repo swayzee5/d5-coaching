@@ -25,13 +25,14 @@ type ActivityRow = {
   completed_at: Date;
   duration_seconds: number | null;
   rpe: number | null;
-  session_id: string;
-  session_name: string;
-  program_id: string;
+  session_id: string | null;
+  session_name: string | null;
+  program_id: string | null;
   client_id: string;
   first_name: string;
   last_name: string;
   note: string | null;
+  activity_type: string | null;
 };
 
 type NoteRow = {
@@ -97,6 +98,7 @@ async function getClientActivity() {
         ws.id, ws.completed_at, ws.duration_seconds, ws.rpe,
         ts.id          AS session_id,
         ts.name        AS session_name,
+        ws.activity_type,
         tp.id          AS program_id,
         c.id           AS client_id,
         c.first_name,
@@ -107,8 +109,8 @@ async function getClientActivity() {
           ORDER BY created_at ASC LIMIT 1
         ) AS note
       FROM workout_sessions ws
-      JOIN training_sessions ts ON ts.id = ws.training_session_id
-      JOIN training_programs tp ON tp.id = ws.program_id
+      LEFT JOIN training_sessions ts ON ts.id = ws.training_session_id
+      LEFT JOIN training_programs tp ON tp.id = ws.program_id
       JOIN clients c ON c.id = ws.client_id
       WHERE ws.status = 'completed'
       ORDER BY ws.completed_at DESC
@@ -402,7 +404,7 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {data.recentActivities.map((a) => (
-              <Link key={a.id} href={`/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression`}
+              <Link key={a.id} href={a.program_id && a.session_id ? `/app-clients/${a.client_id}/programmes/${a.program_id}/seances/${a.session_id}/progression` : `/app-clients/${a.client_id}`}
                 className="block bg-gray-800 hover:bg-gray-750 rounded-xl px-4 py-3 space-y-2 transition-colors">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -411,7 +413,7 @@ export default async function DashboardPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{a.first_name} {a.last_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{a.session_name}</p>
+                      <p className="text-xs text-gray-500 truncate">{a.session_name ?? a.activity_type ?? "Activité libre"}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
