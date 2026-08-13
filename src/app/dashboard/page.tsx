@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
+import ReplyButton from "./ReplyButton";
 
 type GroupWithParticipants = {
   id: string; name: string; status: string; maxSize: number;
@@ -21,7 +22,7 @@ type RecentCompletion = {
 };
 type ClientSession = {
   id: string; completedAt: Date; title: string; isFree: boolean;
-  rpe: number | null; durationSeconds: number | null; sets: number; note: string | null;
+  rpe: number | null; durationSeconds: number | null; sets: number; note: string | null; noteId: string | null;
   clientId: string; clientName: string; href: string;
 };
 type UnreadMessage  = { client_id: string; content: string; created_at: Date };
@@ -118,7 +119,7 @@ async function getDashboardData() {
         client: { select: { id: true, firstName: true, lastName: true } },
         trainingSession: { select: { id: true, name: true, program: { select: { id: true, name: true } } } },
         setPerformances: { select: { id: true } },
-        sessionNotes: { select: { content: true }, orderBy: { createdAt: "asc" }, take: 1 },
+        sessionNotes: { select: { id: true, content: true }, orderBy: { createdAt: "asc" }, take: 1 },
       },
     });
     clientSessions = rows.map((ws) => {
@@ -132,6 +133,7 @@ async function getDashboardData() {
         durationSeconds: ws.durationSeconds,
         sets: ws.setPerformances.length,
         note: ws.sessionNotes[0]?.content ?? null,
+        noteId: ws.sessionNotes[0]?.id ?? null,
         clientId: ws.client.id,
         clientName: `${ws.client.firstName} ${ws.client.lastName}`,
         href: ts && ts.program
@@ -198,11 +200,17 @@ export default async function DashboardPage() {
           </div>
           <div className="space-y-2">
             {data.unreadMessages.map((msg, i) => (
-              <Link key={i} href={`/app-clients/${msg.client_id}/messages`} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0"><span className="text-blue-400 font-bold text-xs">{msg.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
-                <div className="flex-1 min-w-0"><p className="text-sm text-white font-medium">{msg.clientName}</p><p className="text-xs text-gray-500 truncate">{msg.content}</p></div>
-                <p className="text-xs text-gray-400">{new Date(msg.created_at).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
-              </Link>
+              <div key={i} className="bg-gray-800 rounded-lg px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0"><span className="text-blue-400 font-bold text-xs">{msg.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/app-clients/${msg.client_id}/messages`} className="text-sm text-white font-medium hover:text-brand-400 transition-colors">{msg.clientName}</Link>
+                    <p className="text-xs text-gray-500 truncate">{msg.content}</p>
+                    <ReplyButton clientId={msg.client_id} clientName={msg.clientName} quote="" />
+                  </div>
+                  <p className="text-xs text-gray-400 shrink-0">{new Date(msg.created_at).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -213,11 +221,23 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2 mb-4"><span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500" /></span><h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wide">Check-ins non lus ({data.unreadCheckins.length})</h2></div>
           <div className="space-y-2">
             {data.unreadCheckins.map((c) => (
-              <Link key={c.id} href={`/app-clients/${c.client_id}/checkins`} className="flex items-start gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0"><span className="text-purple-400 font-bold text-xs">{c.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
-                <div className="flex-1 min-w-0"><p className="text-sm text-white font-medium">{c.clientName}</p><p className="text-xs text-gray-500">Énergie {ENERGY_EMOJIS[c.energy-1]} · Sommeil {SLEEP_EMOJIS[c.sleep-1]} · Stress {STRESS_EMOJIS[c.stress-1]}{c.weight != null ? ` · ${Number(c.weight)} kg` : ""}</p>{c.note && <p className="text-sm text-gray-300 italic mt-1">&ldquo;{c.note}&rdquo;</p>}</div>
-                <p className="text-xs text-gray-400">{new Date(c.submitted_at).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
-              </Link>
+              <div key={c.id} className="bg-gray-800 rounded-lg px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0"><span className="text-purple-400 font-bold text-xs">{c.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/app-clients/${c.client_id}/checkins`} className="text-sm text-white font-medium hover:text-brand-400 transition-colors">{c.clientName}</Link>
+                    <p className="text-xs text-gray-500">Énergie {ENERGY_EMOJIS[c.energy-1]} · Sommeil {SLEEP_EMOJIS[c.sleep-1]} · Stress {STRESS_EMOJIS[c.stress-1]}{c.weight != null ? ` · ${Number(c.weight)} kg` : ""}</p>
+                    {c.note && <p className="text-sm text-gray-300 italic mt-1">&ldquo;{c.note}&rdquo;</p>}
+                    <ReplyButton
+                      clientId={c.client_id}
+                      clientName={c.clientName}
+                      quote={c.note ? `Check-in — « ${c.note} »` : `Check-in du ${new Date(c.submitted_at).toLocaleDateString("fr-FR")}`}
+                      markRead={{ kind: "weekly_checkin", id: c.id }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 shrink-0">{new Date(c.submitted_at).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -246,19 +266,27 @@ export default async function DashboardPage() {
         {data.clientSessions.length > 0 && (
           <div className="space-y-2 mb-3">
             {data.clientSessions.map((ws) => (
-              <Link key={ws.id} href={ws.href} className="flex items-start gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0"><span className="text-green-400 font-bold text-xs">{ws.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm text-white font-medium">{ws.clientName}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ws.isFree ? "bg-purple-500/10 text-purple-400" : "bg-green-500/10 text-green-400"}`}>{ws.isFree ? "libre" : "séance"}</span>
-                    {ws.rpe != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400">RPE {ws.rpe}</span>}
+              <div key={ws.id} className="bg-gray-800 rounded-lg px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0"><span className="text-green-400 font-bold text-xs">{ws.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={ws.href} className="text-sm text-white font-medium hover:text-brand-400 transition-colors">{ws.clientName}</Link>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ws.isFree ? "bg-purple-500/10 text-purple-400" : "bg-green-500/10 text-green-400"}`}>{ws.isFree ? "libre" : "séance"}</span>
+                      {ws.rpe != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400">RPE {ws.rpe}</span>}
+                    </div>
+                    <Link href={ws.href} className="block text-xs text-gray-500 truncate hover:text-gray-300 transition-colors">{ws.title}</Link>
+                    {ws.note && <p className="text-sm text-gray-300 italic mt-1">&ldquo;{ws.note}&rdquo;</p>}
+                    <ReplyButton
+                      clientId={ws.clientId}
+                      clientName={ws.clientName}
+                      quote={ws.note ? `${ws.title} — « ${ws.note} »` : ws.title}
+                      markRead={ws.noteId ? { kind: "session_note", id: ws.noteId } : undefined}
+                    />
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{ws.title}</p>
-                  {ws.note && <p className="text-sm text-gray-300 italic mt-1">&ldquo;{ws.note}&rdquo;</p>}
+                  <p className="text-xs text-gray-400 shrink-0">{ws.sets > 0 ? `${ws.sets} sér.` : new Date(ws.completedAt).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
                 </div>
-                <p className="text-xs text-gray-400 shrink-0">{ws.sets > 0 ? `${ws.sets} sér.` : new Date(ws.completedAt).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
-              </Link>
+              </div>
             ))}
           </div>
         )}
