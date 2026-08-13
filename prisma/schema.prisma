@@ -143,6 +143,7 @@ model AppClient {
   progressEntries  AppProgressEntry[]
   nutritionFiles   AppNutritionFile[]
   trainingPrograms TrainingProgram[]
+  workoutSessions  WorkoutSession[]
 
   @@map("clients")
 }
@@ -232,6 +233,7 @@ model TrainingSession {
   program     TrainingProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
   exercises   SessionExercise[]
   completions SessionCompletion[]
+  workoutSessions WorkoutSession[]
 
   @@index([programId])
   @@map("training_sessions")
@@ -253,6 +255,7 @@ model SessionExercise {
   session         TrainingSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   libraryExercise ExerciseLibrary?  @relation(fields: [libraryExerciseId], references: [id])
   setResults      ExerciseSetResult[]
+  setPerformances SetPerformance[]
 
   @@index([sessionId])
   @@map("exercises")
@@ -345,4 +348,73 @@ model ExerciseSetResult {
 
   @@index([completionId])
   @@map("exercise_set_results")
+}
+
+// =============================================================
+// ACTIVITE REELLE DES CLIENTS
+//
+// Tables alimentees par l'app client (SQL brut, snake_case). Elles coexistent
+// avec session_completions / exercise_set_results, que le CRM ecrit lui-meme
+// quand le coach lance une seance via « Commencer ». Deux sources distinctes :
+//   - seance faite par le CLIENT  -> workout_sessions + set_performances
+//   - seance lancee par le COACH  -> session_completions + exercise_set_results
+// Le fil d'activite ne lisait que la seconde, d'ou l'invisibilite des seances
+// des clients.
+//
+// training_session_id et program_id sont NULL pour une activite libre.
+// =============================================================
+
+model WorkoutSession {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId          String    @map("client_id") @db.Uuid
+  trainingSessionId String?   @map("training_session_id") @db.Uuid
+  programId         String?   @map("program_id") @db.Uuid
+  startedAt         DateTime? @default(now()) @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+  status            String?   @default("in_progress")
+  durationSeconds   Int?      @map("duration_seconds")
+  rpe               Int?
+  activityType      String?   @map("activity_type")
+  source            String?   @default("programme")
+
+  client          AppClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  trainingSession TrainingSession? @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  setPerformances SetPerformance[]
+  sessionNotes    SessionNote[]
+
+  @@index([clientId])
+  @@index([trainingSessionId])
+  @@map("workout_sessions")
+}
+
+model SetPerformance {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workoutSessionId  String    @map("workout_session_id") @db.Uuid
+  exerciseId        String    @map("exercise_id") @db.Uuid
+  setIndex          Int       @map("set_index")
+  repsDone          Int?      @map("reps_done")
+  weightUsed        String?   @map("weight_used")
+  restSecondsActual Int?      @map("rest_seconds_actual")
+  tempo             String?
+  recordedAt        DateTime? @default(now()) @map("recorded_at")
+
+  workoutSession WorkoutSession  @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercise       SessionExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([workoutSessionId])
+  @@map("set_performances")
+}
+
+model SessionNote {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workoutSessionId String   @map("workout_session_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
+  content          String
+  isRead           Boolean? @default(false) @map("is_read")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  workoutSession WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+
+  @@index([workoutSessionId])
+  @@map("session_notes")
 }

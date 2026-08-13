@@ -19,8 +19,13 @@ type RecentCompletion = {
   setResults: { completed: boolean }[];
   session: { id: string; name: string; program: { id: string; name: string; client: { id: string; firstName: string; lastName: string } } };
 };
+type ClientSession = {
+  id: string; completedAt: Date; title: string; isFree: boolean;
+  rpe: number | null; durationSeconds: number | null; sets: number; note: string | null;
+  clientId: string; clientName: string; href: string;
+};
 type UnreadMessage  = { client_id: string; content: string; created_at: Date };
-type UnreadCheckin  = { id: string; client_id: string; energy: number; sleep: number; stress: number; submitted_at: Date };
+type UnreadCheckin  = { id: string; client_id: string; energy: number; sleep: number; stress: number; weight: number | null; note: string | null; submitted_at: Date };
 type RebootCheckin  = { id: string; client_id: string; energy: number | null; sleep_quality: number | null; weight: number | null; feeling: string | null; submitted_at: Date };
 type CompletedRebootClient = { client_id: string; clientName: string; created_at: Date };
 
@@ -34,6 +39,9 @@ async function getDashboardData() {
   let activeGroups: GroupWithParticipants[] = [];
   let recentProspects: ProspectWithSummary[] = [];
   let recentCompletions: RecentCompletion[] = [];
+  // Seances validees par les clients dans l'app. Elles vont dans
+  // workout_sessions, que le dashboard ne lisait pas du tout.
+  let clientSessions: ClientSession[] = [];
   let unreadMessages: (UnreadMessage & { clientName: string })[] = [];
   let unreadCheckins: (UnreadCheckin & { clientName: string })[] = [];
   let rebootCheckins: (RebootCheckin & { clientName: string })[] = [];
@@ -73,8 +81,8 @@ async function getDashboardData() {
 
   try {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS weekly_checkins (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id TEXT NOT NULL, energy INT NOT NULL, sleep INT NOT NULL, stress INT NOT NULL, weight DECIMAL(5,2), note TEXT, is_read BOOLEAN DEFAULT false, submitted_at TIMESTAMPTZ DEFAULT now())`.catch(() => {});
-    type CRow = { id: string; client_id: string; energy: number; sleep: number; stress: number; submitted_at: Date };
-    const cRows = await db.$queryRaw<CRow[]>`SELECT id, client_id, energy, sleep, stress, submitted_at FROM weekly_checkins WHERE is_read = false ORDER BY submitted_at DESC LIMIT 5`.catch(() => [] as CRow[]);
+    type CRow = { id: string; client_id: string; energy: number; sleep: number; stress: number; weight: number | null; note: string | null; submitted_at: Date };
+    const cRows = await db.$queryRaw<CRow[]>`SELECT id, client_id, energy, sleep, stress, weight, note, submitted_at FROM weekly_checkins WHERE is_read = false ORDER BY submitted_at DESC LIMIT 10`.catch(() => [] as CRow[]);
     unreadCheckins = await Promise.all(cRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
       return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : row.client_id };
@@ -101,7 +109,39 @@ async function getDashboardData() {
     }));
   } catch {}
 
-  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients };
+  try {
+    const rows = await db.workoutSession.findMany({
+      where: { status: "completed" },
+      orderBy: { completedAt: "desc" },
+      take: 10,
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+        trainingSession: { select: { id: true, name: true, program: { select: { id: true, name: true } } } },
+        setPerformances: { select: { id: true } },
+        sessionNotes: { select: { content: true }, orderBy: { createdAt: "asc" }, take: 1 },
+      },
+    });
+    clientSessions = rows.map((ws) => {
+      const ts = ws.trainingSession;
+      return {
+        id: ws.id,
+        completedAt: ws.completedAt ?? ws.startedAt ?? new Date(0),
+        title: ts?.name ?? ws.activityType ?? "Activite libre",
+        isFree: !ts,
+        rpe: ws.rpe,
+        durationSeconds: ws.durationSeconds,
+        sets: ws.setPerformances.length,
+        note: ws.sessionNotes[0]?.content ?? null,
+        clientId: ws.client.id,
+        clientName: `${ws.client.firstName} ${ws.client.lastName}`,
+        href: ts && ts.program
+          ? `/app-clients/${ws.client.id}/programmes/${ts.program.id}/seances/${ts.id}/resultats`
+          : `/app-clients/${ws.client.id}`,
+      };
+    });
+  } catch {}
+
+  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients };
 }
 
 const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
@@ -173,9 +213,9 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2 mb-4"><span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500" /></span><h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wide">Check-ins non lus ({data.unreadCheckins.length})</h2></div>
           <div className="space-y-2">
             {data.unreadCheckins.map((c) => (
-              <Link key={c.id} href={`/app-clients/${c.client_id}/checkins`} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
+              <Link key={c.id} href={`/app-clients/${c.client_id}/checkins`} className="flex items-start gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
                 <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0"><span className="text-purple-400 font-bold text-xs">{c.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
-                <div className="flex-1 min-w-0"><p className="text-sm text-white font-medium">{c.clientName}</p><p className="text-xs text-gray-500">Énergie {ENERGY_EMOJIS[c.energy-1]} · Sommeil {SLEEP_EMOJIS[c.sleep-1]} · Stress {STRESS_EMOJIS[c.stress-1]}</p></div>
+                <div className="flex-1 min-w-0"><p className="text-sm text-white font-medium">{c.clientName}</p><p className="text-xs text-gray-500">Énergie {ENERGY_EMOJIS[c.energy-1]} · Sommeil {SLEEP_EMOJIS[c.sleep-1]} · Stress {STRESS_EMOJIS[c.stress-1]}{c.weight != null ? ` · ${Number(c.weight)} kg` : ""}</p>{c.note && <p className="text-sm text-gray-300 italic mt-1">&ldquo;{c.note}&rdquo;</p>}</div>
                 <p className="text-xs text-gray-400">{new Date(c.submitted_at).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
               </Link>
             ))}
@@ -203,7 +243,26 @@ export default async function DashboardPage() {
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
         <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Activités récentes</h2><Link href="/activites" className="text-xs text-brand-400 hover:text-brand-300 font-medium">Voir tout →</Link></div>
-        {data.recentCompletions.length === 0 ? <p className="text-gray-500 text-sm text-center py-6">Aucune séance validée pour l&apos;instant</p> : (
+        {data.clientSessions.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {data.clientSessions.map((ws) => (
+              <Link key={ws.id} href={ws.href} className="flex items-start gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0"><span className="text-green-400 font-bold text-xs">{ws.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm text-white font-medium">{ws.clientName}</p>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ws.isFree ? "bg-purple-500/10 text-purple-400" : "bg-green-500/10 text-green-400"}`}>{ws.isFree ? "libre" : "séance"}</span>
+                    {ws.rpe != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400">RPE {ws.rpe}</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">{ws.title}</p>
+                  {ws.note && <p className="text-sm text-gray-300 italic mt-1">&ldquo;{ws.note}&rdquo;</p>}
+                </div>
+                <p className="text-xs text-gray-400 shrink-0">{ws.sets > 0 ? `${ws.sets} sér.` : new Date(ws.completedAt).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+        {data.recentCompletions.length === 0 && data.clientSessions.length === 0 ? <p className="text-gray-500 text-sm text-center py-6">Aucune séance validée pour l&apos;instant</p> : data.recentCompletions.length === 0 ? null : (
           <div className="space-y-2">{data.recentCompletions.map((c) => { const cl = c.session.program.client; const done = c.setResults.filter((s) => s.completed).length; return (
             <Link key={c.id} href={`/app-clients/${cl.id}/programmes/${c.session.program.id}/seances/${c.session.id}/resultats`} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
               <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center shrink-0"><span className="text-brand-400 font-bold text-xs">{cl.firstName[0]}{cl.lastName[0]}</span></div>
