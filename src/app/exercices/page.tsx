@@ -5,6 +5,7 @@ import { createExercise, deleteExercise, updateExerciseVimeo } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import GenerateVideoButton from "@/components/exercices/GenerateVideoButton";
 import { VimeoIdInput } from "@/components/exercices/VimeoIdInput";
+import { ExerciseDetails } from "@/components/exercices/ExerciseDetails";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -183,13 +184,10 @@ export default async function ExercicesPage({
             <tbody className="divide-y divide-gray-800/50">
               {exercises.map((ex) => (
                 <tr key={ex.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-white">{ex.name}</p>
-                    {ex.description && (
-                      <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{ex.description}</p>
-                    )}
+                  <td className="px-5 py-4 align-top">
+                    <ExerciseDetails ex={ex} muscleGroups={MUSCLE_GROUPS} />
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 align-top">
                     <div className="flex flex-wrap gap-1">
                       {ex.muscles.length === 0 ? (
                         <span className="text-gray-600 text-xs">—</span>
@@ -200,7 +198,7 @@ export default async function ExercicesPage({
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 align-top">
                     <div className="space-y-2">
                       <VimeoIdInput
                         exerciseId={ex.id}
@@ -221,7 +219,7 @@ export default async function ExercicesPage({
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 align-top">
                     <div className="flex items-center gap-2 justify-end">
                       <GenerateVideoButton
                         exerciseId={ex.id}
