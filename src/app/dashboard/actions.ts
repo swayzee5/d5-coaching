@@ -1,20 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { sendCoachMessage } from "@/lib/messages";
 import { revalidatePath } from "next/cache";
-
-async function ensureMessagesTable() {
-  await db.$executeRaw`
-    CREATE TABLE IF NOT EXISTS messages (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      client_id TEXT NOT NULL,
-      sender_role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      is_read BOOLEAN DEFAULT false,
-      created_at TIMESTAMPTZ DEFAULT now()
-    )
-  `.catch(() => {});
-}
 
 // Ce que le coach répond depuis le dashboard part dans la messagerie : c'est le
 // seul canal que l'app client affiche déjà (sender_role = 'coach' apparaît comme
@@ -34,19 +22,10 @@ export async function replyToActivity({
   const body = content.trim();
   if (!body) return { error: "Message vide" };
 
-  await ensureMessagesTable();
-
   const full = quote.trim() ? `↪ ${quote.trim()}\n\n${body}` : body;
 
-  try {
-    await db.$executeRaw`
-      INSERT INTO messages (client_id, sender_role, content, is_read)
-      VALUES (${clientId}, 'coach', ${full}, false)
-    `;
-  } catch (err) {
-    console.error("[replyToActivity] envoi en échec", err);
-    return { error: "L'envoi a échoué" };
-  }
+  const sent = await sendCoachMessage(clientId, full);
+  if (sent.error) return sent;
 
   // Répondre vaut lecture : l'élément sort des « non lus ».
   if (markRead?.kind === "session_note") {

@@ -6,6 +6,7 @@ import { replyToClient } from "./actions";
 
 export default function ReplyForm({ clientId }: { clientId: string }) {
   const [content, setContent] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -13,13 +14,19 @@ export default function ReplyForm({ clientId }: { clientId: string }) {
     const trimmed = content.trim();
     if (!trimmed) return;
     startTransition(async () => {
-      await replyToClient(clientId, trimmed);
+      const res = await replyToClient(clientId, trimmed);
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
+      setError(null);
       setContent("");
       router.refresh();
     });
   }
 
   return (
+    <div className="space-y-2">
     <div className="flex gap-3">
       <textarea
         value={content}
@@ -41,6 +48,8 @@ export default function ReplyForm({ clientId }: { clientId: string }) {
       >
         {isPending ? "..." : "Envoyer"}
       </button>
+    </div>
+    {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
