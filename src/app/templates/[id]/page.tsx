@@ -95,7 +95,7 @@ export default async function TemplatePage({ params }: { params: { id: string } 
 
       <div className="space-y-4">
         {sessions.map((sess) => (
-          <div key={sess.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div key={sess.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
             <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
               <div>
                 <h3 className="text-white font-semibold">{sess.name}</h3>
@@ -107,7 +107,7 @@ export default async function TemplatePage({ params }: { params: { id: string } 
               </div>
               <span className="text-xs text-gray-500">{(exBySession[sess.id] ?? []).length} exercices</span>
             </div>
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-gray-800/50">
                   <th className="text-left text-xs text-gray-600 px-5 py-2">Exercice</th>

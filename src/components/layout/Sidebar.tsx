@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const nav = [
   {
@@ -105,11 +106,37 @@ const nav = [
   },
 ];
 
-export default function Sidebar() {
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-
   return (
-    <aside className="w-60 shrink-0 flex flex-col bg-gray-900 border-r border-gray-800 h-screen">
+    <>
+      {nav.map((item) => {
+        const active =
+          pathname === item.href ||
+          (item.href !== "/dashboard" && pathname.startsWith(item.href));
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              active
+                ? "bg-brand-500/10 text-brand-400 font-medium"
+                : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+            }`}
+          >
+            <span className={active ? "text-brand-400" : "text-gray-500"}>{item.icon}</span>
+            {item.label}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <>
       <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -122,40 +149,96 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {nav.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                active
-                  ? "bg-brand-500/10 text-brand-400 font-medium"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
-              }`}
-            >
-              <span className={active ? "text-brand-400" : "text-gray-500"}>
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
+        <NavLinks onNavigate={onNavigate} />
       </nav>
 
       <div className="px-5 py-4 border-t border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center shrink-0">
             <span className="text-white text-xs font-semibold">DK</span>
           </div>
-          <div>
-            <p className="text-sm text-white font-medium">Daye Kaba</p>
+          <div className="min-w-0">
+            <p className="text-sm text-white font-medium truncate">Daye Kaba</p>
             <p className="text-xs text-gray-500">Coach D5</p>
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar() {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Le tiroir se referme quand on change de page, sinon il masque la page
+  // qu'on vient d'ouvrir.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Empeche le defilement de l'arriere-plan quand le tiroir est ouvert.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  return (
+    <>
+      {/* Barre superieure, mobile uniquement */}
+      <header className="lg:hidden fixed top-0 inset-x-0 z-40 h-14 bg-gray-900 border-b border-gray-800 flex items-center gap-3 px-4">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ouvrir le menu"
+          className="p-2 -ml-2 text-gray-300 hover:text-white transition-colors"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://raw.githubusercontent.com/swayzee5/d5-coaching/main/Logo%20D5.PNG"
+          alt="D5 Coaching"
+          width={64}
+          height={32}
+          className="object-contain brightness-0 invert h-7 w-auto"
+        />
+      </header>
+
+      {/* Tiroir mobile */}
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <aside className="relative w-72 max-w-[85vw] flex flex-col bg-gray-900 border-r border-gray-800 h-full">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Fermer le menu"
+              className="absolute top-4 right-3 z-10 p-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <SidebarContent onNavigate={() => setOpen(false)} />
+          </aside>
+        </div>
+      )}
+
+      {/* Sidebar fixe, a partir du desktop */}
+      <aside className="hidden lg:flex w-60 shrink-0 flex-col bg-gray-900 border-r border-gray-800 h-screen">
+        <SidebarContent />
+      </aside>
+    </>
   );
 }

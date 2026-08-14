@@ -166,13 +166,13 @@ export default async function ExercicesPage({
       </div>
 
       {/* Liste */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
         {exercises.length === 0 ? (
           <div className="py-16 text-center text-gray-600 text-sm">
             Aucun exercice dans cette catégorie
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-gray-800">
                 <th className="text-left text-xs text-gray-500 uppercase tracking-wider px-5 py-3">Exercice</th>

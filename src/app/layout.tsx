@@ -16,7 +16,8 @@ export default function RootLayout({
     <html lang="fr">
       <body className="flex h-screen overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-gray-950">{children}</main>
+        {/* pt-14 laisse la place a la barre mobile fixe ; nulle a partir de lg */}
+        <main className="flex-1 overflow-y-auto bg-gray-950 pt-14 lg:pt-0">{children}</main>
       </body>
     </html>
   );

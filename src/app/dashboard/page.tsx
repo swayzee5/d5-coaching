@@ -76,7 +76,7 @@ async function getDashboardData() {
     const msgRows = await db.$queryRaw<MsgRow[]>`SELECT DISTINCT ON (client_id) client_id, content, created_at FROM messages WHERE sender_role = 'client' AND is_read = false ORDER BY client_id, created_at DESC LIMIT 5`.catch(() => [] as MsgRow[]);
     unreadMessages = await Promise.all(msgRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : row.client_id };
+      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé" };
     }));
   } catch {}
 
@@ -86,7 +86,7 @@ async function getDashboardData() {
     const cRows = await db.$queryRaw<CRow[]>`SELECT id, client_id, energy, sleep, stress, weight, note, submitted_at FROM weekly_checkins WHERE is_read = false ORDER BY submitted_at DESC LIMIT 10`.catch(() => [] as CRow[]);
     unreadCheckins = await Promise.all(cRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : row.client_id };
+      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé" };
     }));
   } catch {}
 
@@ -96,7 +96,7 @@ async function getDashboardData() {
     const rRows = await db.$queryRaw<RRow[]>`SELECT id, client_id, energy, sleep_quality, weight, feeling, submitted_at FROM reboot_mid_checkins ORDER BY submitted_at DESC LIMIT 5`.catch(() => [] as RRow[]);
     rebootCheckins = await Promise.all(rRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : row.client_id };
+      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé" };
     }));
   } catch {}
 
@@ -106,7 +106,7 @@ async function getDashboardData() {
     const nRows = await db.$queryRaw<NRow[]>`SELECT client_id, created_at FROM coach_notifications WHERE type = 'reboot_completed' AND is_read = false ORDER BY created_at DESC LIMIT 10`.catch(() => [] as NRow[]);
     completedRebootClients = await Promise.all(nRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { client_id: row.client_id, clientName: c ? `${c.firstName} ${c.lastName}` : row.client_id, created_at: row.created_at };
+      return { client_id: row.client_id, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé", created_at: row.created_at };
     }));
   } catch {}
 
