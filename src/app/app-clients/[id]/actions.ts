@@ -43,9 +43,9 @@ export async function deleteClient(id: string): Promise<{ error: string } | neve
 
   // 1. Raw SQL tables — no FK relation to clients
   await db.$executeRaw`DELETE FROM reboot_completions   WHERE client_id = ${uid}::uuid`.catch(() => {});
-  await db.$executeRaw`DELETE FROM reboot_mid_checkins  WHERE client_id = ${uid}`.catch(() => {});
-  await db.$executeRaw`DELETE FROM weekly_checkins       WHERE client_id = ${uid}`.catch(() => {});
-  await db.$executeRaw`DELETE FROM messages              WHERE client_id = ${uid}`.catch(() => {});
+  await db.$executeRaw`DELETE FROM reboot_mid_checkins  WHERE client_id::text = ${uid}`.catch(() => {});
+  await db.$executeRaw`DELETE FROM weekly_checkins       WHERE client_id::text = ${uid}`.catch(() => {});
+  await db.$executeRaw`DELETE FROM messages              WHERE client_id::text = ${uid}`.catch(() => {});
 
   // 2. exercise_set_results (leaf — depends on session_completions + exercises)
   await db.$executeRaw`

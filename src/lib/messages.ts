@@ -69,16 +69,10 @@ export async function sendCoachMessage(
 
 /** Marque comme lus les messages que le client avait envoyés. */
 export async function markClientMessagesRead(clientId: string): Promise<void> {
-  const asUuid = await clientIdIsUuid();
-  if (asUuid) {
-    await db.$executeRaw`
-      UPDATE messages SET is_read = true
-      WHERE client_id = ${clientId}::uuid AND sender_role = 'client' AND is_read = false
-    `.catch(() => {});
-  } else {
-    await db.$executeRaw`
-      UPDATE messages SET is_read = true
-      WHERE client_id = ${clientId} AND sender_role = 'client' AND is_read = false
-    `.catch(() => {});
-  }
+  // On caste la colonne plutôt que le paramètre : la comparaison fonctionne
+  // que client_id soit uuid ou text.
+  await db.$executeRaw`
+    UPDATE messages SET is_read = true
+    WHERE client_id::text = ${clientId} AND sender_role = 'client' AND is_read = false
+  `.catch(() => {});
 }

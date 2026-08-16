@@ -32,7 +32,7 @@ export default async function ClientMessagesPage({
   await db.$executeRaw`
     UPDATE messages
     SET is_read = true
-    WHERE client_id = ${id}
+    WHERE client_id::text = ${id}
       AND sender_role = 'client'
       AND is_read = false
   `.catch(() => {});
@@ -49,7 +49,10 @@ export default async function ClientMessagesPage({
     FROM messages
     WHERE client_id = ${id}
     ORDER BY created_at ASC
-  `.catch(() => [] as Message[]);
+  `.catch((err) => {
+    console.error("[messages] lecture de la conversation en échec", err);
+    return [] as Message[];
+  });
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
