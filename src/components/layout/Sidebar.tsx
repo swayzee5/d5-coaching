@@ -134,7 +134,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate, signOutSlot }: { onNavigate?: () => void; signOutSlot?: React.ReactNode }) {
   return (
     <>
       <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-center">
@@ -159,7 +159,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div className="min-w-0">
             <p className="text-sm text-white font-medium truncate">Daye Kaba</p>
-            <p className="text-xs text-gray-500">Coach D5</p>
+            {signOutSlot ?? <p className="text-xs text-gray-500">Coach D5</p>}
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ signOutSlot }: { signOutSlot?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -230,14 +230,14 @@ export default function Sidebar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <SidebarContent onNavigate={() => setOpen(false)} />
+            <SidebarContent onNavigate={() => setOpen(false)} signOutSlot={signOutSlot} />
           </aside>
         </div>
       )}
 
       {/* Sidebar fixe, a partir du desktop */}
       <aside className="hidden lg:flex w-60 shrink-0 flex-col bg-gray-900 border-r border-gray-800 h-screen">
-        <SidebarContent />
+        <SidebarContent signOutSlot={signOutSlot} />
       </aside>
     </>
   );
