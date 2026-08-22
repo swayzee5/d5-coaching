@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { sendPushToClient, previewForNotification } from "@/lib/push";
 
 // La table messages est créée par celle des deux apps qui écrit en premier, et
 // les deux ne s'accordent pas sur le type de client_id :
@@ -63,6 +64,15 @@ export async function sendCoachMessage(
     const detail = err instanceof Error ? err.message.split("\n")[0] : "";
     return { error: detail ? `Envoi impossible — ${detail}` : "Envoi impossible" };
   }
+
+  // Le message est enregistré : la notification est un bonus, jamais une
+  // condition. sendPushToClient ne lève pas, mais on n'attend pas non plus
+  // qu'elle aboutisse pour rendre la main au coach.
+  void sendPushToClient(
+    clientId,
+    "Message de ton coach",
+    previewForNotification(content)
+  );
 
   return {};
 }
