@@ -48,22 +48,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           emailMatches ? expectedHash : DUMMY_HASH
         );
 
-        if (!emailMatches || !valid) {
-          // Diagnostic volontairement bavard : sans lui, un échec de connexion
-          // ne dit pas lequel des deux contrôles a échoué, et on en est réduit
-          // à changer les variables au hasard. Rien de secret n'est journalisé :
-          // ni le mot de passe, ni le hash, ni l'adresse attendue.
-          console.error("[auth] connexion refusée", {
-            emailFourniLongueur: email.length,
-            emailAttenduLongueur: expectedEmail.length,
-            emailCorrespond: emailMatches,
-            hashLongueur: expectedHash.length,
-            hashPrefixe: expectedHash.slice(0, 4),
-            hashBienForme: /^\$2[aby]\$\d{2}\$.{53}$/.test(expectedHash),
-            motDePasseValide: valid,
-          });
-          return null;
-        }
+        if (!emailMatches || !valid) return null;
 
         return { id: "coach", email: expectedEmail, name: "Coach D5" };
       },
