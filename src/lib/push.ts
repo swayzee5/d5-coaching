@@ -53,6 +53,15 @@ export async function sendPushToClient(
       console.error("[push] OneSignal signale une erreur", data.errors);
     } else if (data.recipients === 0) {
       console.warn("[push] aucun appareil abonné pour ce client", clientId);
+    } else {
+      // Sans trace du cas nominal, les logs Vercel ne permettent pas de
+      // distinguer « envoyé mais non reçu » de « jamais envoyé » — les deux
+      // ressemblent à un silence.
+      console.log("[push] notification envoyée", {
+        clientId,
+        recipients: data.recipients,
+        id: data.id,
+      });
     }
   } catch (err) {
     console.error("[push] envoi impossible", err);

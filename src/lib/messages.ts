@@ -65,10 +65,18 @@ export async function sendCoachMessage(
     return { error: detail ? `Envoi impossible — ${detail}` : "Envoi impossible" };
   }
 
-  // Le message est enregistré : la notification est un bonus, jamais une
-  // condition. sendPushToClient ne lève pas, mais on n'attend pas non plus
-  // qu'elle aboutisse pour rendre la main au coach.
-  void sendPushToClient(
+  // On attend l'envoi, et ce n'est pas un détail de style : cette fonction
+  // tourne dans une Server Action sur Vercel, donc dans un environnement
+  // serverless. Des que la reponse est renvoyee, l'instance peut etre gelee ou
+  // detruite — une promesse laissee en suspens (`void ...`) n'a alors aucune
+  // garantie d'aboutir. C'est exactement ce qui se passait : le message etait
+  // bien enregistre, la requete vers OneSignal ne partait jamais, et aucun log
+  // n'apparaissait puisque le code ne s'executait pas.
+  //
+  // Le cout est un aller-retour HTTP (~300 ms) avant que le coach reprenne la
+  // main. sendPushToClient ne leve jamais, donc l'attendre ne peut pas faire
+  // echouer l'envoi du message.
+  await sendPushToClient(
     clientId,
     "Message de ton coach",
     previewForNotification(content)
