@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
 import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleRebootOnly } from "./actions";
+import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot/RebootDiagnosticCard";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -172,6 +173,22 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     ]);
     rebootActivity = { completions, checkins, modules };
   } catch {}
+
+  // Diagnostic de départ. Requête séparée et tolérante : la table est créée par
+  // l'app client, elle peut ne pas exister encore sur un déploiement neuf, et
+  // son absence ne doit pas vider toute la fiche client.
+  //
+  // La comparaison se fait sur la colonne castée en text, pas sur le paramètre :
+  // l'app client crée client_id en UUID, le CRM crée ses propres tables en TEXT,
+  // et caster le paramètre a déjà produit des 42804 sur ce projet.
+  const rebootDiagnostic = await db.$queryRaw<RebootDiagnostic[]>`
+    SELECT answers, submitted_at,
+           score_global, score_sommeil, score_energie,
+           score_recuperation, score_stress, score_motivation, score_confiance
+    FROM reboot_diagnostics
+    WHERE client_id::text = ${params.id}
+    LIMIT 1
+  `.catch(() => [] as RebootDiagnostic[]);
 
   const latest = client.progressEntries[0] ?? null;
   const prevWeight = client.progressEntries.find((e, i) => i > 0 && e.weightKg !== null);
@@ -385,6 +402,11 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               />
             </div>
           </div>
+          {rebootDiagnostic[0] && (
+            <div className="mb-5">
+              <RebootDiagnosticCard diagnostic={rebootDiagnostic[0]} />
+            </div>
+          )}
           {!hasRebootActivity ? (
             <p className="text-gray-600 text-sm text-center py-4">Aucune activité pour l&apos;instant</p>
           ) : (
