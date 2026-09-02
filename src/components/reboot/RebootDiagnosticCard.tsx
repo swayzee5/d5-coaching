@@ -55,6 +55,14 @@ const CHOICES: Record<string, Record<string, string>> = {
   },
 };
 
+
+/** Coupe un texte long : dans 30 secondes, on ne cite qu'une phrase. */
+function excerpt(value: string | undefined, max = 140): string | null {
+  const flat = value?.replace(/\s+/g, " ").trim();
+  if (!flat) return null;
+  return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`;
+}
+
 function scoreColor(value: number): string {
   if (value <= 30) return "text-red-400";
   if (value <= 50) return "text-orange-400";
@@ -164,6 +172,35 @@ export function RebootDiagnosticCard({
             </p>
           </div>
         )}
+      </div>
+
+      <div className="border-t border-gray-800 pt-4 space-y-2">
+        <p className="text-xs text-gray-500 uppercase tracking-wider">
+          Pour le vocal — 30 secondes
+        </p>
+        <ol className="space-y-1.5 text-sm text-gray-300 list-decimal list-inside marker:text-gray-600">
+          {excerpt(answers.tentatives, 110) && (
+            <li>
+              <span className="text-gray-500">Nommer son vécu :</span>{" "}
+              {excerpt(answers.tentatives, 110)}
+            </li>
+          )}
+          <li>
+            <span className="text-gray-500">Annoncer la priorité :</span>{" "}
+            {weakest.label.toLowerCase()} ({diagnostic[weakest.key] / 10}/10) — c&apos;est par
+            là qu&apos;on commence
+          </li>
+          {excerpt(answers.reussite, 110) && (
+            <li>
+              <span className="text-gray-500">Reprendre ses mots :</span>{" "}
+              {excerpt(answers.reussite, 110)}
+            </li>
+          )}
+        </ol>
+        <p className="text-[11px] text-gray-600 leading-relaxed">
+          Trois points, une phrase chacun. Le reste du diagnostic est au-dessus si besoin,
+          mais tout dire allongerait le vocal sans le rendre plus personnel.
+        </p>
       </div>
 
       <div className="border-t border-gray-800 pt-3">
