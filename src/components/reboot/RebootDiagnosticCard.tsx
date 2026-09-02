@@ -3,7 +3,7 @@
  *
  * Conçu pour une seule tâche : préparer le message vocal personnel. D'où
  * l'ordre — le score en premier pour situer la personne d'un coup d'œil, puis
- * ses mots à elle, qui sont la matière du message.
+ * ses propres mots, qui sont la matière du message.
  *
  * Les libellés sont recopiés depuis lib/reboot-diagnostic.ts de l'app client :
  * les deux applications sont dans des dépôts séparés et ne partagent pas de
@@ -43,11 +43,11 @@ const AXES = [
 const CHOICES: Record<string, Record<string, string>> = {
   strategie_15h: {
     cafe_sucre: "Café, sucre, ou les deux",
-    force_mentale: "Il serre les dents, à la force mentale",
+    force_mentale: "Serrer les dents, à la force mentale",
     ca_va: "Rien de particulier, tout va bien",
   },
   place_de_soi: {
-    identite: "Ça fait partie de qui il/elle est",
+    identite: "Fait partie de son identité",
     plus_tard: "Toujours remis à plus tard",
     entre_deux: "Entre les deux, par périodes",
   },
@@ -124,7 +124,7 @@ export function RebootDiagnosticCard({ diagnostic }: { diagnostic: RebootDiagnos
           value={answers.bascule}
         />
         <FreeText
-          label="Tentatives passées et ce qui l'a arrêté(e)"
+          label="Tentatives passées et ce qui a bloqué"
           value={answers.tentatives}
         />
         <FreeText
