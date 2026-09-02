@@ -105,3 +105,24 @@ export async function deleteClient(id: string): Promise<{ error: string } | neve
 
   redirect("/app-clients");
 }
+
+/**
+ * Efface le diagnostic de départ Reboot d'un client.
+ *
+ * Le formulaire ne se présente qu'une fois — c'est le principe — donc sans
+ * cette remise à zéro, un diagnostic rempli n'importe comment reste tel quel
+ * pour toujours, et il n'y a aucun moyen de repartir sur une base propre.
+ *
+ * Supprimer la ligne suffit : l'app client redemande le formulaire dès qu'elle
+ * n'en trouve plus. Le score, lui, est recalculé à la nouvelle validation.
+ *
+ * La comparaison se fait sur la colonne castée en text, pas sur le paramètre :
+ * l'app client crée client_id en UUID et le CRM crée ses tables en TEXT, et
+ * caster le paramètre a déjà produit des erreurs 42804 sur ce projet.
+ */
+export async function resetRebootDiagnostic(id: string) {
+  await db.$executeRaw`
+    DELETE FROM reboot_diagnostics WHERE client_id::text = ${id}
+  `;
+  revalidatePath(`/app-clients/${id}`);
+}

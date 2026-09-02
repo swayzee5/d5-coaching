@@ -404,7 +404,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           </div>
           {rebootDiagnostic[0] && (
             <div className="mb-5">
-              <RebootDiagnosticCard diagnostic={rebootDiagnostic[0]} />
+              <RebootDiagnosticCard diagnostic={rebootDiagnostic[0]} clientId={client.id} />
             </div>
           )}
           {!hasRebootActivity ? (

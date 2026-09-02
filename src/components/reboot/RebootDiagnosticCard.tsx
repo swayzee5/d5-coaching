@@ -11,6 +11,8 @@
  * sinon les réponses s'afficheront sous d'anciennes questions.
  */
 
+import { ResetDiagnosticButton } from "./ResetDiagnosticButton";
+
 export type RebootDiagnostic = {
   answers: {
     bascule?: string;
@@ -70,7 +72,13 @@ function FreeText({ label, value }: { label: string; value?: string }) {
   );
 }
 
-export function RebootDiagnosticCard({ diagnostic }: { diagnostic: RebootDiagnostic }) {
+export function RebootDiagnosticCard({
+  diagnostic,
+  clientId,
+}: {
+  diagnostic: RebootDiagnostic;
+  clientId: string;
+}) {
   const { answers } = diagnostic;
   const weakest = AXES.reduce((low, axis) =>
     diagnostic[axis.key] < diagnostic[low.key] ? axis : low
@@ -156,6 +164,10 @@ export function RebootDiagnosticCard({ diagnostic }: { diagnostic: RebootDiagnos
             </p>
           </div>
         )}
+      </div>
+
+      <div className="border-t border-gray-800 pt-3">
+        <ResetDiagnosticButton clientId={clientId} />
       </div>
     </div>
   );
