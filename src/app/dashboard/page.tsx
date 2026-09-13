@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
 import ReplyButton from "./ReplyButton";
+import { RebootDiagnosticsOverview, type RebootParticipant } from "@/components/reboot/RebootDiagnosticsOverview";
 
 type GroupWithParticipants = {
   id: string; name: string; status: string; maxSize: number;
@@ -47,6 +48,7 @@ async function getDashboardData() {
   let unreadCheckins: (UnreadCheckin & { clientName: string })[] = [];
   let rebootCheckins: (RebootCheckin & { clientName: string })[] = [];
   let completedRebootClients: CompletedRebootClient[] = [];
+  let rebootParticipants: RebootParticipant[] = [];
 
   try {
     const [counts, statusCounts, groups, prospects, clients] = await Promise.all([
@@ -111,6 +113,50 @@ async function getDashboardData() {
   } catch {}
 
   try {
+    // Tous les participants Reboot, avec leur diagnostic s'il existe. La
+    // jointure est faite en texte des deux cotes : l'app client cree
+    // reboot_diagnostics avec un client_id en UUID, tandis que d'autres tables
+    // du CRM utilisent du TEXT pour la meme reference. Comparer en texte evite
+    // de dependre de celui des deux qui a cree la table en premier.
+    type DiagRow = {
+      client_id: string; first_name: string; last_name: string;
+      score_global: number | null; score_sommeil: number | null; score_energie: number | null;
+      score_recuperation: number | null; score_stress: number | null;
+      score_motivation: number | null; score_confiance: number | null;
+      submitted_at: Date | null;
+    };
+    const diagRows = await db.$queryRaw<DiagRow[]>`
+      SELECT c.id::text AS client_id, c.first_name, c.last_name,
+             d.score_global, d.score_sommeil, d.score_energie, d.score_recuperation,
+             d.score_stress, d.score_motivation, d.score_confiance, d.submitted_at
+      FROM clients c
+      LEFT JOIN reboot_diagnostics d ON d.client_id::text = c.id::text
+      WHERE c.is_reboot_only = true AND c.is_active = true
+      ORDER BY d.submitted_at DESC NULLS LAST, c.first_name ASC
+    `;
+    rebootParticipants = diagRows.map((r) => ({
+      clientId: r.client_id,
+      name: `${r.first_name} ${r.last_name}`,
+      diagnostic: r.submitted_at === null || r.score_global === null ? null : {
+        scoreGlobal: r.score_global,
+        submittedAt: r.submitted_at,
+        axes: [
+          { label: "Sommeil", value: r.score_sommeil ?? 0 },
+          { label: "Énergie", value: r.score_energie ?? 0 },
+          { label: "Récupération", value: r.score_recuperation ?? 0 },
+          { label: "Gestion du stress", value: r.score_stress ?? 0 },
+          { label: "Motivation", value: r.score_motivation ?? 0 },
+          { label: "Confiance corps", value: r.score_confiance ?? 0 },
+        ],
+      },
+    }));
+  } catch (err) {
+    // Table absente tant qu'aucun diagnostic n'a ete enregistre : le bloc
+    // disparait, le reste du tableau de bord continue de s'afficher.
+    console.error("[dashboard:reboot-diagnostics]", err);
+  }
+
+  try {
     const rows = await db.workoutSession.findMany({
       where: { status: "completed" },
       orderBy: { completedAt: "desc" },
@@ -143,7 +189,7 @@ async function getDashboardData() {
     });
   } catch {}
 
-  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients };
+  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants };
 }
 
 const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
@@ -191,6 +237,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       )}
+
+      <RebootDiagnosticsOverview participants={data.rebootParticipants} />
 
       {data.unreadMessages.length > 0 && (
         <div className="bg-gray-900 rounded-xl border border-blue-500/30 p-5">
