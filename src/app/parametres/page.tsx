@@ -7,10 +7,15 @@ export const metadata: Metadata = { title: "Paramètres" };
 
 export default async function ParametresPage() {
   let rebootMessage = "";
+  let introVideo = "";
   try {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT now())`.catch(() => {});
-    const rows = await db.$queryRaw<{ value: string }[]>`SELECT value FROM app_settings WHERE key = 'reboot_welcome_message'`;
-    rebootMessage = rows[0]?.value ?? "";
+    const rows = await db.$queryRaw<{ key: string; value: string }[]>`
+      SELECT key, value FROM app_settings
+      WHERE key IN ('reboot_welcome_message', 'reboot_intro_video_id')
+    `;
+    rebootMessage = rows.find((r) => r.key === "reboot_welcome_message")?.value ?? "";
+    introVideo = rows.find((r) => r.key === "reboot_intro_video_id")?.value ?? "";
   } catch {}
 
   return (
@@ -20,7 +25,7 @@ export default async function ParametresPage() {
         <h1 className="text-2xl font-bold text-white">Paramètres</h1>
         <p className="text-gray-400 text-sm mt-1">Configuration de l&apos;app cliente D5</p>
       </div>
-      <SettingsForm rebootMessage={rebootMessage} />
+      <SettingsForm rebootMessage={rebootMessage} introVideo={introVideo} />
     </div>
   );
 }
