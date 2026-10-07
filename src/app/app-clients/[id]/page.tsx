@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
 import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleRebootOnly } from "./actions";
+import { ResetPasswordButton } from "@/components/clients/ResetPasswordButton";
 import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot/RebootDiagnosticCard";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
@@ -255,6 +256,15 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
             </form>
             <DeleteClientButton clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
           </div>
+        </div>
+
+        {/* Discret, sous les actions : on n'y touche qu'en cas de problème de
+            connexion, mais il n'existait aucun moyen de le faire. */}
+        <div className="mt-4 border-t border-gray-800 pt-4">
+          <ResetPasswordButton
+            clientId={client.id}
+            clientName={client.firstName}
+          />
         </div>
       </div>
 

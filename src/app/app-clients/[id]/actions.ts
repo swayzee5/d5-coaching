@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
 
 export async function archiveClient(id: string) {
   await db.appClient.update({ where: { id }, data: { isActive: false } });
@@ -125,4 +126,43 @@ export async function resetRebootDiagnostic(id: string) {
     DELETE FROM reboot_diagnostics WHERE client_id::text = ${id}
   `;
   revalidatePath(`/app-clients/${id}`);
+}
+
+/**
+ * Donne un nouveau mot de passe à un client.
+ *
+ * Il n'existait aucun moyen d'en changer un. Un client qui oublie le sien, ou
+ * dont le mot de passe n'a jamais fonctionné, était simplement dehors : le
+ * formulaire de création refuse une adresse déjà utilisée par un client actif,
+ * donc même recréer le compte était impossible sans l'archiver d'abord. Avec
+ * treize participants, le cas est certain.
+ *
+ * Le coach choisit le mot de passe et le transmet lui-même : il parle déjà à
+ * ses clients tous les jours, et un envoi automatique serait un canal de plus
+ * à surveiller.
+ *
+ * Le mot de passe n'est pas rogné de ses espaces : un espace final collé par
+ * mégarde fait partie du mot de passe, et le retirer ici le rendrait
+ * incohérent avec la connexion, qui ne le retire pas non plus.
+ */
+export async function resetClientPassword(id: string, password: string) {
+  if (!password || password.length < 4) {
+    return { error: "Mot de passe trop court (4 caractères minimum)." };
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 12);
+    // isBlocked repasse à false : un compte bloqué refuse la connexion avec le
+    // même message qu'un mot de passe faux, et laisser le blocage en place
+    // ferait croire que la réinitialisation n'a pas marché.
+    await db.appClient.update({
+      where: { id },
+      data: { passwordHash, isBlocked: false, isActive: true },
+    });
+    revalidatePath(`/app-clients/${id}`);
+    return { ok: true as const };
+  } catch (err) {
+    console.error("[resetClientPassword]", err);
+    return { error: "Impossible de modifier le mot de passe." };
+  }
 }
