@@ -8,6 +8,7 @@ import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
 import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleRebootOnly } from "./actions";
 import { ResetPasswordButton } from "@/components/clients/ResetPasswordButton";
 import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot/RebootDiagnosticCard";
+import { RebootBilanCard, type BilanRow } from "@/components/reboot/RebootBilanCard";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -190,6 +191,16 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     WHERE client_id::text = ${params.id}
     LIMIT 1
   `.catch(() => [] as RebootDiagnostic[]);
+
+  // Le bilan de fin, s'il existe. Même jointure en texte, même raison.
+  const rebootBilan = await db.$queryRaw<BilanRow[]>`
+    SELECT score_global, score_sommeil, score_energie, score_recuperation,
+           score_stress, score_motivation, score_confiance,
+           satisfaction, temoignage, temoignage_publiable, submitted_at
+    FROM reboot_bilans
+    WHERE client_id::text = ${params.id}
+    LIMIT 1
+  `.catch(() => [] as BilanRow[]);
 
   const latest = client.progressEntries[0] ?? null;
   const prevWeight = client.progressEntries.find((e, i) => i > 0 && e.weightKg !== null);
@@ -414,7 +425,16 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           </div>
           {rebootDiagnostic[0] && (
             <div className="mb-5">
+
               <RebootDiagnosticCard diagnostic={rebootDiagnostic[0]} clientId={client.id} />
+              {rebootBilan[0] && (
+                <div className="mt-4">
+                  <RebootBilanCard
+                    depart={rebootDiagnostic[0] as unknown as Record<string, number> | undefined ?? null}
+                    bilan={rebootBilan[0]}
+                  />
+                </div>
+              )}
             </div>
           )}
           {!hasRebootActivity ? (
