@@ -1,19 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveRebootMessage, saveRebootIntroVideo } from "./actions";
+import { saveRebootMessage, saveRebootIntroVideo, saveCoachWhatsapp } from "./actions";
 
 export default function SettingsForm({
   rebootMessage,
   introVideo,
+  whatsapp,
 }: {
   rebootMessage: string;
   introVideo: string;
+  whatsapp: string;
 }) {
   const [message, setMessage] = useState(rebootMessage);
   const [video, setVideo] = useState(introVideo);
   const [saved, setSaved] = useState(false);
   const [videoSaved, setVideoSaved] = useState<string | null>(null);
+  const [numero, setNumero] = useState(whatsapp);
+  const [numeroSaved, setNumeroSaved] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
@@ -34,6 +38,16 @@ export default function SettingsForm({
       setVideo(retenu);
       setVideoSaved(retenu);
       setTimeout(() => setVideoSaved(null), 3000);
+    });
+  }
+
+  function handleNumero(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const retenu = await saveCoachWhatsapp(numero);
+      setNumero(retenu);
+      setNumeroSaved(retenu);
+      setTimeout(() => setNumeroSaved(null), 3000);
     });
   }
 
@@ -82,6 +96,31 @@ export default function SettingsForm({
           <p className="text-xs text-amber-400">
             Aucun identifiant trouvé dans ce que tu as collé. La vidéo n&apos;est plus imposée.
           </p>
+        )}
+      </form>
+    </div>
+
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+      <div>
+        <p className="text-sm font-semibold text-white">Ton numéro WhatsApp</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Utilisé par la page d&apos;invitation que tes participants partagent à leurs proches.
+          Avec l&apos;indicatif pays. Vide, aucun bouton WhatsApp ne s&apos;affiche sur cette page.
+        </p>
+      </div>
+      <form onSubmit={handleNumero} className="space-y-3">
+        <input
+          value={numero}
+          onChange={(e) => setNumero(e.target.value)}
+          placeholder="+33 6 12 34 56 78"
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500 transition-colors"
+        />
+        <button type="submit" disabled={isPending}
+          className="px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white rounded-lg text-sm font-semibold transition-colors">
+          {isPending ? "Enregistrement…" : numeroSaved !== null ? "Enregistré ✓" : "Enregistrer"}
+        </button>
+        {numeroSaved && (
+          <p className="text-xs text-gray-500">Retenu : {numeroSaved}</p>
         )}
       </form>
     </div>

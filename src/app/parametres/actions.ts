@@ -47,3 +47,33 @@ export async function saveRebootIntroVideo(valeur: string) {
   revalidatePath("/parametres");
   return identifiant;
 }
+
+/**
+ * Numéro WhatsApp du coach, pour la page d'invitation du Reboot.
+ *
+ * Format international sans le « + », comme l'attend wa.me : 33612345678.
+ * Le coach colle en général le numéro avec des espaces, un plus ou des
+ * points ; on ne garde que les chiffres plutôt que de lui demander un format
+ * qu'il n'a aucune raison de connaître.
+ *
+ * Vide, la page d'invitation n'affiche aucun bouton WhatsApp : mieux vaut une
+ * page sans bouton qu'un bouton qui mène à un numéro faux.
+ */
+export async function saveCoachWhatsapp(valeur: string) {
+  const numero = valeur.replace(/\D/g, "");
+
+  await db.$executeRaw`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    )
+  `.catch(() => {});
+  await db.$executeRaw`
+    INSERT INTO app_settings (key, value, updated_at)
+    VALUES ('coach_whatsapp', ${numero}, now())
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+  `;
+  revalidatePath("/parametres");
+  return numero;
+}

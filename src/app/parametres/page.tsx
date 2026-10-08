@@ -8,14 +8,16 @@ export const metadata: Metadata = { title: "Paramètres" };
 export default async function ParametresPage() {
   let rebootMessage = "";
   let introVideo = "";
+  let whatsapp = "";
   try {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT now())`.catch(() => {});
     const rows = await db.$queryRaw<{ key: string; value: string }[]>`
       SELECT key, value FROM app_settings
-      WHERE key IN ('reboot_welcome_message', 'reboot_intro_video_id')
+      WHERE key IN ('reboot_welcome_message', 'reboot_intro_video_id', 'coach_whatsapp')
     `;
     rebootMessage = rows.find((r) => r.key === "reboot_welcome_message")?.value ?? "";
     introVideo = rows.find((r) => r.key === "reboot_intro_video_id")?.value ?? "";
+    whatsapp = rows.find((r) => r.key === "coach_whatsapp")?.value ?? "";
   } catch {}
 
   return (
@@ -25,7 +27,7 @@ export default async function ParametresPage() {
         <h1 className="text-2xl font-bold text-white">Paramètres</h1>
         <p className="text-gray-400 text-sm mt-1">Configuration de l&apos;app cliente D5</p>
       </div>
-      <SettingsForm rebootMessage={rebootMessage} introVideo={introVideo} />
+      <SettingsForm rebootMessage={rebootMessage} introVideo={introVideo} whatsapp={whatsapp} />
     </div>
   );
 }
