@@ -273,6 +273,16 @@ model RebootSession {
   orderIndex      Int      @default(0) @map("order_index")
   description     String?
   durationMinutes Int?     @map("duration_minutes")
+  /// Identifiant stable, posé par le catalogue de l'app cliente.
+  slug            String?
+  /// Onglet d'affichage : salle, maison, mobilite ou hiit.
+  tab             String   @default("salle")
+  /// Échauffements et HIIT : hors des 3 séances du challenge.
+  isBonus         Boolean  @default(false) @map("is_bonus")
+  isActive        Boolean  @default(true) @map("is_active")
+  /// Touchée depuis le CRM. Le seed de l'app cliente ne la reconstruit plus :
+  /// sans cette marque, chaque reconstruction effacerait le travail du coach.
+  manuallyEdited  Boolean  @default(false) @map("manually_edited")
   createdAt       DateTime @default(now()) @map("created_at")
 
   exercises   RebootExercise[]
@@ -291,6 +301,10 @@ model RebootExercise {
   vimeoVideoId String?  @map("vimeo_video_id")
   orderIndex   Int      @default(0) @map("order_index")
   notes        String?
+  /// Lien vers la bibliothèque, plus fiable que le rapprochement par nom.
+  libraryExerciseId String? @map("library_exercise_id") @db.Uuid
+  /// Vidéo volontairement retirée, par opposition à une vidéo manquante.
+  videoSuppressed   Boolean @default(false) @map("video_suppressed")
   createdAt    DateTime @default(now()) @map("created_at")
 
   session RebootSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

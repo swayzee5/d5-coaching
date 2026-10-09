@@ -2,26 +2,34 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
 import Link from "next/link";
+import type { Metadata } from "next";
 
-const MUSCLE_LABELS: Record<string, string> = {
-  pecs: "Pectoraux",
-  dos: "Dos & Biceps",
-  jambes: "Jambes & Fessiers",
-};
+export const metadata: Metadata = { title: "Séances Reboot" };
 
-type SessionWithCount = {
-  id: string;
-  name: string;
-  muscleGroup: string;
-  location: string;
-  description: string | null;
-  durationMinutes: number | null;
-  _count: { exercises: number };
-};
+const ONGLETS: { cle: string; titre: string }[] = [
+  { cle: "salle", titre: "En salle" },
+  { cle: "maison", titre: "À la maison" },
+  { cle: "mobilite", titre: "Échauffements & étirements" },
+  { cle: "hiit", titre: "HIIT" },
+];
 
+/**
+ * Les séances du Reboot, groupées comme dans l'app.
+ *
+ * Même découpage que ce que voit le participant : sans ça, on corrige une
+ * séance en croyant savoir où elle apparaît, et on se trompe d'onglet.
+ */
 export default async function RebootSessionsPage() {
-  let sessions: SessionWithCount[] = [];
-  let error = "";
+  let sessions: {
+    id: string;
+    name: string;
+    tab: string;
+    isActive: boolean;
+    manuallyEdited: boolean;
+    durationMinutes: number | null;
+    _count: { exercises: number };
+  }[] = [];
+  let erreur = "";
 
   try {
     sessions = await db.rebootSession.findMany({
@@ -29,102 +37,61 @@ export default async function RebootSessionsPage() {
       include: { _count: { select: { exercises: true } } },
     });
   } catch (e) {
-    error = e instanceof Error ? e.message : String(e);
+    erreur = e instanceof Error ? e.message : String(e);
   }
-
-  const groups: Record<string, SessionWithCount[]> = {};
-  for (const s of sessions) {
-    if (!groups[s.muscleGroup]) groups[s.muscleGroup] = [];
-    groups[s.muscleGroup].push(s);
-  }
-
-  const muscleOrder = ["pecs", "dos", "jambes"];
 
   return (
-    <div className="p-6 max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Séances Reboot 40</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            6 séances template — Salle &amp; Maison par groupe musculaire
-          </p>
-        </div>
-        <Link
-          href="/reboot-sessions/sql"
-          className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
-        >
-          Migration SQL →
-        </Link>
+    <div className="max-w-3xl space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Séances Reboot 40</h1>
+        <p className="mt-1 text-sm text-gray-400">
+          Modifie les exercices, leur ordre et leurs séries. Une séance que tu
+          touches n&apos;est plus reconstruite automatiquement.
+        </p>
       </div>
 
-      {error && (
-        <div className="bg-red-900/20 border border-red-700/40 rounded-xl p-4 text-sm text-red-300">
-          <strong>Erreur DB :</strong> {error}
-          <br />
-          <span className="text-red-400/70 text-xs mt-1 block">
-            Les tables n&apos;existent pas encore.{" "}
-            <Link href="/reboot-sessions/sql" className="text-amber-400 underline">
-              Exécutez la migration SQL
-            </Link>
-          </span>
-        </div>
+      {erreur && (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+          {erreur}
+        </p>
       )}
 
-      {muscleOrder.map((muscle) => {
-        const list = groups[muscle];
-        if (!list?.length) return null;
+      {ONGLETS.map(({ cle, titre }) => {
+        const duGroupe = sessions.filter((s) => (s.tab ?? "salle") === cle);
+        if (duGroupe.length === 0) return null;
         return (
-          <div key={muscle}>
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              {MUSCLE_LABELS[muscle] ?? muscle}
+          <div key={cle} className="space-y-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+              {titre}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {list.map((session) => (
-                <Link
-                  key={session.id}
-                  href={`/reboot-sessions/${session.id}`}
-                  className="bg-gray-900 border border-gray-800 hover:border-brand-500/40 rounded-xl p-5 transition-colors group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${
-                        session.location === "salle"
-                          ? "bg-blue-500/10 text-blue-400"
-                          : "bg-green-500/10 text-green-400"
-                      }`}
-                    >
-                      {session.location}
-                    </span>
-                    <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
-                      {session._count.exercises} ex.
-                    </span>
-                  </div>
-                  <p className="text-white font-semibold">{session.name}</p>
-                  {session.description && (
-                    <p className="text-gray-400 text-xs mt-1">{session.description}</p>
-                  )}
-                  {session.durationMinutes && (
-                    <p className="text-gray-600 text-xs mt-2">⏱ {session.durationMinutes} min</p>
-                  )}
-                </Link>
-              ))}
-            </div>
+            {duGroupe.map((s) => (
+              <Link
+                key={s.id}
+                href={`/reboot-sessions/${s.id}`}
+                className={`flex items-center gap-3 rounded-xl border bg-gray-900 px-4 py-3 transition-colors hover:border-brand-500/40 ${
+                  s.isActive ? "border-gray-800" : "border-gray-800 opacity-50"
+                }`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-white">{s.name}</span>
+                  <span className="block text-xs text-gray-500">
+                    {s._count.exercises} exercice{s._count.exercises > 1 ? "s" : ""}
+                    {s.durationMinutes ? ` · ${s.durationMinutes} min` : ""}
+                    {!s.isActive ? " · masquée" : ""}
+                  </span>
+                </span>
+                {s.manuallyEdited && (
+                  <span className="shrink-0 text-xs text-brand-400">modifiée</span>
+                )}
+                {s._count.exercises < 4 && !s.isActive && (
+                  <span className="shrink-0 text-xs text-orange-400">incomplète</span>
+                )}
+                <span className="shrink-0 text-gray-600">→</span>
+              </Link>
+            ))}
           </div>
         );
       })}
-
-      {!error && sessions.length === 0 && (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-4xl mb-3">🏋️</p>
-          <p className="font-medium text-gray-400">Aucune séance trouvée</p>
-          <p className="text-sm mt-1">
-            Créez les tables via{" "}
-            <Link href="/reboot-sessions/sql" className="text-amber-400 underline">
-              Migration SQL
-            </Link>
-          </p>
-        </div>
-      )}
     </div>
   );
 }
