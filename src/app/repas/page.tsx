@@ -11,10 +11,9 @@ export const metadata: Metadata = { title: "Repas" };
 /**
  * La file des repas photographiés.
  *
- * Elle existe pour une raison précise : l'app cliente affiche « Vu par Daye »
- * puis « Répondu ». Sans un endroit où ces repas s'empilent visiblement, cette
- * promesse se retournerait contre le coach — un client verrait que sa photo a
- * été vue et jamais commentée, ce qui est pire que l'absence de suivi.
+ * Le client ne voit pas si sa photo a été ouverte — seulement si elle a reçu
+ * une réponse. Le marquage « vu » sert donc ici, et uniquement ici : il
+ * distingue ce que le coach a déjà regardé de ce qui vient d'arriver.
  *
  * Les repas en attente d'abord, les plus anciens en haut : ce sont eux qui
  * coûtent un client. Les repas déjà traités restent consultables en dessous,
@@ -73,8 +72,8 @@ export default async function RepasPage() {
         </Link>
       </div>
 
-      {/* L'ouverture de la page vaut lecture : le client voit « Vu » dès que
-          son coach a ouvert la file, sans geste supplémentaire. */}
+      {/* L'ouverture de la page vaut lecture. Marquage interne : il sert au
+          tri de cette file, le client n'en voit rien. */}
       <MarquerVus ids={aMarquer} />
 
       {enRetard > 0 && (
@@ -83,8 +82,8 @@ export default async function RepasPage() {
             {enRetard} repas {enRetard > 1 ? "attendent" : "attend"} depuis plus de 24 heures
           </p>
           <p className="mt-1 text-xs leading-relaxed text-gray-400">
-            Le client voit que sa photo a été vue. Un silence prolongé après un « Vu » se
-            remarque davantage qu&apos;une absence de suivi.
+            Un client qui photographie ses repas sans jamais recevoir de retour arrête
+            d&apos;en envoyer, puis arrête de regarder le reste.
           </p>
         </div>
       )}

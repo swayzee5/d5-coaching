@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
 /**
  * La file des repas, côté coach.
  *
- * Le client voit l'état de son repas — envoyé, vu, répondu. Ces deux actions
- * sont donc visibles de l'autre côté, et ce n'est pas un détail d'affichage :
- * marquer « vu » est une promesse de réponse, pas un accusé de réception.
+ * Le client ne voit que deux états : envoyé, puis répondu. Le marquage « vu »
+ * reste interne au CRM, où il distingue ce qui a déjà été trié de ce qui vient
+ * d'arriver. Seule la réponse franchit la frontière entre les deux
+ * applications.
  */
 
 const URL_APP_CLIENTE =
@@ -19,8 +20,8 @@ const URL_APP_CLIENTE =
  *
  * Appelée à l'ouverture de la file, pour tous les repas affichés d'un coup :
  * marquer repas par repas obligerait le coach à un geste par ligne, qu'il
- * finirait par ne plus faire — et le client verrait « envoyé » indéfiniment
- * alors que son coach regarde ses photos tous les jours.
+ * finirait par ne plus faire — et la distinction entre « déjà regardé » et
+ * « nouveau » se perdrait, qui est tout l'intérêt de la colonne.
  */
 export async function marquerVus(ids: string[]): Promise<void> {
   if (ids.length === 0) return;

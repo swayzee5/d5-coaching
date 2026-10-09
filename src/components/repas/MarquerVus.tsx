@@ -6,10 +6,10 @@ import { marquerVus } from "@/app/repas/actions";
 /**
  * Marque comme vus les repas affichés, à l'ouverture de la file.
  *
- * Ne rend rien. Le geste est automatique parce qu'il doit l'être : demander
- * au coach de cliquer sur chaque photo pour la marquer lue aboutirait à ce
- * qu'il ne le fasse plus, et le client verrait « envoyé » indéfiniment alors
- * que ses repas sont regardés tous les jours.
+ * Ne rend rien, et rien n'en transparaît côté client : la marque sert au tri
+ * de la file, pas à informer qui que ce soit. Le geste est automatique parce
+ * que demander au coach un clic par photo aboutirait à ce qu'il ne le fasse
+ * plus, et la distinction entre « déjà regardé » et « nouveau » disparaîtrait.
  *
  * `envoye` garde le composant d'agir deux fois quand React remonte l'effet,
  * ce qu'il fait systématiquement en développement.

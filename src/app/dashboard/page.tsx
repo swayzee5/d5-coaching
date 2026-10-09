@@ -288,7 +288,7 @@ export default async function DashboardPage() {
               </h2>
               <p className="mt-1 text-xs text-gray-400">
                 {data.repasEnRetard > 0
-                  ? `${data.repasEnRetard} ${data.repasEnRetard > 1 ? "attendent" : "attend"} depuis plus de 24 h. Le client voit que sa photo a été vue.`
+                  ? `${data.repasEnRetard} ${data.repasEnRetard > 1 ? "attendent" : "attend"} depuis plus de 24 h. Sans retour, un client cesse d'en envoyer.`
                   : "Tes clients attendent ton retour sur leurs assiettes."}
               </p>
             </div>
