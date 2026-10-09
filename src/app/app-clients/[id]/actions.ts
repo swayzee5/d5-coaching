@@ -166,3 +166,47 @@ export async function resetClientPassword(id: string, password: string) {
     return { error: "Impossible de modifier le mot de passe." };
   }
 }
+
+/**
+ * Date de départ du challenge pour un participant.
+ *
+ * C'est elle qui déclenche les relances : lundi la première séance, mercredi
+ * le mini-point, dimanche le bilan, lundi la dernière relance. Sans elle,
+ * aucune relance ne part — ce qui est préférable à des relances envoyées au
+ * hasard.
+ *
+ * Posée sur le client et non sur une cohorte à part : un retardataire peut
+ * ainsi suivre son propre calendrier, décalé d'une semaine, sans créer de
+ * structure supplémentaire pour un cas qui reste rare.
+ */
+export async function setRebootStartDate(id: string, date: string) {
+  await db.appClient.update({
+    where: { id },
+    data: { rebootStartDate: date ? new Date(`${date}T00:00:00Z`) : null },
+  });
+  revalidatePath(`/app-clients/${id}`);
+  revalidatePath("/dashboard");
+}
+
+/**
+ * Pose la même date de départ sur tous les participants Reboot actifs.
+ *
+ * Le geste réel du coach au moment du lancement : il a treize personnes et une
+ * seule date. Les régler une par une, treize fois, est le genre de tâche qu'on
+ * fait mal un dimanche soir.
+ *
+ * Ne touche que les participants Reboot actifs : les clients en
+ * accompagnement n'ont rien à voir avec ce calendrier.
+ */
+export async function setCohorteStartDate(date: string) {
+  if (!date) return { error: "Aucune date fournie." };
+
+  const result = await db.appClient.updateMany({
+    where: { isRebootOnly: true, isActive: true },
+    data: { rebootStartDate: new Date(`${date}T00:00:00Z`) },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/app-clients");
+  return { ok: true as const, participants: result.count };
+}

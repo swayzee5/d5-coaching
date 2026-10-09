@@ -5,6 +5,7 @@ import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectS
 import Link from "next/link";
 import ReplyButton from "./ReplyButton";
 import { RebootDiagnosticsOverview, type RebootParticipant } from "@/components/reboot/RebootDiagnosticsOverview";
+import { DateDepartCohorte } from "@/components/reboot/DateDepartCohorte";
 
 type GroupWithParticipants = {
   id: string; name: string; status: string; maxSize: number;
@@ -49,6 +50,7 @@ async function getDashboardData() {
   let rebootCheckins: (RebootCheckin & { clientName: string })[] = [];
   let completedRebootClients: CompletedRebootClient[] = [];
   let rebootParticipants: RebootParticipant[] = [];
+  let dateCohorte: string | null = null;
 
   try {
     const [counts, statusCounts, groups, prospects, clients] = await Promise.all([
@@ -134,6 +136,16 @@ async function getDashboardData() {
       WHERE c.is_reboot_only = true AND c.is_active = true
       ORDER BY d.submitted_at DESC NULLS LAST, c.first_name ASC
     `;
+    // La date la plus fréquente parmi les participants : celle de la cohorte
+    // en cours. Un retardataire avec sa propre date ne doit pas la déplacer.
+    const dates = await db.$queryRaw<{ d: Date | null; n: bigint }[]>`
+      SELECT reboot_start_date AS d, COUNT(*) AS n
+      FROM clients
+      WHERE is_reboot_only = true AND is_active = true AND reboot_start_date IS NOT NULL
+      GROUP BY reboot_start_date ORDER BY COUNT(*) DESC, reboot_start_date DESC LIMIT 1
+    `.catch(() => []);
+    dateCohorte = dates[0]?.d ? new Date(dates[0].d).toISOString().slice(0, 10) : null;
+
     rebootParticipants = diagRows.map((r) => ({
       clientId: r.client_id,
       name: `${r.first_name} ${r.last_name}`,
@@ -189,7 +201,7 @@ async function getDashboardData() {
     });
   } catch {}
 
-  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants };
+  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte };
 }
 
 const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
@@ -236,6 +248,10 @@ export default async function DashboardPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {data.rebootParticipants.length > 0 && (
+        <DateDepartCohorte dateActuelle={data.dateCohorte} />
       )}
 
       <RebootDiagnosticsOverview participants={data.rebootParticipants} />
