@@ -144,6 +144,7 @@ model AppClient {
   nutritionFiles   AppNutritionFile[]
   trainingPrograms TrainingProgram[]
   workoutSessions  WorkoutSession[]
+  mealLogs         MealLog[]
 
   @@map("clients")
 }
@@ -431,4 +432,34 @@ model SessionNote {
 
   @@index([workoutSessionId])
   @@map("session_notes")
+}
+
+/// Un repas photographié par un client, et la réponse du coach.
+///
+/// La table est écrite par l'app cliente ; le CRM la lit, la marque comme vue
+/// et y dépose la réponse. Les deux applications partagent la même base, sans
+/// outil de migration commun — la table est donc créée côté app cliente, et
+/// décrite ici pour que le CRM la manipule avec les mêmes garanties que le
+/// reste.
+model MealLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId       String    @map("client_id") @db.Uuid
+  /// Chemin dans le stockage privé, pas une adresse publique : ce sont les
+  /// cuisines et les tables de gens.
+  photoPath      String    @map("photo_path")
+  noteClient     String?   @map("note_client")
+  /// Lecture automatique de la photo. « analyse » seul est un mot réservé de
+  /// PostgreSQL — orthographe britannique d'ANALYZE.
+  analyseAuto    Json?     @map("analyse_auto")
+  analyseErreur  String?   @map("analyse_erreur")
+  /// Posé à l'ouverture de la file. Le client le voit : c'est une promesse.
+  coachSeenAt    DateTime? @map("coach_seen_at")
+  coachReply     String?   @map("coach_reply")
+  coachRepliedAt DateTime? @map("coach_replied_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  client AppClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@map("meal_logs")
 }

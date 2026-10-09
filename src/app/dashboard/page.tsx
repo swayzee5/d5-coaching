@@ -201,7 +201,22 @@ async function getDashboardData() {
     });
   } catch {}
 
-  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte };
+  // Les repas qui attendent une réponse. C'est le chiffre qui dit au coach
+  // s'il est en train de délaisser quelqu'un sans s'en rendre compte : le
+  // client, lui, voit que sa photo a été vue.
+  let repasEnAttente = 0;
+  let repasEnRetard = 0;
+  try {
+    const hier = new Date(Date.now() - 24 * 3_600_000);
+    const [attente, retard] = await Promise.all([
+      db.mealLog.count({ where: { coachRepliedAt: null } }),
+      db.mealLog.count({ where: { coachRepliedAt: null, createdAt: { lt: hier } } }),
+    ]);
+    repasEnAttente = attente;
+    repasEnRetard = retard;
+  } catch {}
+
+  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte, repasEnAttente, repasEnRetard };
 }
 
 const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
@@ -248,6 +263,38 @@ export default async function DashboardPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Avant tout le reste du tableau de bord quand il y a du retard : un
+          repas vu et jamais commenté est la seule chose ici qui puisse faire
+          perdre un client payant. */}
+      {data.repasEnAttente > 0 && (
+        <Link
+          href="/repas"
+          className={`block rounded-xl border p-5 transition-colors ${
+            data.repasEnRetard > 0
+              ? "border-red-500/40 bg-red-500/5 hover:border-red-500/60"
+              : "border-gray-800 bg-gray-900 hover:border-gray-700"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2
+                className={`text-sm font-semibold uppercase tracking-wide ${
+                  data.repasEnRetard > 0 ? "text-red-400" : "text-gray-300"
+                }`}
+              >
+                🍽️ {data.repasEnAttente} repas en attente de réponse
+              </h2>
+              <p className="mt-1 text-xs text-gray-400">
+                {data.repasEnRetard > 0
+                  ? `${data.repasEnRetard} ${data.repasEnRetard > 1 ? "attendent" : "attend"} depuis plus de 24 h. Le client voit que sa photo a été vue.`
+                  : "Tes clients attendent ton retour sur leurs assiettes."}
+              </p>
+            </div>
+            <span className="shrink-0 text-xs font-medium text-gray-400">Traiter →</span>
+          </div>
+        </Link>
       )}
 
       {data.rebootParticipants.length > 0 && (

@@ -24,6 +24,15 @@ const nav = [
     ),
   },
   {
+    href: "/repas",
+    label: "Repas",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3v18M3 8h4a2 2 0 002-2V3M7 3v18M14 3c-1.5 2-2 4-2 6a2 2 0 002 2h2a2 2 0 002-2c0-2-.5-4-2-6M16 11v10" />
+      </svg>
+    ),
+  },
+  {
     href: "/activites",
     label: "Activités",
     icon: (
