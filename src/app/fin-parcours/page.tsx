@@ -52,6 +52,10 @@ type Ligne = {
 
 export default async function FinParcoursPage() {
   let lignes: Ligne[] = [];
+  // L'erreur est retenue et affichée. Avalée, elle transformait une panne en
+  // « personne n'a terminé » — un message faux, rassurant, et impossible à
+  // distinguer de la vérité.
+  let panne: string | null = null;
   try {
     // Les identifiants sont comparés en texte des deux côtés : l'app cliente
     // écrit certaines de ces tables avec un client_id en UUID et d'autres en
@@ -98,6 +102,7 @@ export default async function FinParcoursPage() {
     `;
   } catch (err) {
     console.error("[fin-parcours]", err);
+    panne = String(err).slice(0, 300);
   }
 
   const versLigne = (l: Ligne): FinParcoursLigne => ({
@@ -134,15 +139,28 @@ export default async function FinParcoursPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Fin de parcours</h1>
           <p className="mt-1 text-sm text-gray-400">
-            {termines.length === 0
-              ? "Personne n'a encore terminé ses 10 étapes."
-              : `${aRelancer.length} à traiter · ${confirmes.length} rendez-vous confirmés`}
+            {panne
+              ? "La liste n'a pas pu être chargée."
+              : termines.length === 0
+                ? "Personne n'a encore terminé ses 10 étapes."
+                : `${aRelancer.length} à traiter · ${confirmes.length} rendez-vous confirmés`}
           </p>
         </div>
         <Link href="/dashboard" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
           ← Dashboard
         </Link>
       </div>
+
+      {panne && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/5 p-4">
+          <p className="text-sm font-semibold text-red-400">Cette page n&apos;a pas pu lire les données</p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-400">
+            Ce n&apos;est pas que personne n&apos;a terminé : la requête a échoué. Le diagnostic
+            est sur <code className="text-gray-300">/api/stats/fin-parcours?secret=…</code>
+          </p>
+          <p className="mt-2 break-words font-mono text-[11px] text-gray-500">{panne}</p>
+        </div>
+      )}
 
       {ontClique > 0 && (
         <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/5 p-4">
