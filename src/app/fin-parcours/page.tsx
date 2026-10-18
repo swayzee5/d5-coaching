@@ -79,7 +79,7 @@ export default async function FinParcoursPage() {
       WITH participants AS (
         SELECT c.id, c.first_name, c.last_name, c.phone, c.is_active
           FROM clients c
-         WHERE c.is_reboot_only = true
+         WHERE c.is_reboot_only = true AND c.is_active = true
       ),
       seances AS (
         SELECT rc.client_id::text AS cid, COUNT(DISTINCT rc.session_id) AS n
@@ -119,6 +119,18 @@ export default async function FinParcoursPage() {
     console.error("[fin-parcours]", err);
     panne = String(err).slice(0, 300);
   }
+
+  // Les participants archivés sont les cohortes précédentes, closes. Ils
+  // n'ont rien à faire dans une liste de relance — mais les faire disparaître
+  // sans rien dire est ce qui a fait croire que la page était vide.
+  let archives = 0;
+  try {
+    const r = await db.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n FROM clients
+       WHERE is_reboot_only = true AND is_active = false
+    `;
+    archives = r[0]?.n ?? 0;
+  } catch {}
 
   const versLigne = (l: Ligne): FinParcoursLigne => ({
     clientId: l.client_id,
@@ -228,6 +240,14 @@ export default async function FinParcoursPage() {
             <LigneFinParcours key={l.clientId} ligne={l} />
           ))}
         </section>
+      )}
+
+      {archives > 0 && (
+        <p className="pt-2 text-xs text-gray-600">
+          {archives} participant{archives > 1 ? "s" : ""} de cohortes précédentes
+          {archives > 1 ? " sont archivés" : " est archivé"} et n&apos;
+          {archives > 1 ? "apparaissent" : "apparaît"} pas ici.
+        </p>
       )}
 
       {/* Les participants encore en cours, pour voir qui cale avant la fin —
