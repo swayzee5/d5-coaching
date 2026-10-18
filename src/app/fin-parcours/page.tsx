@@ -38,6 +38,7 @@ type Ligne = {
   first_name: string;
   last_name: string;
   phone: string | null;
+  actif: boolean;
   etapes: number;
   score_depart: number | null;
   score_fin: number | null;
@@ -51,6 +52,19 @@ type Ligne = {
 };
 
 export default async function FinParcoursPage() {
+  // Les colonnes de suivi sont ajoutées ici si elles manquent. Le fichier de
+  // migration existe, mais rien ne l'exécute : ce projet n'a pas d'outil de
+  // migration partagé entre ses deux applications, et une colonne absente
+  // faisait échouer toute la page. Un ALTER idempotent coûte un aller-retour
+  // et supprime la classe entière de ces pannes.
+  await db.$executeRawUnsafe(`
+    ALTER TABLE reboot_bilans
+      ADD COLUMN IF NOT EXISTS video_fin_vue_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS cta_clique_at    TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS rdv_confirme_at  TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS relance_at       TIMESTAMPTZ
+  `).catch(() => {});
+
   let lignes: Ligne[] = [];
   // L'erreur est retenue et affichée. Avalée, elle transformait une panne en
   // « personne n'a terminé » — un message faux, rassurant, et impossible à
@@ -63,9 +77,9 @@ export default async function FinParcoursPage() {
     // dépendre.
     lignes = await db.$queryRaw<Ligne[]>`
       WITH participants AS (
-        SELECT c.id, c.first_name, c.last_name, c.phone
+        SELECT c.id, c.first_name, c.last_name, c.phone, c.is_active
           FROM clients c
-         WHERE c.is_reboot_only = true AND c.is_active = true
+         WHERE c.is_reboot_only = true
       ),
       seances AS (
         SELECT rc.client_id::text AS cid, COUNT(DISTINCT rc.session_id) AS n
@@ -83,6 +97,7 @@ export default async function FinParcoursPage() {
           FROM reboot_task_completions GROUP BY client_id::text
       )
       SELECT p.id::text AS client_id, p.first_name, p.last_name, p.phone,
+             p.is_active AS actif,
              (LEAST(COALESCE(s.n, 0), 3)
               + LEAST(COALESCE(m.n, 0), 3)
               + LEAST(COALESCE(mo.n, 0), 4))::int AS etapes,
@@ -110,6 +125,7 @@ export default async function FinParcoursPage() {
     nom: `${l.first_name} ${l.last_name ?? ""}`.trim(),
     prenom: l.first_name,
     telephone: l.phone,
+    actif: l.actif,
     etapes: l.etapes,
     etapesTotal: ETAPES_TOTAL,
     scoreDepart: l.score_depart,

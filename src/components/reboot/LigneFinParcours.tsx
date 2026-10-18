@@ -23,6 +23,12 @@ export type FinParcoursLigne = {
   nom: string;
   prenom: string;
   telephone: string | null;
+  /**
+   * Fiche encore active. Les participants archivés restent affichés, marqués :
+   * quelqu'un qui a terminé le challenge reste quelqu'un à rappeler, et les
+   * exclure vidait la page de presque toute la cohorte.
+   */
+  actif: boolean;
   /** Étapes du challenge validées, sur `etapesTotal`. */
   etapes: number;
   etapesTotal: number;
@@ -78,12 +84,19 @@ export function LigneFinParcours({
   if (compact) {
     return (
       <article className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-        <Link
-          href={`/app-clients/${ligne.clientId}`}
-          className="font-medium text-gray-300 hover:text-yellow-400"
-        >
-          {ligne.nom}
-        </Link>
+        <span className="flex items-center gap-2">
+          <Link
+            href={`/app-clients/${ligne.clientId}`}
+            className="font-medium text-gray-300 hover:text-yellow-400"
+          >
+            {ligne.nom}
+          </Link>
+          {!ligne.actif && (
+            <span className="rounded-full bg-gray-800 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+              archivé
+            </span>
+          )}
+        </span>
         <span className="text-sm text-gray-500">
           {ligne.etapes}/{ligne.etapesTotal} étapes
         </span>
@@ -99,12 +112,19 @@ export function LigneFinParcours({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link
-            href={`/app-clients/${ligne.clientId}`}
-            className="font-semibold text-white hover:text-yellow-400"
-          >
-            {ligne.nom}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/app-clients/${ligne.clientId}`}
+              className="font-semibold text-white hover:text-yellow-400"
+            >
+              {ligne.nom}
+            </Link>
+            {!ligne.actif && (
+              <span className="rounded-full bg-gray-800 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
+                archivé
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-xs text-gray-500">
             {ligne.etapes}/{ligne.etapesTotal} étapes
             {ligne.bilanLe
