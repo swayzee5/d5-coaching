@@ -10,34 +10,40 @@ export const metadata: Metadata = { title: "Fin de parcours" };
 /**
  * Qui relancer après le challenge.
  *
- * Le but du dispositif est que les participants prennent rendez-vous
- * d'eux-mêmes, et que le coach ne relance à la main que les autres. Sans
- * cette liste, il faudrait vérifier chaque fiche une par une — et tout ce
- * qu'on gagne en automatisant l'offre se reperdrait en vérifications.
+ * La page listait les bilans. C'était le mauvais critère : elle affichait
+ * « personne n'a encore terminé son bilan » alors que trois participants
+ * avaient fini leurs dix étapes — exactement ceux qu'il fallait rappeler, et
+ * les seuls que la page ne montrait pas. Quelqu'un qui finit le challenge
+ * sans remplir son bilan n'est pas moins intéressant : il est juste passé à
+ * côté d'un formulaire.
  *
- * Trois colonnes de suivi, et la distinction entre elles est importante :
+ * On part donc des participants et de leur avancement, le bilan n'étant qu'une
+ * information de plus.
  *
- *   - « a vu la vidéo » : il est allé au bout de la vidéo de clôture.
- *   - « a cliqué » : il a ouvert le lien de réservation. Ce n'est PAS une
- *     réservation — elle a lieu chez un prestataire externe que cette
- *     application ne voit pas.
- *   - « RDV confirmé » : le coach l'a coché parce que le rendez-vous est dans
- *     son agenda. C'est la seule des trois qui dise la vérité.
+ * Trois états de suivi, et la distinction compte :
  *
- * Les confondre ferait croire à des rendez-vous qui n'existent pas, et
- * supprimerait de la liste exactement les gens qu'il faut rappeler.
+ *   - « a vu la vidéo » et « a ouvert le lien RDV » sont mesurés.
+ *   - « RDV confirmé » est coché par le coach, parce que la réservation a lieu
+ *     chez un prestataire externe que cette application ne voit pas.
+ *
+ * Seul le troisième dit la vérité, et c'est lui qui sort quelqu'un de la
+ * liste. Déduire un rendez-vous d'un clic ferait disparaître des gens qu'il
+ * faut rappeler.
  */
+
+const ETAPES_TOTAL = 10;
 
 type Ligne = {
   client_id: string;
   first_name: string;
   last_name: string;
   phone: string | null;
+  etapes: number;
   score_depart: number | null;
-  score_fin: number;
+  score_fin: number | null;
   satisfaction: number | null;
   temoignage: string | null;
-  submitted_at: Date;
+  bilan_le: Date | null;
   video_fin_vue_at: Date | null;
   cta_clique_at: Date | null;
   rdv_confirme_at: Date | null;
@@ -47,17 +53,47 @@ type Ligne = {
 export default async function FinParcoursPage() {
   let lignes: Ligne[] = [];
   try {
+    // Les identifiants sont comparés en texte des deux côtés : l'app cliente
+    // écrit certaines de ces tables avec un client_id en UUID et d'autres en
+    // TEXT, selon celle qui a créé la table en premier. Caster évite d'en
+    // dépendre.
     lignes = await db.$queryRaw<Ligne[]>`
-      SELECT b.client_id::text AS client_id,
-             c.first_name, c.last_name, c.phone,
+      WITH participants AS (
+        SELECT c.id, c.first_name, c.last_name, c.phone
+          FROM clients c
+         WHERE c.is_reboot_only = true AND c.is_active = true
+      ),
+      seances AS (
+        SELECT rc.client_id::text AS cid, COUNT(DISTINCT rc.session_id) AS n
+          FROM reboot_completions rc
+          JOIN reboot_sessions rs ON rs.id = rc.session_id
+         WHERE NOT rs.is_bonus
+         GROUP BY rc.client_id::text
+      ),
+      messages AS (
+        SELECT client_id::text AS cid, COUNT(*) AS n
+          FROM reboot_whatsapp_completions GROUP BY client_id::text
+      ),
+      modules AS (
+        SELECT client_id::text AS cid, COUNT(*) AS n
+          FROM reboot_task_completions GROUP BY client_id::text
+      )
+      SELECT p.id::text AS client_id, p.first_name, p.last_name, p.phone,
+             (LEAST(COALESCE(s.n, 0), 3)
+              + LEAST(COALESCE(m.n, 0), 3)
+              + LEAST(COALESCE(mo.n, 0), 4))::int AS etapes,
              d.score_global AS score_depart,
              b.score_global AS score_fin,
-             b.satisfaction, b.temoignage, b.submitted_at,
+             b.satisfaction, b.temoignage,
+             b.submitted_at AS bilan_le,
              b.video_fin_vue_at, b.cta_clique_at, b.rdv_confirme_at, b.relance_at
-        FROM reboot_bilans b
-        JOIN clients c ON c.id = b.client_id
-        LEFT JOIN reboot_diagnostics d ON d.client_id = b.client_id
-       ORDER BY b.submitted_at DESC
+        FROM participants p
+        LEFT JOIN seances  s  ON s.cid  = p.id::text
+        LEFT JOIN messages m  ON m.cid  = p.id::text
+        LEFT JOIN modules  mo ON mo.cid = p.id::text
+        LEFT JOIN reboot_diagnostics d ON d.client_id::text = p.id::text
+        LEFT JOIN reboot_bilans      b ON b.client_id::text = p.id::text
+       ORDER BY etapes DESC, p.first_name
        LIMIT 200
     `;
   } catch (err) {
@@ -66,22 +102,30 @@ export default async function FinParcoursPage() {
 
   const versLigne = (l: Ligne): FinParcoursLigne => ({
     clientId: l.client_id,
-    nom: `${l.first_name} ${l.last_name}`.trim(),
-    telephone: l.phone,
+    nom: `${l.first_name} ${l.last_name ?? ""}`.trim(),
     prenom: l.first_name,
+    telephone: l.phone,
+    etapes: l.etapes,
+    etapesTotal: ETAPES_TOTAL,
     scoreDepart: l.score_depart,
     scoreFin: l.score_fin,
     satisfaction: l.satisfaction,
     temoignage: l.temoignage,
-    bilanLe: l.submitted_at.toISOString(),
+    bilanLe: l.bilan_le ? l.bilan_le.toISOString() : null,
     videoVue: l.video_fin_vue_at !== null,
     ctaClique: l.cta_clique_at !== null,
     rdvConfirme: l.rdv_confirme_at !== null,
     relance: l.relance_at !== null,
   });
 
-  const aRelancer = lignes.filter((l) => !l.rdv_confirme_at).map(versLigne);
-  const confirmes = lignes.filter((l) => l.rdv_confirme_at).map(versLigne);
+  const termines = lignes.filter((l) => l.etapes >= ETAPES_TOTAL || l.bilan_le !== null);
+  const aRelancer = termines.filter((l) => !l.rdv_confirme_at).map(versLigne);
+  const confirmes = termines.filter((l) => l.rdv_confirme_at).map(versLigne);
+  const enCours = lignes
+    .filter((l) => l.etapes < ETAPES_TOTAL && l.bilan_le === null && l.etapes > 0)
+    .map(versLigne);
+
+  const sansBilan = aRelancer.filter((l) => l.bilanLe === null).length;
   const ontClique = aRelancer.filter((l) => l.ctaClique).length;
 
   return (
@@ -90,8 +134,8 @@ export default async function FinParcoursPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Fin de parcours</h1>
           <p className="mt-1 text-sm text-gray-400">
-            {lignes.length === 0
-              ? "Personne n'a encore terminé son bilan."
+            {termines.length === 0
+              ? "Personne n'a encore terminé ses 10 étapes."
               : `${aRelancer.length} à traiter · ${confirmes.length} rendez-vous confirmés`}
           </p>
         </div>
@@ -107,8 +151,21 @@ export default async function FinParcoursPage() {
             l&apos;aies confirmé
           </p>
           <p className="mt-1 text-xs leading-relaxed text-gray-400">
-            Vérifie ton agenda : s&apos;ils ont réservé, coche-les pour les sortir de la liste.
-            Sinon ce sont eux qu&apos;il faut rappeler en premier — ils étaient à un clic.
+            Vérifie ton agenda : s&apos;ils ont réservé, coche-les. Sinon ce sont eux qu&apos;il
+            faut rappeler en premier — ils étaient à un clic.
+          </p>
+        </div>
+      )}
+
+      {sansBilan > 0 && (
+        <div className="rounded-xl border border-gray-700 bg-gray-900 p-4">
+          <p className="text-sm font-semibold text-white">
+            {sansBilan} {sansBilan > 1 ? "ont terminé" : "a terminé"} le challenge sans remplir le
+            bilan
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-400">
+            Sans bilan, pas de progression chiffrée — ni pour eux, ni pour toi. Le message de
+            relance préparé pour eux les y ramène.
           </p>
         </div>
       )}
@@ -120,7 +177,7 @@ export default async function FinParcoursPage() {
           ))}
         </section>
       ) : (
-        lignes.length > 0 && (
+        termines.length > 0 && (
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-10 text-center">
             <p className="text-3xl">✅</p>
             <p className="mt-2 font-semibold text-white">Tout le monde est traité</p>
@@ -135,6 +192,20 @@ export default async function FinParcoursPage() {
           </h2>
           {confirmes.map((l) => (
             <LigneFinParcours key={l.clientId} ligne={l} />
+          ))}
+        </section>
+      )}
+
+      {/* Les participants encore en cours, pour voir qui cale avant la fin —
+          un décrochage repéré au cinquième jour se rattrape, le même constaté
+          au bilan ne se rattrape plus. */}
+      {enCours.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="pt-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Challenge en cours ({enCours.length})
+          </h2>
+          {enCours.map((l) => (
+            <LigneFinParcours key={l.clientId} ligne={l} compact />
           ))}
         </section>
       )}
