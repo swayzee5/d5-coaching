@@ -32,7 +32,20 @@ export type ExerciceEditable = {
   reps: string | null;
   restSeconds: number | null;
   notes: string | null;
+  /** Vidéo réellement affichée au client, quelle que soit son origine. */
   vimeoVideoId: string | null;
+  /**
+   * D'où vient cette vidéo.
+   *
+   * Les séances ne stockent plus de vidéo : elles lisent la bibliothèque, pour
+   * qu'un exercice refilmé se mette à jour partout sans reconstruction. Cet
+   * éditeur regardait encore la colonne de la séance, toujours vide, et
+   * affichait « sans vidéo » sur des exercices qui en ont une.
+   *
+   * « seance » signale l'exception : une vidéo posée à la main sur cet
+   * exercice précis, qui prend le pas sur la bibliothèque.
+   */
+  videoOrigine?: "seance" | "bibliotheque" | null;
 };
 
 export function EditeurSeance({
@@ -233,8 +246,16 @@ function LigneExercice({
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
           {exercice.name}
         </span>
-        {!exercice.vimeoVideoId && (
+        {!exercice.vimeoVideoId ? (
           <span className="shrink-0 text-xs text-orange-400">sans vidéo</span>
+        ) : exercice.videoOrigine === "seance" ? (
+          <span className="shrink-0 text-xs text-brand-400" title="Vidéo posée à la main sur cet exercice, prioritaire sur la bibliothèque">
+            vidéo propre
+          </span>
+        ) : (
+          <span className="shrink-0 text-xs text-green-400" title="Vidéo lue dans la bibliothèque : la refilmer la met à jour ici automatiquement">
+            vidéo
+          </span>
         )}
         <button onClick={() => onDeplacer("haut")} disabled={position === 0 || desactive}
           className="px-1 text-gray-500 hover:text-white disabled:opacity-20" title="Monter">↑</button>
