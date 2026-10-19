@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { createExercise, deleteExercise, updateExerciseVimeo } from "./actions";
+import { deleteExercise, updateExerciseVimeo } from "./actions";
+import { AjouterExercice } from "@/components/exercices/AjouterExercice";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import GenerateVideoButton from "@/components/exercices/GenerateVideoButton";
 import { VimeoIdInput } from "@/components/exercices/VimeoIdInput";
@@ -111,64 +112,7 @@ export default async function ExercicesPage({
         ))}
       </div>
 
-      {/* Formulaire de création */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h2 className="font-semibold text-white mb-4">Ajouter un exercice</h2>
-        <form action={createExercise} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Nom *</label>
-              <input
-                name="name"
-                required
-                placeholder="ex: Développé couché"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Vidéo Vimeo (optionnel)</label>
-              <input
-                name="vimeoVideoId"
-                placeholder="ID de la vidéo"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1.5">Description (optionnel)</label>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Instructions d'exécution..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-2">Groupes musculaires</label>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {MUSCLE_GROUPS.map((m) => (
-                <label key={m} className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="muscles"
-                    value={m}
-                    className="rounded border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-0"
-                  />
-                  <span className="text-sm text-gray-300">{m}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="px-5 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Ajouter l&apos;exercice
-            </button>
-          </div>
-        </form>
-      </div>
+      <AjouterExercice muscleGroups={MUSCLE_GROUPS} />
 
       {/* Liste */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">

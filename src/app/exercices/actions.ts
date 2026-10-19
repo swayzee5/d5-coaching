@@ -3,24 +3,53 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function createExercise(formData: FormData) {
-  const name = formData.get("name") as string;
-  const description = (formData.get("description") as string) || null;
-  const vimeoVideoId = (formData.get("vimeoVideoId") as string) || null;
+/**
+ * Ajoute un exercice à la bibliothèque.
+ *
+ * Renvoie un résultat au lieu de ne rien dire. L'ajout fonctionnait, mais
+ * aucune confirmation n'apparaissait : la liste compte plus de deux cents
+ * entrées et le nouvel exercice atterrissait quelque part hors de l'écran,
+ * si bien qu'on ne savait pas si le clic avait été pris en compte — et qu'on
+ * ajoutait deux fois.
+ *
+ * Le doublon de nom est refusé plutôt que créé. Les séances qui ne portent
+ * pas d'identifiant de bibliothèque sont rapprochées par le nom : deux
+ * entrées identiques rendent ce rapprochement arbitraire.
+ */
+export async function createExercise(
+  formData: FormData
+): Promise<{ ok: true; nom: string } | { ok: false; erreur: string }> {
+  const name = ((formData.get("name") as string) ?? "").trim();
+  const description = ((formData.get("description") as string) ?? "").trim();
+  const vimeoVideoId = ((formData.get("vimeoVideoId") as string) ?? "").trim();
   const muscles = formData.getAll("muscles") as string[];
 
-  if (!name?.trim()) return;
+  if (!name) return { ok: false, erreur: "Le nom est obligatoire." };
 
-  await db.exerciseLibrary.create({
-    data: {
-      name: name.trim(),
-      description: description?.trim() || null,
-      vimeoVideoId: vimeoVideoId?.trim() || null,
-      muscles,
-    },
-  });
+  try {
+    const existant = await db.exerciseLibrary.findFirst({
+      where: { name: { equals: name, mode: "insensitive" } },
+      select: { name: true },
+    });
+    if (existant) {
+      return { ok: false, erreur: `« ${existant.name} » existe déjà dans la bibliothèque.` };
+    }
+
+    await db.exerciseLibrary.create({
+      data: {
+        name,
+        description: description || null,
+        vimeoVideoId: vimeoVideoId || null,
+        muscles,
+      },
+    });
+  } catch (err) {
+    console.error("[createExercise] échec", err);
+    return { ok: false, erreur: "Enregistrement impossible. Réessaie dans un instant." };
+  }
 
   revalidatePath("/exercices");
+  return { ok: true, nom: name };
 }
 
 // Renommer est le seul moyen de lever une ambiguïté quand deux exercices
