@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
+import { ensureSchemaReboot } from "@/lib/ensure-schema";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -20,6 +21,9 @@ const ONGLETS: { cle: string; titre: string }[] = [
  * séance en croyant savoir où elle apparaît, et on se trompe d'onglet.
  */
 export default async function RebootSessionsPage() {
+  // Le schéma d'abord : une colonne manquante ferait échouer toute la
+  // requête Prisma, et la page n'afficherait plus rien.
+  await ensureSchemaReboot().catch(() => {});
   let sessions: {
     id: string;
     name: string;

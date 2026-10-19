@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { ensureSchemaReboot } from "@/lib/ensure-schema";
 import { LigneFinParcours, type FinParcoursLigne } from "@/components/reboot/LigneFinParcours";
 import type { Metadata } from "next";
 
@@ -52,19 +53,9 @@ type Ligne = {
 };
 
 export default async function FinParcoursPage() {
-  // Les colonnes de suivi sont ajoutées ici si elles manquent. Le fichier de
-  // migration existe, mais rien ne l'exécute : ce projet n'a pas d'outil de
-  // migration partagé entre ses deux applications, et une colonne absente
-  // faisait échouer toute la page. Un ALTER idempotent coûte un aller-retour
-  // et supprime la classe entière de ces pannes.
-  await db.$executeRawUnsafe(`
-    ALTER TABLE reboot_bilans
-      ADD COLUMN IF NOT EXISTS video_fin_vue_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS cta_clique_at    TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS rdv_confirme_at  TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS relance_at       TIMESTAMPTZ
-  `).catch(() => {});
-
+  // Le schéma d'abord : une colonne manquante ferait échouer toute la
+  // requête Prisma, et la page n'afficherait plus rien.
+  await ensureSchemaReboot().catch(() => {});
   let lignes: Ligne[] = [];
   // L'erreur est retenue et affichée. Avalée, elle transformait une panne en
   // « personne n'a terminé » — un message faux, rassurant, et impossible à

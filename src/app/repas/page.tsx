@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { ensureSchemaReboot } from "@/lib/ensure-schema";
 import { CarteRepasCoach, type RepasCoach } from "@/components/repas/CarteRepasCoach";
 import { MarquerVus } from "@/components/repas/MarquerVus";
 import type { Metadata } from "next";
@@ -20,6 +21,9 @@ export const metadata: Metadata = { title: "Repas" };
  * parce que la réponse donnée hier est le contexte de celle d'aujourd'hui.
  */
 export default async function RepasPage() {
+  // Le schéma d'abord : une colonne manquante ferait échouer toute la
+  // requête Prisma, et la page n'afficherait plus rien.
+  await ensureSchemaReboot().catch(() => {});
   const lignes = await db.mealLog
     .findMany({
       orderBy: { createdAt: "asc" },

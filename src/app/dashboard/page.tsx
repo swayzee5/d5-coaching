@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
+import { ensureSchemaReboot } from "@/lib/ensure-schema";
 import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
 import ReplyButton from "./ReplyButton";
@@ -224,6 +225,9 @@ const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
 ];
 
 export default async function DashboardPage() {
+  // Le schéma d'abord : une colonne manquante ferait échouer toute la
+  // requête Prisma, et la page n'afficherait plus rien.
+  await ensureSchemaReboot().catch(() => {});
   const data = await getDashboardData();
   return (
     <div className="p-6 space-y-6">

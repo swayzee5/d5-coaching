@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
+import { ensureSchemaReboot } from "@/lib/ensure-schema";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { EditeurSeance } from "@/components/reboot/EditeurSeance";
@@ -17,6 +18,9 @@ export default async function RebootSessionDetailPage({
 }: {
   params: { id: string };
 }) {
+  // Le schéma d'abord : une colonne manquante ferait échouer toute la
+  // requête Prisma, et la page n'afficherait plus rien.
+  await ensureSchemaReboot().catch(() => {});
   const session = await db.rebootSession.findUnique({
     where: { id: params.id },
     include: { exercises: { orderBy: { orderIndex: "asc" } } },
