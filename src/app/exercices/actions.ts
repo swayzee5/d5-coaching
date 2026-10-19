@@ -84,10 +84,41 @@ export async function deleteExercise(id: string) {
   revalidatePath("/exercices");
 }
 
+/**
+ * Change la vidéo d'un exercice, et oublie sa miniature.
+ *
+ * La miniature illustre une vidéo précise. La laisser en place après un
+ * changement d'identifiant affiche l'aperçu de l'ancien mouvement sur le
+ * nouveau — symptôme déroutant, parce que la vidéo, elle, est correcte : on
+ * cherche l'erreur dans la séance alors qu'elle est dans l'image.
+ *
+ * Mise à NULL plutôt que recalculée ici : la récupération auprès de Vimeo
+ * demande un jeton et un appel réseau, et elle a déjà sa route
+ * (/api/stats/no-thumb?fix=1). Mieux vaut pas de vignette qu'une fausse.
+ *
+ * L'oubli n'a lieu que si l'identifiant change réellement : réenregistrer la
+ * même valeur ne doit pas faire perdre une vignette correcte.
+ */
 export async function updateExerciseVimeo(id: string, vimeoVideoId: string | null) {
+  const nouveau = vimeoVideoId?.trim() || null;
+  const actuel = await db.exerciseLibrary
+    .findUnique({ where: { id }, select: { vimeoVideoId: true } })
+    .catch(() => null);
+
   await db.exerciseLibrary.update({
     where: { id },
-    data: { vimeoVideoId: vimeoVideoId?.trim() || null },
+    data: { vimeoVideoId: nouveau },
   });
+
+  // En SQL direct : la colonne existe en base — l'app cliente l'affiche —
+  // mais n'est pas déclarée dans ce schéma Prisma. L'y ajouter ferait porter
+  // à toutes les requêtes sur la bibliothèque le risque d'échouer là où la
+  // colonne manquerait, pour un champ que le CRM n'affiche jamais.
+  if (actuel && actuel.vimeoVideoId !== nouveau) {
+    await db
+      .$executeRaw`UPDATE exercise_library SET thumbnail_url = NULL WHERE id = ${id}::uuid`
+      .catch(() => {});
+  }
+
   revalidatePath("/exercices");
 }
