@@ -21,6 +21,11 @@ const MUSCLE_GROUPS = [
   "Quadriceps",
   "Ischio-jambiers",
   "Fessiers",
+  // Hanches : stabilisateurs du bassin, et les groupes les plus utiles chez
+  // un public quarantenaire — quand ils lâchent, ce sont les genoux et le bas
+  // du dos qui compensent.
+  "Adducteurs",
+  "Abducteurs",
   "Mollets",
   "Cardio / Mobilité",
   "Retour blessure - Épaule",

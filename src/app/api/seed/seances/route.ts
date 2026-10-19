@@ -48,7 +48,7 @@ type Def = {
 
 const PECS_M  = ["pectoral", "pecs", "poitrine", "chest"];
 const DOS_M   = ["dos", "dorsal", "grand dorsal", "latissimus", "trapèze", "rhomboïde"];
-const LEGS_M  = ["quadriceps", "quads", "ischio", "femoral", "fessiers", "glutes", "mollets", "jambes"];
+const LEGS_M  = ["quadriceps", "quads", "ischio", "femoral", "fessiers", "glutes", "mollets", "jambes", "adducteur", "abducteur"];
 const EPAUL_M = ["épaule", "epaule", "deltoïde", "deltoide", "delta", "shoulder", "trapèze"];
 const HAUT_M  = [...new Set([...PECS_M, ...DOS_M, ...EPAUL_M, "biceps", "triceps"])];
 const PUSH_M  = [...new Set([...PECS_M, ...EPAUL_M, "triceps"])];
