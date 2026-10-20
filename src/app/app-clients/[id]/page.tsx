@@ -10,6 +10,7 @@ import { ResetPasswordButton } from "@/components/clients/ResetPasswordButton";
 import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot/RebootDiagnosticCard";
 import { RebootBilanCard, type BilanRow } from "@/components/reboot/RebootBilanCard";
 import { PhotosProgressionClient } from "@/components/clients/PhotosProgressionClient";
+import { ProfilNutritionClient } from "@/components/clients/ProfilNutritionClient";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -429,6 +430,13 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               composant ne rend rien tant qu'aucune photo n'existe. */}
           <div className="mb-5">
             <PhotosProgressionClient clientId={client.id} />
+          </div>
+
+          {/* Le profil alimentaire juste après les photos : c'est le couple
+              qui sert à décider d'un ajustement. Ne rend rien tant que le
+              client n'a pas répondu. */}
+          <div className="mb-5">
+            <ProfilNutritionClient clientId={client.id} />
           </div>
 
           {rebootDiagnostic[0] && (
