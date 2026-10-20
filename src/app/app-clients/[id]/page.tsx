@@ -9,6 +9,7 @@ import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleReboo
 import { ResetPasswordButton } from "@/components/clients/ResetPasswordButton";
 import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot/RebootDiagnosticCard";
 import { RebootBilanCard, type BilanRow } from "@/components/reboot/RebootBilanCard";
+import { PhotosProgressionClient } from "@/components/clients/PhotosProgressionClient";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -423,6 +424,13 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               />
             </div>
           </div>
+          {/* Avant le reste : c'est ce qui se regarde en premier quand on
+              rouvre la fiche d'un client après plusieurs semaines. Le
+              composant ne rend rien tant qu'aucune photo n'existe. */}
+          <div className="mb-5">
+            <PhotosProgressionClient clientId={client.id} />
+          </div>
+
           {rebootDiagnostic[0] && (
             <div className="mb-5">
 
