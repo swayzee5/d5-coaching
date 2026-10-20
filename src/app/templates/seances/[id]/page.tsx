@@ -6,6 +6,7 @@ import Link from "next/link";
 import { addExerciseToSeanceTemplate, deleteExerciseFromSeanceTemplate, updateSeanceTemplateName } from "./actions";
 import { clientsAttribuables } from "@/app/templates/actions";
 import { AttribuerSeance } from "@/components/templates/AttribuerSeance";
+import { DeplacerExercice } from "@/components/templates/DeplacerExercice";
 
 type SeanceTemplate = {
   id: string;
@@ -129,14 +130,25 @@ export default async function SeanceTemplateDetailPage({
                     </div>
                   </div>
                 </div>
-                <form action={deleteAction}>
-                  <button
-                    type="submit"
-                    className="text-xs text-red-400 hover:text-red-300 shrink-0 transition-colors px-2 py-1"
-                  >
-                    Supprimer
-                  </button>
-                </form>
+                <div className="flex shrink-0 items-center gap-1">
+                  {/* L'ordre décide de ce qui est fait frais et de ce qui est
+                      fait fatigué. Sans ces deux flèches, insérer un exercice
+                      au bon endroit obligeait à tout supprimer. */}
+                  <DeplacerExercice
+                    exerciceId={ex.id}
+                    templateId={params.id}
+                    premier={i === 0}
+                    dernier={i === exercises.length - 1}
+                  />
+                  <form action={deleteAction}>
+                    <button
+                      type="submit"
+                      className="px-2 py-1 text-xs text-red-400 transition-colors hover:text-red-300"
+                    >
+                      Supprimer
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           );
