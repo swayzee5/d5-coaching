@@ -27,10 +27,25 @@ export const maxDuration = 60;
 
 type LibRow = { id: string; name: string; a_video: boolean };
 
-/** Normalisation Unicode avant comparaison : un accent peut s'écrire sur un
- *  ou deux caractères selon qu'il a été tapé ou collé. */
+/**
+ * La clé de comparaison d'un nom d'exercice.
+ *
+ * Trois normalisations, et chacune a déjà fait disparaître un exercice en
+ * silence :
+ *
+ *   - Unicode : un accent s'écrit sur un ou deux caractères selon qu'il a été
+ *     tapé ou collé. « Élévations » et « Élévations » sont identiques à l'œil.
+ *   - Apostrophes : la droite ' et les typographiques ’ ` ´ se ressemblent et
+ *     ne se comparent pas. C'est ce qui a fait échouer « vers l'arrière ».
+ *   - Espaces : une espace insécable ou doublée collée en fin de nom suffit.
+ */
 function cle(nom: string): string {
-  return nom.normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
+  return nom
+    .normalize("NFC")
+    .replace(/[\u2018\u2019\u02BC\u0060\u00B4]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 export async function GET(req: NextRequest) {
