@@ -13,6 +13,7 @@ import { PhotosProgressionClient } from "@/components/clients/PhotosProgressionC
 import { ProfilNutritionClient } from "@/components/clients/ProfilNutritionClient";
 import { AttribuerDepuisFiche } from "@/components/clients/AttribuerDepuisFiche";
 import { modelesDisponibles } from "@/app/templates/actions";
+import { derniereConnexion, etatConnexion } from "@/lib/derniere-connexion";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -222,6 +223,7 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const unblockAction = unblockClient.bind(null, client.id);
   const toggleRebootOnlyAction = toggleRebootOnly.bind(null, client.id, client.isRebootOnly);
 
+  const connexion = etatConnexion(await derniereConnexion(client.id).catch(() => null));
   const modeles = await modelesDisponibles().catch(() => ({ programmes: [], seances: [] }));
   const aUnProgrammeActif = await db.trainingProgram
     .count({ where: { clientId: client.id, isActive: true } })
@@ -242,6 +244,14 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">{client.firstName} {client.lastName}</h1>
+              {/* Sous le nom, là où le regard tombe en ouvrant la fiche. */}
+              <p className={`mt-0.5 text-xs ${
+                connexion.jamais || connexion.alerte ? "text-orange-400" : "text-gray-500"
+              }`}>
+                {connexion.jamais
+                  ? "⚠ Ne s'est jamais connecté à l'app"
+                  : `Dernière connexion : ${connexion.texte.toLowerCase()}`}
+              </p>
               <p className="text-gray-400 text-sm">{client.email}</p>
               <div className="flex gap-2 mt-2">
                 {client.isRebootOnly && <span className="px-3 py-1 bg-brand-500/10 text-brand-400 text-xs font-semibold rounded-full">Reboot only</span>}

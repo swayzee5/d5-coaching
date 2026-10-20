@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { dernieresConnexions, etatConnexion } from "@/lib/derniere-connexion";
 
 type ClientRow = {
   id: string;
@@ -22,6 +23,9 @@ function formatDate(date: Date | string): string {
 
 export default async function AppClientsPage() {
   let clients: ClientRow[] = [];
+  // Le signal le plus précoce de décrochage : quelqu'un cesse d'ouvrir l'app
+  // avant de cesser de s'entraîner.
+  const connexions = await dernieresConnexions().catch(() => new Map());
 
   // Try full query with relations first
   try {
@@ -79,6 +83,7 @@ export default async function AppClientsPage() {
           {clients.map((client) => {
             const latest = client.progressEntries[0] ?? null;
             const hasNutrition = client.nutritionFiles.length > 0;
+            const connexion = etatConnexion(connexions.get(client.id) ?? null);
             return (
               <Link key={client.id} href={`/app-clients/${client.id}`}
                 className={`flex items-center justify-between bg-gray-900 hover:bg-gray-800 border rounded-xl px-5 py-4 transition-colors ${
@@ -91,7 +96,19 @@ export default async function AppClientsPage() {
                   <div>
                     <p className="font-semibold text-white">{client.firstName} {client.lastName}</p>
                     <p className="text-sm text-gray-400">{client.email}</p>
-                    {!client.isActive && <p className="text-xs text-red-400 mt-0.5">Archivé</p>}
+                    {!client.isActive ? (
+                      <p className="text-xs text-red-400 mt-0.5">Archivé</p>
+                    ) : (
+                      <p className={`text-xs mt-0.5 ${
+                        connexion.jamais
+                          ? "text-orange-400"
+                          : connexion.alerte
+                            ? "text-orange-400/80"
+                            : "text-gray-600"
+                      }`}>
+                        {connexion.jamais ? "⚠ Jamais connecté" : `Vu ${connexion.texte.toLowerCase()}`}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
