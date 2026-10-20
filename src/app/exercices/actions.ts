@@ -116,7 +116,7 @@ export async function updateExerciseVimeo(id: string, vimeoVideoId: string | nul
   // colonne manquerait, pour un champ que le CRM n'affiche jamais.
   if (actuel && actuel.vimeoVideoId !== nouveau) {
     await db
-      .$executeRaw`UPDATE exercise_library SET thumbnail_url = NULL WHERE id = ${id}::uuid`
+      .$executeRaw`UPDATE exercise_library SET thumbnail_url = NULL, thumbnail_video_id = NULL WHERE id = ${id}::uuid`
       .catch(() => {});
   }
 
