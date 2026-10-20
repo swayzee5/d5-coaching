@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   addExercise,
   chercherExercices,
+  definirVideoExercice,
   deleteExercise,
   moveExercise,
   updateExercise,
@@ -231,7 +232,23 @@ function LigneExercice({
   });
   const [enregistre, setEnregistre] = useState(false);
   const [confirme, setConfirme] = useState(false);
+  const [reglageVideo, setReglageVideo] = useState(false);
+  const [videoSaisie, setVideoSaisie] = useState("");
+  const [videoErreur, setVideoErreur] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function poserVideo(valeur: string) {
+    setVideoErreur(null);
+    startTransition(async () => {
+      const r = await definirVideoExercice(exercice.id, sessionId, valeur);
+      if (!r.ok) {
+        setVideoErreur(r.erreur ?? "Erreur");
+        return;
+      }
+      setReglageVideo(false);
+      setVideoSaisie("");
+    });
+  }
 
   const change =
     valeurs.sets !== (exercice.sets ? String(exercice.sets) : "") ||
@@ -246,17 +263,26 @@ function LigneExercice({
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
           {exercice.name}
         </span>
-        {!exercice.vimeoVideoId ? (
-          <span className="shrink-0 text-xs text-orange-400">sans vidéo</span>
-        ) : exercice.videoOrigine === "seance" ? (
-          <span className="shrink-0 text-xs text-brand-400" title="Vidéo posée à la main sur cet exercice, prioritaire sur la bibliothèque">
-            vidéo propre
-          </span>
-        ) : (
-          <span className="shrink-0 text-xs text-green-400" title="Vidéo lue dans la bibliothèque : la refilmer la met à jour ici automatiquement">
-            vidéo
-          </span>
-        )}
+        {/* L'état de la vidéo est aussi le bouton qui la règle : c'est en le
+            lisant qu'on se rend compte qu'il faut la changer. */}
+        <button
+          onClick={() => setReglageVideo((v) => !v)}
+          disabled={desactive}
+          className={`shrink-0 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-gray-800 ${
+            !exercice.vimeoVideoId
+              ? "text-orange-400"
+              : exercice.videoOrigine === "seance"
+                ? "text-brand-400"
+                : "text-green-400"
+          }`}
+          title="Changer la vidéo de cet exercice"
+        >
+          {!exercice.vimeoVideoId
+            ? "sans vidéo"
+            : exercice.videoOrigine === "seance"
+              ? "vidéo propre"
+              : "vidéo"}
+        </button>
         <button onClick={() => onDeplacer("haut")} disabled={position === 0 || desactive}
           className="px-1 text-gray-500 hover:text-white disabled:opacity-20" title="Monter">↑</button>
         <button onClick={() => onDeplacer("bas")} disabled={dernier || desactive}
@@ -275,6 +301,47 @@ function LigneExercice({
           {confirme ? "Confirmer" : "Retirer"}
         </button>
       </div>
+
+      {reglageVideo && (
+        <div className="mb-2 space-y-2 rounded-lg border border-gray-700 bg-gray-950 p-3">
+          <p className="text-xs text-gray-400">
+            Par défaut, l&apos;exercice suit la vidéo de la bibliothèque — la refilmer la met
+            à jour partout. Tu peux imposer une autre vidéo ici, ou n&apos;en afficher aucune.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => poserVideo("bibliotheque")}
+              disabled={isPending}
+              className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-green-500/50 hover:text-white disabled:opacity-50"
+            >
+              Suivre la bibliothèque
+            </button>
+            <button
+              onClick={() => poserVideo("aucune")}
+              disabled={isPending}
+              className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-orange-500/50 hover:text-white disabled:opacity-50"
+            >
+              Aucune vidéo
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={videoSaisie}
+              onChange={(e) => setVideoSaisie(e.target.value)}
+              placeholder="https://vimeo.com/123456789 — vidéo propre à cette séance"
+              className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+            />
+            <button
+              onClick={() => poserVideo(videoSaisie)}
+              disabled={isPending || !videoSaisie.trim()}
+              className="shrink-0 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-400 disabled:opacity-40"
+            >
+              {isPending ? "…" : "Poser"}
+            </button>
+          </div>
+          {videoErreur && <p className="text-xs text-red-400">{videoErreur}</p>}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Champ label="Séries" value={valeurs.sets} numerique

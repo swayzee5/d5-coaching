@@ -75,6 +75,65 @@ export async function updateExercise(
   await marquerModifiee(sessionId);
 }
 
+/**
+ * Pose, remplace ou retire la vidéo d'un exercice de la séance.
+ *
+ * Trois intentions, et il faut pouvoir les exprimer toutes les trois :
+ *
+ *   - « bibliotheque » : l'exercice suit la vidéo de la bibliothèque. C'est le
+ *     cas par défaut, et celui qui se met à jour tout seul quand le coach
+ *     refilme le mouvement.
+ *   - un identifiant : une vidéo propre à cette séance, prioritaire sur la
+ *     bibliothèque. Utile quand la même machine est filmée sous deux angles.
+ *   - « aucune » : pas de démonstration, volontairement. Le drapeau empêche
+ *     l'affichage de retrouver une vidéo par le nom et de la faire revenir.
+ *
+ * Toute pose lève ce drapeau. Il avait été mis par le seed sur les exercices
+ * à qui la bibliothèque attribuait la vidéo d'un autre — les pompes diamant,
+ * qui portaient celle des pompes classiques. Une fois la vraie vidéo tournée,
+ * le drapeau survivait et masquait la nouvelle : poser une vidéo sans le lever
+ * n'aurait rien changé à l'écran.
+ */
+export async function definirVideoExercice(
+  exerciseId: string,
+  sessionId: string,
+  valeur: string
+): Promise<{ ok: boolean; erreur?: string }> {
+  const brut = valeur.trim();
+
+  try {
+    if (brut === "bibliotheque") {
+      await db.rebootExercise.update({
+        where: { id: exerciseId },
+        data: { vimeoVideoId: null, videoSuppressed: false },
+      });
+    } else if (brut === "aucune") {
+      await db.rebootExercise.update({
+        where: { id: exerciseId },
+        data: { vimeoVideoId: null, videoSuppressed: true },
+      });
+    } else {
+      // Le coach colle en général l'adresse complète plutôt que l'identifiant.
+      // Lui demander de savoir lequel des nombres d'une URL Vimeo est le bon
+      // n'a pas de sens.
+      const identifiant = brut.match(/(\d{6,})/)?.[1];
+      if (!identifiant) {
+        return { ok: false, erreur: "Aucun identifiant Vimeo dans ce qui a été saisi." };
+      }
+      await db.rebootExercise.update({
+        where: { id: exerciseId },
+        data: { vimeoVideoId: identifiant, videoSuppressed: false },
+      });
+    }
+  } catch (err) {
+    console.error("[definirVideoExercice]", err);
+    return { ok: false, erreur: "Enregistrement impossible." };
+  }
+
+  await marquerModifiee(sessionId);
+  return { ok: true };
+}
+
 export async function deleteExercise(exerciseId: string, sessionId: string) {
   await db.rebootExercise.delete({ where: { id: exerciseId } });
   await marquerModifiee(sessionId);
