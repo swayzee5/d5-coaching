@@ -11,6 +11,8 @@ import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot
 import { RebootBilanCard, type BilanRow } from "@/components/reboot/RebootBilanCard";
 import { PhotosProgressionClient } from "@/components/clients/PhotosProgressionClient";
 import { ProfilNutritionClient } from "@/components/clients/ProfilNutritionClient";
+import { AttribuerDepuisFiche } from "@/components/clients/AttribuerDepuisFiche";
+import { modelesDisponibles } from "@/app/templates/actions";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 
@@ -220,6 +222,12 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const unblockAction = unblockClient.bind(null, client.id);
   const toggleRebootOnlyAction = toggleRebootOnly.bind(null, client.id, client.isRebootOnly);
 
+  const modeles = await modelesDisponibles().catch(() => ({ programmes: [], seances: [] }));
+  const aUnProgrammeActif = await db.trainingProgram
+    .count({ where: { clientId: client.id, isActive: true } })
+    .then((n) => n > 0)
+    .catch(() => false);
+
   const rebootTotal = rebootActivity.completions.length + rebootActivity.modules.length;
   const hasRebootActivity = rebootTotal > 0;
 
@@ -428,6 +436,18 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           {/* Avant le reste : c'est ce qui se regarde en premier quand on
               rouvre la fiche d'un client après plusieurs semaines. Le
               composant ne rend rien tant qu'aucune photo n'existe. */}
+          {/* L'attribution naît en regardant quelqu'un — « lui, il lui faut
+              un bloc jambes ». Obliger à repartir des modèles fait perdre le
+              fil, et c'est ce qui finit par ne plus être fait. */}
+          <div className="mb-5">
+            <AttribuerDepuisFiche
+              clientId={client.id}
+              programmes={modeles.programmes}
+              seances={modeles.seances}
+              aUnProgramme={aUnProgrammeActif}
+            />
+          </div>
+
           <div className="mb-5">
             <PhotosProgressionClient clientId={client.id} />
           </div>

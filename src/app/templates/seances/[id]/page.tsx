@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { addExerciseToSeanceTemplate, deleteExerciseFromSeanceTemplate, updateSeanceTemplateName } from "./actions";
+import { clientsAttribuables } from "@/app/templates/actions";
+import { AttribuerSeance } from "@/components/templates/AttribuerSeance";
 
 type SeanceTemplate = {
   id: string;
@@ -43,6 +45,8 @@ export default async function SeanceTemplateDetailPage({
     ORDER BY order_index ASC
   `.catch(() => [] as TemplateExercise[]);
 
+  const clients = await clientsAttribuables().catch(() => []);
+
   return (
     <div className="p-6 max-w-3xl space-y-8">
       <Link
@@ -64,6 +68,14 @@ export default async function SeanceTemplateDetailPage({
           <span>{exercises.length} exercices</span>
           {template.duration_minutes && <span>⏱ {template.duration_minutes} min</span>}
         </div>
+
+        {/* L'attribution est ici, et non dans un écran séparé : c'est en
+            regardant la séance qu'on décide à qui la donner. */}
+        {exercises.length > 0 && (
+          <div className="pt-2">
+            <AttribuerSeance seanceTemplateId={template.id} clients={clients} />
+          </div>
+        )}
 
         {/* Edit name / duration */}
         <form action={updateSeanceTemplateName} className="flex flex-wrap gap-2 pt-1">
