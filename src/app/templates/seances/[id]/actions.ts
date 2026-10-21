@@ -171,3 +171,90 @@ export async function ajouterExerciceDepuisBibliotheque(
     return { ok: false, erreur: "Ajout impossible." };
   }
 }
+
+/**
+ * Ce que le client verra exactement pour cet exercice.
+ *
+ * Le template ne porte qu'un nom ; la vidéo et la description sont lues dans
+ * la bibliothèque au moment où le client ouvre sa séance. Entre les deux, il
+ * n'y avait aucun moyen de vérifier que le rattachement se fera — et la
+ * mauvaise surprise arrivait chez le client.
+ *
+ * La résolution reproduit exactement celle de l'app cliente : le nom, en
+ * ignorant casse, espaces, accents décomposés et apostrophes typographiques.
+ * Un aperçu qui résoudrait autrement que l'app ne servirait à rien.
+ */
+export type ApercuExercice = {
+  trouve: boolean;
+  nomBibliotheque: string | null;
+  vimeoVideoId: string | null;
+  description: string | null;
+  /** La consigne réellement affichée : celle de la séance, sinon la description. */
+  consigneAffichee: string | null;
+  /** Plusieurs entrées portent ce nom : le rattachement devient incertain. */
+  homonymes: number;
+};
+
+export async function apercuExercice(
+  nom: string,
+  consigneSeance: string | null
+): Promise<ApercuExercice> {
+  const vide: ApercuExercice = {
+    trouve: false,
+    nomBibliotheque: null,
+    vimeoVideoId: null,
+    description: null,
+    consigneAffichee: consigneSeance?.trim() || null,
+    homonymes: 0,
+  };
+
+  try {
+    const rows = await db.$queryRaw<
+      { name: string; vimeo_video_id: string | null; description: string | null }[]
+    >`
+      SELECT name, vimeo_video_id, description
+        FROM exercise_library WHERE is_active = true
+    `;
+
+    // La normalisation se fait ici et non en SQL : elle doit être exactement
+    // celle du seed et de l'app cliente, et la réécrire en SQL avec ses
+    // apostrophes échappées serait illisible et inévitablement divergent.
+    const cible = cleNom(nom);
+    const candidats = rows.filter((r) => cleNom(r.name) === cible);
+    if (candidats.length === 0) return vide;
+
+    // À nom égal, celle qui a une vidéo l'emporte — même règle qu'au seed.
+    const trouve =
+      candidats.find((c) => c.vimeo_video_id) ?? candidats[0];
+
+    return {
+      trouve: true,
+      nomBibliotheque: trouve.name,
+      vimeoVideoId: trouve.vimeo_video_id,
+      description: trouve.description,
+      // L'app cliente affiche la consigne de la séance si elle existe, et la
+      // description de la bibliothèque sinon.
+      consigneAffichee: consigneSeance?.trim() || trouve.description || null,
+      homonymes: candidats.length,
+    };
+  } catch (err) {
+    console.error("[apercuExercice]", err);
+    return vide;
+  }
+}
+
+/**
+ * La clé de comparaison d'un nom d'exercice.
+ *
+ * Identique à celle du seed : Unicode normalisé, apostrophes ramenées à la
+ * même, espaces réduits. Ces trois pièges ont chacun fait disparaître un
+ * exercice en silence sur ce projet.
+ */
+function cleNom(nom: string): string {
+  return nom
+    .normalize("NFC")
+    .replace(/[\u2018\u2019\u02BC\u0060\u00B4]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}

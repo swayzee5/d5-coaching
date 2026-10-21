@@ -8,6 +8,7 @@ import { clientsAttribuables } from "@/app/templates/actions";
 import { AttribuerSeance } from "@/components/templates/AttribuerSeance";
 import { DeplacerExercice } from "@/components/templates/DeplacerExercice";
 import { AjouterDepuisBibliotheque } from "@/components/templates/AjouterDepuisBibliotheque";
+import { ApercuExercice } from "@/components/templates/ApercuExercice";
 
 type SeanceTemplate = {
   id: string;
@@ -151,6 +152,12 @@ export default async function SeanceTemplateDetailPage({
                   </form>
                 </div>
               </div>
+
+              {/* Le template ne porte qu'un nom : la vidéo et la description
+                  sont lues dans la bibliothèque quand le client ouvre sa
+                  séance. Le dépliant montre ce rattachement avant
+                  l'attribution, pendant qu'il est encore corrigeable. */}
+              <ApercuExercice nom={ex.exercise_name} consigne={ex.notes} />
             </div>
           );
         })}
