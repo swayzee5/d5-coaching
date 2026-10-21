@@ -347,3 +347,183 @@ export async function modelesDisponibles(): Promise<{
     seances: seances.map((s) => ({ ...s, exercices: Number(s.exercices) })),
   };
 }
+
+/* -------------------------------------------------------------------------
+ * Création et composition
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Crée une séance type vierge.
+ *
+ * Il n'existait aucun moyen d'en créer une : il fallait enregistrer la séance
+ * d'un client comme modèle, donc avoir déjà un client avec cette séance. Un
+ * détour qui rendait la bibliothèque de séances inutilisable pour composer.
+ */
+export async function creerSeanceType(formData: FormData): Promise<void> {
+  const nom = ((formData.get("nom") as string) ?? "").trim();
+  const categorie = ((formData.get("categorie") as string) ?? "Général").trim();
+  const duree = parseInt((formData.get("duree") as string) || "0", 10);
+
+  if (!nom) return;
+
+  const [cree] = await db.$queryRaw<{ id: string }[]>`
+    INSERT INTO seance_templates (name, category, duration_minutes)
+    VALUES (${nom}, ${categorie}, ${duree > 0 ? duree : null})
+    RETURNING id::text
+  `;
+
+  revalidatePath("/templates");
+  // On ouvre directement la séance : elle est vide, et la seule chose à y
+  // faire est d'y mettre des exercices.
+  redirect(`/templates/seances/${cree.id}`);
+}
+
+/** Crée un programme type vierge, à composer ensuite. */
+export async function creerProgrammeType(formData: FormData): Promise<void> {
+  const nom = ((formData.get("nom") as string) ?? "").trim();
+  const description = ((formData.get("description") as string) ?? "").trim();
+  const semaines = parseInt((formData.get("semaines") as string) || "6", 10);
+
+  if (!nom) return;
+
+  const [cree] = await db.$queryRaw<{ id: string }[]>`
+    INSERT INTO program_templates (name, description, category, weeks_duration)
+    VALUES (${nom}, ${description || null}, 'Coaching', ${semaines > 0 ? semaines : 6})
+    RETURNING id::text
+  `;
+
+  revalidatePath("/templates");
+  redirect(`/templates/${cree.id}`);
+}
+
+/**
+ * Ajoute une séance type à un programme type.
+ *
+ * La séance est copiée, pas référencée. Deux raisons : un programme doit
+ * pouvoir ajuster une séance sans modifier le modèle d'origine ni les autres
+ * programmes qui l'utilisent ; et supprimer une séance type ne doit pas vider
+ * les programmes qui la contenaient.
+ */
+export async function ajouterSeanceAuProgramme(
+  programmeId: string,
+  seanceTemplateId: string
+): Promise<{ ok: boolean; erreur?: string }> {
+  try {
+    const [tpl] = await db.$queryRaw<{ name: string; duration_minutes: number | null; notes: string | null }[]>`
+      SELECT name, duration_minutes, notes FROM seance_templates WHERE id = ${seanceTemplateId}::uuid
+    `;
+    if (!tpl) return { ok: false, erreur: "Séance type introuvable." };
+
+    const [{ rang }] = await db.$queryRaw<{ rang: number }[]>`
+      SELECT COALESCE(MAX(order_index) + 1, 0)::int AS rang
+        FROM session_templates WHERE program_template_id = ${programmeId}::uuid
+    `;
+
+    const [seance] = await db.$queryRaw<{ id: string }[]>`
+      INSERT INTO session_templates
+        (program_template_id, name, order_index, duration_minutes, notes)
+      VALUES (${programmeId}::uuid, ${tpl.name}, ${rang}, ${tpl.duration_minutes}, ${tpl.notes})
+      RETURNING id::text
+    `;
+
+    const exercices = await db.$queryRaw<ExerciseTpl[]>`
+      SELECT exercise_name, sets, reps, rest_seconds, order_index, notes
+        FROM seance_template_exercises
+       WHERE seance_template_id = ${seanceTemplateId}::uuid
+       ORDER BY order_index
+    `;
+
+    for (const ex of exercices) {
+      await db.$executeRaw`
+        INSERT INTO exercise_templates
+          (session_template_id, exercise_name, sets, reps, rest_seconds, order_index, notes)
+        VALUES (${seance.id}::uuid, ${ex.exercise_name}, ${ex.sets}, ${ex.reps},
+                ${ex.rest_seconds}, ${ex.order_index}, ${ex.notes})
+      `;
+    }
+
+    revalidatePath(`/templates/${programmeId}`);
+    revalidatePath("/templates");
+    return { ok: true };
+  } catch (err) {
+    console.error("[ajouterSeanceAuProgramme]", err);
+    return { ok: false, erreur: "Ajout impossible." };
+  }
+}
+
+/** Retire une séance d'un programme type. Ses exercices suivent. */
+export async function retirerSeanceDuProgramme(
+  sessionTemplateId: string,
+  programmeId: string
+): Promise<{ ok: boolean }> {
+  try {
+    await db.$executeRaw`DELETE FROM exercise_templates WHERE session_template_id = ${sessionTemplateId}::uuid`;
+    await db.$executeRaw`DELETE FROM session_templates WHERE id = ${sessionTemplateId}::uuid`;
+    revalidatePath(`/templates/${programmeId}`);
+    revalidatePath("/templates");
+    return { ok: true };
+  } catch (err) {
+    console.error("[retirerSeanceDuProgramme]", err);
+    return { ok: false };
+  }
+}
+
+/**
+ * Déplace une séance d'un cran dans un programme.
+ *
+ * Les rangs sont renumérotés avant l'échange : les programmes composés avant
+ * cette fonction peuvent porter des rangs égaux ou troués, et un échange sur
+ * des rangs incohérents ne déplace rien visiblement.
+ */
+export async function deplacerSeanceDuProgramme(
+  sessionTemplateId: string,
+  programmeId: string,
+  sens: "haut" | "bas"
+): Promise<{ ok: boolean }> {
+  try {
+    await db.$executeRaw`
+      WITH ranges AS (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY order_index, id) - 1 AS rang
+          FROM session_templates WHERE program_template_id = ${programmeId}::uuid
+      )
+      UPDATE session_templates s SET order_index = r.rang
+        FROM ranges r WHERE s.id = r.id AND s.order_index IS DISTINCT FROM r.rang
+    `;
+
+    const lignes = await db.$queryRaw<{ id: string; order_index: number }[]>`
+      SELECT id::text, order_index FROM session_templates
+       WHERE program_template_id = ${programmeId}::uuid ORDER BY order_index
+    `;
+    const position = lignes.findIndex((l) => l.id === sessionTemplateId);
+    if (position === -1) return { ok: false };
+
+    const cible = sens === "haut" ? position - 1 : position + 1;
+    if (cible < 0 || cible >= lignes.length) return { ok: true };
+
+    const a = lignes[position];
+    const b = lignes[cible];
+    await db.$transaction([
+      db.$executeRaw`UPDATE session_templates SET order_index = ${b.order_index} WHERE id = ${a.id}::uuid`,
+      db.$executeRaw`UPDATE session_templates SET order_index = ${a.order_index} WHERE id = ${b.id}::uuid`,
+    ]);
+
+    revalidatePath(`/templates/${programmeId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[deplacerSeanceDuProgramme]", err);
+    return { ok: false };
+  }
+}
+
+/** Les séances types proposées à l'ajout dans un programme. */
+export async function seancesTypesDisponibles(): Promise<
+  { id: string; nom: string; categorie: string; exercices: number }[]
+> {
+  const rows = await db.$queryRaw<{ id: string; nom: string; categorie: string; exercices: bigint }[]>`
+    SELECT s.id::text, s.name AS nom, s.category AS categorie, COUNT(e.id) AS exercices
+      FROM seance_templates s
+      LEFT JOIN seance_template_exercises e ON e.seance_template_id = s.id
+     GROUP BY s.id ORDER BY s.category, s.name
+  `.catch(() => []);
+  return rows.map((r) => ({ ...r, exercices: Number(r.exercices) }));
+}

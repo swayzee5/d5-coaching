@@ -54,8 +54,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   const essai = req.nextUrl.searchParams.get("essai") === "1";
+  // `vider=1` efface sans rien installer. Le coach compose ses propres
+  // séances : lui imposer un contenu de départ dont il devrait ensuite
+  // supprimer chaque ligne serait pire que de le laisser partir d'une page
+  // blanche.
+  const viderSeulement = req.nextUrl.searchParams.get("vider") === "1";
 
   try {
+    if (viderSeulement) {
+      await db.$executeRaw`DELETE FROM seance_template_exercises`;
+      await db.$executeRaw`DELETE FROM seance_templates`;
+      await db.$executeRaw`DELETE FROM exercise_templates`.catch(() => {});
+      await db.$executeRaw`DELETE FROM session_templates`;
+      await db.$executeRaw`DELETE FROM program_templates`;
+      return NextResponse.json({
+        ok: true,
+        action: "templates vidés",
+        suite: "Crée tes séances depuis la page Templates.",
+      });
+    }
+
     const lib = await db.$queryRaw<LibRow[]>`
       SELECT id::text, name, (vimeo_video_id IS NOT NULL) AS a_video
         FROM exercise_library WHERE is_active = true

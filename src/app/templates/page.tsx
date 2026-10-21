@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { creerSeanceType, creerProgrammeType } from "./actions";
 
 type ProgramTemplate = {
   id: string;
@@ -42,6 +43,12 @@ const SEANCE_CATEGORY_COLORS: Record<string, string> = {
   "Abdominaux": "bg-red-500/10 text-red-400 border-red-500/20",
   "Cardio": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 };
+
+/** Les catégories proposées à la création d'une séance type. */
+const MUSCLE_CATEGORIES = [
+  "Dos", "Pectoraux", "Épaules", "Bras", "Jambes",
+  "Push / Pull / Legs", "Full Body", "Abdominaux", "Gainage", "Cardio",
+];
 
 const SEANCE_CATEGORY_ICONS: Record<string, string> = {
   "Pectoraux": "💪",
@@ -167,13 +174,30 @@ export default async function TemplatesPage() {
             <h1 className="text-2xl font-bold text-white">Templates de programmes</h1>
             <p className="text-gray-500 text-sm mt-1">{programTemplates.length} programmes · Appliquer en 1 clic sur un client</p>
           </div>
-          <a
-            href={`/api/seed/templates?secret=${process.env.CRON_SECRET ?? ""}`}
-            target="_blank"
-            className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors"
-          >
-            + Charger les programmes
-          </a>
+          {/* Un formulaire plutôt qu'un bouton de chargement : le coach
+              compose ses propres blocs, il n'installe pas ceux d'un autre. */}
+          <form action={creerProgrammeType} className="flex flex-wrap items-center gap-2">
+            <input
+              name="nom"
+              required
+              placeholder="Nom du programme"
+              className="w-48 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+            />
+            <input
+              name="semaines"
+              type="number"
+              min={1}
+              defaultValue={6}
+              title="Durée en semaines"
+              className="w-16 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-center text-sm text-white focus:border-brand-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+            >
+              + Créer
+            </button>
+          </form>
         </div>
 
         {programTemplates.length === 0 ? (
@@ -243,13 +267,29 @@ export default async function TemplatesPage() {
             <h2 className="text-2xl font-bold text-white">Templates de séances</h2>
             <p className="text-gray-500 text-sm mt-1">{seanceTemplates.length} séances · Cliquer pour modifier</p>
           </div>
-          <a
-            href={`/api/seed/seances?secret=${process.env.CRON_SECRET ?? ""}`}
-            target="_blank"
-            className="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors"
-          >
-            + Charger les séances
-          </a>
+          <form action={creerSeanceType} className="flex flex-wrap items-center gap-2">
+            <input
+              name="nom"
+              required
+              placeholder="Nom de la séance"
+              className="w-48 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+            />
+            <select
+              name="categorie"
+              defaultValue="Dos"
+              className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-brand-500 focus:outline-none"
+            >
+              {MUSCLE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+            >
+              + Créer
+            </button>
+          </form>
         </div>
 
         {seanceTemplates.length === 0 ? (

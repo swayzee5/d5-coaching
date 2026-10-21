@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { seancesTypesDisponibles } from "@/app/templates/actions";
+import { ComposerProgramme } from "@/components/templates/ComposerProgramme";
 import { notFound } from "next/navigation";
 
 type SessionTpl = {
@@ -60,6 +62,8 @@ export default async function TemplatePage({ params }: { params: { id: string } 
       `.catch(() => [] as ExerciseTpl[])
     : [];
 
+  const disponibles = await seancesTypesDisponibles().catch(() => []);
+
   const exBySession = exercises.reduce<Record<string, ExerciseTpl[]>>((acc, ex) => {
     if (!acc[ex.session_template_id]) acc[ex.session_template_id] = [];
     acc[ex.session_template_id].push(ex);
@@ -91,6 +95,24 @@ export default async function TemplatePage({ params }: { params: { id: string } 
             ✦ Appliquer à un client
           </Link>
         </div>
+      </div>
+
+      {/* La page était en lecture seule : le coach ne pouvait utiliser que
+          les programmes livrés tels quels, alors que son métier est
+          d'assembler des séances selon le client qu'il a en face. */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">
+          Composer le programme
+        </h2>
+        <ComposerProgramme
+          programmeId={id}
+          seances={sessions.map((sess) => ({
+            id: sess.id,
+            nom: sess.name,
+            exercices: (exBySession[sess.id] ?? []).length,
+          }))}
+          disponibles={disponibles}
+        />
       </div>
 
       <div className="space-y-4">
