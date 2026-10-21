@@ -32,7 +32,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const SEANCE_CATEGORY_COLORS: Record<string, string> = {
   "Pectoraux": "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "Pecs": "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "Pecs / Triceps": "bg-blue-500/10 text-blue-400 border-blue-500/20",
   "Dos": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+  "Dos / Biceps": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   "Épaules": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
   "Bras": "bg-violet-500/10 text-violet-400 border-violet-500/20",
   "Jambes": "bg-orange-500/10 text-orange-400 border-orange-500/20",
@@ -47,13 +50,20 @@ const SEANCE_CATEGORY_COLORS: Record<string, string> = {
 
 /** Les catégories proposées à la création d'une séance type. */
 const MUSCLE_CATEGORIES = [
-  "Dos", "Pectoraux", "Épaules", "Bras", "Jambes",
-  "Push / Pull / Legs", "Full Body", "Abdominaux", "Gainage", "Cardio",
+  // Les découpes réellement utilisées pour composer une semaine : un muscle
+  // seul, ou la paire qui se travaille dans la même séance. « Pectoraux »
+  // reste dans la liste pour les séances déjà rangées sous ce nom.
+  "Pecs", "Pecs / Triceps", "Dos", "Dos / Biceps", "Bras",
+  "Épaules", "Jambes", "Push / Pull / Legs", "Full Body",
+  "Abdominaux", "Gainage", "Cardio", "Pectoraux",
 ];
 
 const SEANCE_CATEGORY_ICONS: Record<string, string> = {
   "Pectoraux": "💪",
+  "Pecs": "💪",
+  "Pecs / Triceps": "💪",
   "Dos": "🏋️",
+  "Dos / Biceps": "🏋️",
   "Épaules": "🎯",
   "Bras": "💪",
   "Jambes": "🦵",
@@ -159,10 +169,20 @@ export default async function TemplatesPage() {
 
   const programCategoryOrder = ["Débutant", "Intermédiaire", "Avancé", "Femme", "Rééducation", "Général"];
   const seanceCategoryOrder = [
-    "Pectoraux", "Dos", "Épaules", "Bras",
+    "Pecs", "Pecs / Triceps", "Pectoraux",
+    "Dos", "Dos / Biceps", "Bras", "Épaules",
     "Jambes", "Fessiers", "Jambes Femme",
     "Push / Pull / Legs", "Full Body",
     "Gainage", "Abdominaux", "Cardio", "Général",
+  ];
+
+  // Une catégorie créée à la main et absente de cet ordre n'apparaissait
+  // nulle part : la séance existait, mais restait introuvable.
+  const categoriesAffichees = [
+    ...seanceCategoryOrder.filter((c) => bySeanceCategory[c]?.length),
+    ...Object.keys(bySeanceCategory)
+      .filter((c) => !seanceCategoryOrder.includes(c))
+      .sort(),
   ];
 
   return (
@@ -305,7 +325,7 @@ export default async function TemplatesPage() {
             </a>
           </div>
         ) : (
-          seanceCategoryOrder.map((cat) => {
+          categoriesAffichees.map((cat) => {
             const group = bySeanceCategory[cat];
             if (!group?.length) return null;
             return (
@@ -313,34 +333,86 @@ export default async function TemplatesPage() {
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
                   {SEANCE_CATEGORY_ICONS[cat] ?? "📋"} {cat}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {group.map((s) => (
-                    <Link
-                      key={s.id}
-                      href={`/templates/seances/${s.id}`}
-                      className="bg-gray-900 border border-gray-800 hover:border-brand-500/40 rounded-xl p-4 flex items-center justify-between gap-3 transition-colors group"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium text-sm truncate">{s.name}</p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                          <span>{Number(s.exercise_count)} exercices</span>
-                          {s.duration_minutes && <span>⏱ {s.duration_minutes} min</span>}
-                        </div>
+                {/* Salle à gauche, maison à droite. Les séances de salle sont
+                    celles qui portent l'accompagnement : elles doivent tomber
+                    sous les yeux en premier, pas se mélanger à l'ordre
+                    alphabétique où « Maison » passe avant « Salle ». */}
+                {(() => {
+                  const maison = group.filter((s) => estMaison(s.name));
+                  const salle = group.filter((s) => !estMaison(s.name));
+                  if (maison.length === 0 || salle.length === 0) {
+                    return (
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {group.map((s) => (
+                          <CarteSeance key={s.id} seance={s} />
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${SEANCE_CATEGORY_COLORS[s.category] ?? "bg-gray-700 text-gray-400 border-gray-600"}`}>
-                          {s.category}
-                        </span>
-                        <span className="text-gray-600 group-hover:text-brand-400 text-xs transition-colors">Modifier →</span>
+                    );
+                  }
+                  return (
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-600">Salle</p>
+                        {salle.map((s) => (
+                          <CarteSeance key={s.id} seance={s} />
+                        ))}
                       </div>
-                    </Link>
-                  ))}
-                </div>
+                      <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-600">Maison</p>
+                        {maison.map((s) => (
+                          <CarteSeance key={s.id} seance={s} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * Une séance se fait-elle à la maison ?
+ *
+ * Lu dans le nom, faute de colonne : c'est ainsi que les séances sont
+ * nommées depuis le début (« Dos Salle B », « Dos — Maison »). Une séance
+ * qui ne dit rien est rangée côté salle — c'est le cas courant, et c'est le
+ * côté qu'on regarde en premier.
+ */
+function estMaison(nom: string): boolean {
+  return /\bmaison\b|\bdomicile\b/i.test(nom);
+}
+
+function CarteSeance({ seance }: { seance: SeanceTemplate }) {
+  return (
+    <Link
+      href={`/templates/seances/${seance.id}`}
+      className="group flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4 transition-colors hover:border-brand-500/40"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-white">{seance.name}</p>
+        <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+          <span>{Number(seance.exercise_count)} exercices</span>
+          {seance.duration_minutes && <span>⏱ {seance.duration_minutes} min</span>}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className={`rounded-full border px-2 py-0.5 text-xs ${
+            SEANCE_CATEGORY_COLORS[seance.category] ??
+            "border-gray-600 bg-gray-700 text-gray-400"
+          }`}
+        >
+          {seance.category}
+        </span>
+        <span className="text-xs text-gray-600 transition-colors group-hover:text-brand-400">
+          Modifier →
+        </span>
+      </div>
+    </Link>
   );
 }
