@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { BoutonSauvegarde } from "@/components/ui/Confirmation";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -110,9 +111,8 @@ export default async function SessionBuilderPage({
           <input type="hidden" name="sets" value="3" />
           <input type="hidden" name="reps" value="10" />
           <input type="hidden" name="restSeconds" value="90" />
-          <button type="submit" className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors">
-            Ajouter
-          </button>
+          {/* Toute sauvegarde se confirme. */}
+          <BoutonSauvegarde confirmation="Exercice ajouté">Ajouter</BoutonSauvegarde>
         </form>
       </div>
     </div>

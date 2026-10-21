@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
 import {
   chercherDansBibliotheque,
   ajouterExerciceDepuisBibliotheque,
@@ -38,6 +39,7 @@ export function AjouterDepuisBibliotheque({ templateId }: { templateId: string }
   const [repos, setRepos] = useState("90");
   const [note, setNote] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  const { message, confirmer } = useConfirmation();
 
   function chercher(valeur: string) {
     setRecherche(valeur);
@@ -67,17 +69,24 @@ export function AjouterDepuisBibliotheque({ templateId }: { templateId: string }
         setErreur(r.erreur ?? "Erreur");
         return;
       }
+      const ajoute = choisi.nom;
       setChoisi(null);
       setRecherche("");
       setResultats([]);
       setNote("");
+      // Le formulaire se vide après l'ajout : sans un mot, rien ne distingue
+      // « ajouté » de « le clic n'a pas pris ».
+      confirmer(`« ${ajoute} » ajouté à la séance`);
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-3 rounded-xl border border-gray-700 bg-gray-900 p-5">
-      <h2 className="font-semibold text-white">Ajouter un exercice</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold text-white">Ajouter un exercice</h2>
+        <Confirmation message={message} />
+      </div>
 
       {!choisi ? (
         <>

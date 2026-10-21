@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { BoutonSauvegarde } from "@/components/ui/Confirmation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import { creerSeanceType, creerProgrammeType } from "./actions";
@@ -191,12 +192,12 @@ export default async function TemplatesPage() {
               title="Durée en semaines"
               className="w-16 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-center text-sm text-white focus:border-brand-500 focus:outline-none"
             />
-            <button
-              type="submit"
-              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+            <BoutonSauvegarde
+              confirmation="Programme créé"
+              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-400 disabled:opacity-50"
             >
               + Créer
-            </button>
+            </BoutonSauvegarde>
           </form>
         </div>
 
@@ -283,12 +284,12 @@ export default async function TemplatesPage() {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
-            <button
-              type="submit"
-              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-400"
+            <BoutonSauvegarde
+              confirmation="Séance créée"
+              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-400 disabled:opacity-50"
             >
               + Créer
-            </button>
+            </BoutonSauvegarde>
           </form>
         </div>
 

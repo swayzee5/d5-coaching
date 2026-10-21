@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deplacerExerciceTemplate } from "@/app/templates/seances/[id]/actions";
 
@@ -25,16 +25,29 @@ export function DeplacerExercice({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
 
+  /**
+   * Le succès n'est pas annoncé : l'exercice change de place sous les yeux,
+   * c'est la confirmation elle-même. L'échec, lui, était avalé — le résultat
+   * n'était pas regardé, et un déplacement qui ne passait pas laissait croire
+   * à un clic manqué.
+   */
   function deplacer(sens: "haut" | "bas") {
+    setErreur(null);
     startTransition(async () => {
-      await deplacerExerciceTemplate(exerciceId, templateId, sens);
+      const r = await deplacerExerciceTemplate(exerciceId, templateId, sens);
+      if (!r.ok) {
+        setErreur(r.erreur ?? "Déplacement impossible.");
+        return;
+      }
       router.refresh();
     });
   }
 
   return (
     <>
+      {erreur && <span className="text-xs text-red-400">{erreur}</span>}
       <button
         onClick={() => deplacer("haut")}
         disabled={premier || isPending}

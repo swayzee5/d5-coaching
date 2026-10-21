@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
 import {
   modifierExerciceTemplate,
   chercherDansBibliotheque,
@@ -49,6 +50,7 @@ export function ModifierExercice({
   const [vRepos, setVRepos] = useState(String(repos));
   const [vNote, setVNote] = useState(note ?? "");
   const [erreur, setErreur] = useState<string | null>(null);
+  const { message, confirmer } = useConfirmation();
 
   const [remplace, setRemplace] = useState(false);
   const [recherche, setRecherche] = useState("");
@@ -96,19 +98,26 @@ export function ModifierExercice({
       setRemplace(false);
       setRecherche("");
       setResultats([]);
+      // Dite après la fermeture, donc à côté du bouton « Modifier » : c'est
+      // là que les yeux reviennent, et une confirmation qu'on ne voit pas ne
+      // confirme rien.
+      confirmer("Exercice enregistré");
       router.refresh();
     });
   }
 
   if (!ouvert) {
     return (
-      <button
-        type="button"
-        onClick={() => setOuvert(true)}
-        className="mt-1.5 inline-flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-brand-400"
-      >
-        <span>✎</span> Modifier
-      </button>
+      <div className="mt-1.5 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          className="inline-flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-brand-400"
+        >
+          <span>✎</span> Modifier
+        </button>
+        <Confirmation message={message} />
+      </div>
     );
   }
 

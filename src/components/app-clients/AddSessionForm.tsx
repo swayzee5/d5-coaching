@@ -1,5 +1,6 @@
 "use client";
 
+import { EtatSauvegarde } from "@/components/ui/Confirmation";
 import { useState } from "react";
 import { createSession, createSessionFromTemplate } from "@/app/app-clients/[id]/programmes/actions";
 
@@ -119,6 +120,7 @@ export default function AddSessionForm({
                         </div>
                         <span className="text-brand-400 text-xs font-medium shrink-0">Importer →</span>
                       </button>
+                      <EtatSauvegarde confirmation="Séance importée" className="block px-3 pt-1" />
                     </form>
                   ))}
                 </div>
@@ -154,6 +156,8 @@ export default function AddSessionForm({
           >
             Créer
           </button>
+          {/* Toute sauvegarde se confirme. */}
+          <EtatSauvegarde confirmation="Séance créée" className="self-center" />
         </form>
       )}
     </div>

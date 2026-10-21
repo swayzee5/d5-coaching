@@ -1,5 +1,6 @@
 "use client";
 
+import { EtatSauvegarde } from "@/components/ui/Confirmation";
 import { useState } from "react";
 import { createProgram } from "@/app/app-clients/[id]/programmes/actions";
 import { applyTemplate } from "@/app/templates/actions";
@@ -112,6 +113,8 @@ export default function CreateProgramForm({
                 className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-semibold transition-colors">
                 ✦ Créer depuis le template
               </button>
+              {/* Toute sauvegarde se confirme. */}
+              <EtatSauvegarde confirmation="Programme créé" className="block text-center" />
             </form>
           )}
         </div>
@@ -142,6 +145,7 @@ export default function CreateProgramForm({
             className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors">
             Créer le programme
           </button>
+          <EtatSauvegarde confirmation="Programme créé" className="block text-center" />
         </form>
       )}
     </div>

@@ -10,6 +10,7 @@ import { DeplacerExercice } from "@/components/templates/DeplacerExercice";
 import { AjouterDepuisBibliotheque } from "@/components/templates/AjouterDepuisBibliotheque";
 import { ApercuExercice } from "@/components/templates/ApercuExercice";
 import { ModifierExercice } from "@/components/templates/ModifierExercice";
+import { BoutonSauvegarde } from "@/components/ui/Confirmation";
 
 type SeanceTemplate = {
   id: string;
@@ -98,12 +99,10 @@ export default async function SeanceTemplateDetailPage({
             placeholder="Durée (min)"
             className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
-          >
-            Sauvegarder
-          </button>
+          {/* Toute sauvegarde se confirme : sans un mot, on re-clique ou on
+              recharge la page pour vérifier, et on finit par ne plus croire
+              l'écran. */}
+          <BoutonSauvegarde confirmation="Séance enregistrée" />
         </form>
       </div>
 

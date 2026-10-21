@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
 import {
   ajouterSeanceAuProgramme,
   retirerSeanceDuProgramme,
@@ -36,16 +37,33 @@ export function ComposerProgramme({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [ouvert, setOuvert] = useState(false);
+  const { message, confirmer } = useConfirmation();
+  const [erreur, setErreur] = useState<string | null>(null);
 
-  function agir(action: () => Promise<unknown>) {
+  /**
+   * Chaque geste dit ce qu'il a fait, et dit aussi quand il a échoué.
+   *
+   * L'échec était avalé : le résultat de l'action n'était pas regardé, et un
+   * retrait qui ne passait pas laissait la séance en place sans un mot. On
+   * croyait avoir cliqué à côté.
+   */
+  function agir(action: () => Promise<{ ok: boolean; erreur?: string }>, fait: string) {
+    setErreur(null);
     startTransition(async () => {
-      await action();
+      const r = await action();
+      if (!r.ok) {
+        setErreur(r.erreur ?? "Action impossible.");
+        return;
+      }
+      confirmer(fait);
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-3">
+      {erreur && <p className="text-sm text-red-400">{erreur}</p>}
+      <Confirmation message={message} />
       {seances.length === 0 ? (
         <p className="text-sm text-gray-500">
           Aucune séance dans ce programme. Ajoutes-en une ci-dessous.
@@ -64,7 +82,7 @@ export function ComposerProgramme({
               <p className="text-xs text-gray-600">{s.exercices} exercices</p>
             </div>
             <button
-              onClick={() => agir(() => deplacerSeanceDuProgramme(s.id, programmeId, "haut"))}
+              onClick={() => agir(() => deplacerSeanceDuProgramme(s.id, programmeId, "haut"), "Ordre enregistré")}
               disabled={i === 0 || isPending}
               title="Monter"
               className="px-1.5 py-1 text-gray-500 transition-colors hover:text-white disabled:opacity-20"
@@ -72,7 +90,7 @@ export function ComposerProgramme({
               ↑
             </button>
             <button
-              onClick={() => agir(() => deplacerSeanceDuProgramme(s.id, programmeId, "bas"))}
+              onClick={() => agir(() => deplacerSeanceDuProgramme(s.id, programmeId, "bas"), "Ordre enregistré")}
               disabled={i === seances.length - 1 || isPending}
               title="Descendre"
               className="px-1.5 py-1 text-gray-500 transition-colors hover:text-white disabled:opacity-20"
@@ -80,7 +98,7 @@ export function ComposerProgramme({
               ↓
             </button>
             <button
-              onClick={() => agir(() => retirerSeanceDuProgramme(s.id, programmeId))}
+              onClick={() => agir(() => retirerSeanceDuProgramme(s.id, programmeId), `« ${s.nom} » retirée du programme`)}
               disabled={isPending}
               className="px-2 py-1 text-xs text-red-400 transition-colors hover:text-red-300 disabled:opacity-40"
             >
@@ -117,7 +135,7 @@ export function ComposerProgramme({
               {disponibles.map((d) => (
                 <button
                   key={d.id}
-                  onClick={() => agir(() => ajouterSeanceAuProgramme(programmeId, d.id))}
+                  onClick={() => agir(() => ajouterSeanceAuProgramme(programmeId, d.id), `« ${d.nom} » ajoutée au programme`)}
                   disabled={isPending}
                   className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-800 px-3 py-2.5 text-left transition-colors hover:border-brand-500/40 disabled:opacity-50"
                 >

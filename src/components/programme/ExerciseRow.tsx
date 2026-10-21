@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { EtatSauvegarde } from "@/components/ui/Confirmation";
 
 type Exercise = {
   id: string;
@@ -94,6 +95,10 @@ export function ExerciseRow({
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-white text-center focus:outline-none focus:border-brand-500 transition-colors"
           />
         </div>
+        {/* Sauvegarde à la sortie du champ : rien n'est cliqué, rien ne bouge.
+            C'est le cas où le doute est le plus fort, donc celui où il faut le
+            dire. Invisible au repos : la ligne ne bouge pas pour autant. */}
+        <EtatSauvegarde className="col-span-full pt-1" />
       </form>
 
       <div className="col-span-1 flex flex-col gap-0.5 items-center">
