@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
+import { ConsignesSuggerees } from "@/components/templates/ConsignesSuggerees";
 import {
   modifierExerciceTemplate,
   chercherDansBibliotheque,
@@ -210,10 +211,15 @@ export function ModifierExercice({
       <textarea
         value={vNote}
         onChange={(e) => setVNote(e.target.value)}
-        rows={2}
+        rows={3}
         placeholder="Consigne affichée sous l'exercice (vide : la description de la bibliothèque)"
         className="w-full resize-y rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
       />
+
+      {/* Retapée vingt fois, la même intention finit en trois formulations
+          différentes, et le client ne sait plus si on lui demande autre
+          chose. */}
+      <ConsignesSuggerees valeur={vNote} onChoisir={setVNote} />
 
       {erreur && <p className="text-sm text-red-400">{erreur}</p>}
 

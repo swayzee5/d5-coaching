@@ -1,5 +1,6 @@
 "use client";
 
+import { ConsignesSuggerees } from "@/components/templates/ConsignesSuggerees";
 import { useState, useTransition } from "react";
 import {
   addExercise,
@@ -352,12 +353,22 @@ function LigneExercice({
           onChange={(v) => { setValeurs({ ...valeurs, restSeconds: v }); setEnregistre(false); }} largeur="w-16" />
       </div>
 
-      <input
+      {/* Une zone et non une ligne : la consigne fait souvent trois phrases,
+          et on ne relit pas ce qu'on ne voit pas. */}
+      <textarea
         value={valeurs.notes}
+        rows={3}
         onChange={(e) => { setValeurs({ ...valeurs, notes: e.target.value }); setEnregistre(false); }}
         placeholder="Consigne affichée sous l'exercice (sinon, la description de la bibliothèque)"
-        className="mt-2 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+        className="mt-2 w-full resize-y rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
       />
+
+      <div className="mt-1.5">
+        <ConsignesSuggerees
+          valeur={valeurs.notes}
+          onChoisir={(texte) => { setValeurs({ ...valeurs, notes: texte }); setEnregistre(false); }}
+        />
+      </div>
 
       {(change || enregistre) && (
         <button

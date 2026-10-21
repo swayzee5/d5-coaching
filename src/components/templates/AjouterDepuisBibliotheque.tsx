@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
+import { ConsignesSuggerees } from "@/components/templates/ConsignesSuggerees";
 import {
   chercherDansBibliotheque,
   ajouterExerciceDepuisBibliotheque,
@@ -180,12 +181,17 @@ export function AjouterDepuisBibliotheque({ templateId }: { templateId: string }
             </label>
           </div>
 
-          <input
+          {/* Une zone et non une ligne : la consigne fait souvent trois
+              phrases, et on ne relit pas ce qu'on ne voit pas. */}
+          <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
+            rows={3}
             placeholder="Consigne affichée sous l'exercice (facultatif)"
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+            className="w-full resize-y rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
           />
+
+          <ConsignesSuggerees valeur={note} onChoisir={setNote} />
 
           {erreur && <p className="text-sm text-red-400">{erreur}</p>}
 
