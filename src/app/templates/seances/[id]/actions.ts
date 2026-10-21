@@ -173,6 +173,44 @@ export async function ajouterExerciceDepuisBibliotheque(
 }
 
 /**
+ * Modifie un exercice déjà posé dans une séance type.
+ *
+ * Il fallait supprimer et rajouter pour corriger un nombre de répétitions. La
+ * ligne repartait alors en fin de séance, et l'ordre — ce qui est fait frais,
+ * ce qui est fait fatigué — était à refaire à la main.
+ *
+ * Le nom peut changer aussi : remplacer un exercice par un autre sans perdre
+ * sa place. Il doit venir de la bibliothèque, comme à l'ajout, sinon le
+ * rattachement casse et le client se retrouve avec un exercice muet.
+ */
+export async function modifierExerciceTemplate(
+  exerciceId: string,
+  templateId: string,
+  valeurs: { nom: string; series: number; reps: string; repos: number; note?: string | null }
+): Promise<{ ok: boolean; erreur?: string }> {
+  const nom = valeurs.nom.trim();
+  if (!exerciceId || !nom) return { ok: false, erreur: "Exercice manquant." };
+
+  try {
+    await db.$executeRaw`
+      UPDATE seance_template_exercises
+         SET exercise_name = ${nom},
+             sets = ${valeurs.series},
+             reps = ${valeurs.reps},
+             rest_seconds = ${valeurs.repos},
+             notes = ${valeurs.note?.trim() || null}
+       WHERE id = ${exerciceId}::uuid
+    `;
+    revalidatePath(`/templates/seances/${templateId}`);
+    revalidatePath("/templates");
+    return { ok: true };
+  } catch (err) {
+    console.error("[modifierExerciceTemplate]", err);
+    return { ok: false, erreur: "Modification impossible." };
+  }
+}
+
+/**
  * Ce que le client verra exactement pour cet exercice.
  *
  * Le template ne porte qu'un nom ; la vidéo et la description sont lues dans

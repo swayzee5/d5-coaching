@@ -9,6 +9,7 @@ import { AttribuerSeance } from "@/components/templates/AttribuerSeance";
 import { DeplacerExercice } from "@/components/templates/DeplacerExercice";
 import { AjouterDepuisBibliotheque } from "@/components/templates/AjouterDepuisBibliotheque";
 import { ApercuExercice } from "@/components/templates/ApercuExercice";
+import { ModifierExercice } from "@/components/templates/ModifierExercice";
 
 type SeanceTemplate = {
   id: string;
@@ -158,6 +159,19 @@ export default async function SeanceTemplateDetailPage({
                   séance. Le dépliant montre ce rattachement avant
                   l'attribution, pendant qu'il est encore corrigeable. */}
               <ApercuExercice nom={ex.exercise_name} consigne={ex.notes} />
+
+              {/* Corriger trois répétitions imposait de supprimer et de
+                  rajouter : la ligne repartait en fin de séance et l'ordre
+                  était à refaire. À ce prix-là, on laisse l'erreur. */}
+              <ModifierExercice
+                exerciceId={ex.id}
+                templateId={params.id}
+                nom={ex.exercise_name}
+                series={ex.sets}
+                reps={ex.reps}
+                repos={ex.rest_seconds}
+                note={ex.notes}
+              />
             </div>
           );
         })}
