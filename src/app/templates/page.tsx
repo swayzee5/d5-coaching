@@ -76,7 +76,11 @@ const SEANCE_CATEGORY_ICONS: Record<string, string> = {
   "Cardio": "🏃",
 };
 
-export default async function TemplatesPage() {
+export default async function TemplatesPage({
+  searchParams,
+}: {
+  searchParams: { cat?: string };
+}) {
   // Ensure tables exist
   await db.$executeRaw`
     CREATE TABLE IF NOT EXISTS program_templates (
@@ -176,10 +180,25 @@ export default async function TemplatesPage() {
     "Gainage", "Abdominaux", "Cardio", "Général",
   ];
 
-  // Une catégorie créée à la main et absente de cet ordre n'apparaissait
-  // nulle part : la séance existait, mais restait introuvable.
+  /**
+   * Les sections affichées, y compris celles qui n'ont encore aucune séance.
+   *
+   * Elles ne s'affichaient qu'une fois remplies : les découpes proposées à la
+   * création — Bras, Pecs / Triceps, Dos / Biceps — restaient donc invisibles
+   * tant qu'une séance n'y était pas rangée, et rien ne disait qu'elles
+   * existaient. Une section vide tient sur une ligne et porte son propre lien
+   * de création.
+   *
+   * Les catégories héritées (Pectoraux, Jambes Femme, Fessiers) ne sont
+   * affichées que si elles contiennent encore quelque chose : les montrer
+   * vides proposerait de ranger de nouvelles séances sous des noms qu'on ne
+   * veut plus.
+   */
+  const categoriesHeritees = ["Pectoraux", "Fessiers", "Jambes Femme", "Général"];
   const categoriesAffichees = [
-    ...seanceCategoryOrder.filter((c) => bySeanceCategory[c]?.length),
+    ...seanceCategoryOrder.filter(
+      (c) => bySeanceCategory[c]?.length || !categoriesHeritees.includes(c)
+    ),
     ...Object.keys(bySeanceCategory)
       .filter((c) => !seanceCategoryOrder.includes(c))
       .sort(),
@@ -288,7 +307,11 @@ export default async function TemplatesPage() {
             <h2 className="text-2xl font-bold text-white">Templates de séances</h2>
             <p className="text-gray-500 text-sm mt-1">{seanceTemplates.length} séances · Cliquer pour modifier</p>
           </div>
-          <form action={creerSeanceType} className="flex flex-wrap items-center gap-2">
+          <form
+            id="creer-seance"
+            action={creerSeanceType}
+            className="flex flex-wrap items-center gap-2 scroll-mt-6"
+          >
             <input
               name="nom"
               required
@@ -297,7 +320,13 @@ export default async function TemplatesPage() {
             />
             <select
               name="categorie"
-              defaultValue="Dos"
+              // Arrivé depuis une section vide, le menu est déjà sur la bonne
+              // catégorie : il ne reste qu'à nommer la séance.
+              defaultValue={
+                searchParams.cat && MUSCLE_CATEGORIES.includes(searchParams.cat)
+                  ? searchParams.cat
+                  : "Dos"
+              }
               className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-brand-500 focus:outline-none"
             >
               {MUSCLE_CATEGORIES.map((c) => (
@@ -327,7 +356,24 @@ export default async function TemplatesPage() {
         ) : (
           categoriesAffichees.map((cat) => {
             const group = bySeanceCategory[cat];
-            if (!group?.length) return null;
+            if (!group?.length) {
+              return (
+                <div
+                  key={cat}
+                  className="flex items-center justify-between gap-3 border-b border-gray-900 py-2"
+                >
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
+                    {SEANCE_CATEGORY_ICONS[cat] ?? "📋"} {cat}
+                  </h3>
+                  <Link
+                    href={`/templates?cat=${encodeURIComponent(cat)}#creer-seance`}
+                    className="text-xs text-gray-600 transition-colors hover:text-brand-400"
+                  >
+                    Aucune séance — en créer une →
+                  </Link>
+                </div>
+              );
+            }
             return (
               <div key={cat}>
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
