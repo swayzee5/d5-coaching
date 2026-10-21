@@ -3,10 +3,11 @@ export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { addExerciseToSeanceTemplate, deleteExerciseFromSeanceTemplate, updateSeanceTemplateName } from "./actions";
+import { deleteExerciseFromSeanceTemplate, updateSeanceTemplateName } from "./actions";
 import { clientsAttribuables } from "@/app/templates/actions";
 import { AttribuerSeance } from "@/components/templates/AttribuerSeance";
 import { DeplacerExercice } from "@/components/templates/DeplacerExercice";
+import { AjouterDepuisBibliotheque } from "@/components/templates/AjouterDepuisBibliotheque";
 
 type SeanceTemplate = {
   id: string;
@@ -155,73 +156,8 @@ export default async function SeanceTemplateDetailPage({
         })}
       </div>
 
-      {/* Add exercise form */}
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
-        <h2 className="text-white font-semibold">Ajouter un exercice</h2>
-        <form action={addExerciseToSeanceTemplate} className="space-y-3">
-          <input type="hidden" name="templateId" value={template.id} />
-          <input type="hidden" name="orderIndex" value={exercises.length} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Nom de l&apos;exercice *</label>
-              <input
-                name="exerciseName"
-                required
-                placeholder="ex: Développé couché haltères"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Séries</label>
-                <input
-                  name="sets"
-                  type="number"
-                  min="1"
-                  defaultValue="3"
-                  placeholder="3"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Reps</label>
-                <input
-                  name="reps"
-                  defaultValue="12"
-                  placeholder="12"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Repos (secondes)</label>
-              <input
-                name="restSeconds"
-                type="number"
-                defaultValue="90"
-                placeholder="90"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Notes (optionnel)</label>
-              <input
-                name="notes"
-                placeholder="ex: Descente lente en 3s"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-semibold transition-colors"
-          >
-            + Ajouter
-          </button>
-        </form>
-      </div>
+      <AjouterDepuisBibliotheque templateId={template.id} />
+
     </div>
   );
 }

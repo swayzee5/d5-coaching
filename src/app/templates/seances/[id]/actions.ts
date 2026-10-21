@@ -3,26 +3,6 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function addExerciseToSeanceTemplate(formData: FormData) {
-  const templateId = formData.get("templateId") as string;
-  const exerciseName = formData.get("exerciseName") as string;
-  const sets = parseInt((formData.get("sets") as string) || "3");
-  const reps = (formData.get("reps") as string) || "12";
-  const restSeconds = parseInt((formData.get("restSeconds") as string) || "90");
-  const notes = (formData.get("notes") as string) || null;
-  const orderIndex = parseInt((formData.get("orderIndex") as string) || "0");
-
-  if (!exerciseName?.trim() || !templateId) return;
-
-  await db.$executeRaw`
-    INSERT INTO seance_template_exercises (seance_template_id, exercise_name, sets, reps, rest_seconds, order_index, notes)
-    VALUES (${templateId}::uuid, ${exerciseName.trim()}, ${sets}, ${reps}, ${restSeconds}, ${orderIndex}, ${notes})
-  `;
-
-  revalidatePath(`/templates/seances/${templateId}`);
-  revalidatePath("/templates");
-}
-
 export async function deleteExerciseFromSeanceTemplate(exerciseId: string, templateId: string) {
   await db.$executeRaw`
     DELETE FROM seance_template_exercises WHERE id = ${exerciseId}::uuid
@@ -113,5 +93,81 @@ export async function deplacerExerciceTemplate(
   } catch (err) {
     console.error("[deplacerExerciceTemplate]", err);
     return { ok: false, erreur: "Déplacement impossible." };
+  }
+}
+
+/**
+ * Cherche un exercice dans la bibliothèque, pour composer une séance type.
+ *
+ * Le nom était saisi à la main. Une faute de frappe, un accent écrit
+ * autrement, une apostrophe typographique — et le rattachement à la
+ * bibliothèque échoue au moment de l'attribution : le client voit alors un
+ * exercice sans vidéo ni description, et personne ne sait pourquoi. Ces trois
+ * pièges nous ont déjà coûté plusieurs jours.
+ *
+ * Les exercices sans vidéo sont renvoyés mais signalés : le coach doit voir
+ * qu'il en manque une plutôt que de découvrir le trou chez son client.
+ */
+export type ExerciceBibliotheque = {
+  id: string;
+  nom: string;
+  aVideo: boolean;
+  muscles: string[];
+};
+
+export async function chercherDansBibliotheque(q: string): Promise<ExerciceBibliotheque[]> {
+  const terme = q.trim();
+  if (terme.length < 2) return [];
+
+  const rows = await db.$queryRaw<
+    { id: string; nom: string; a_video: boolean; muscles: string[] | null }[]
+  >`
+    SELECT id::text, name AS nom, (vimeo_video_id IS NOT NULL) AS a_video, muscles
+      FROM exercise_library
+     WHERE is_active = true
+       AND LOWER(name) LIKE '%' || LOWER(${terme}) || '%'
+     ORDER BY (vimeo_video_id IS NOT NULL) DESC, name
+     LIMIT 20
+  `.catch(() => []);
+
+  return rows.map((r) => ({
+    id: r.id,
+    nom: r.nom,
+    aVideo: r.a_video,
+    muscles: r.muscles ?? [],
+  }));
+}
+
+/**
+ * Ajoute un exercice choisi dans la bibliothèque à une séance type.
+ *
+ * Le nom enregistré est celui de la bibliothèque, jamais une saisie : c'est
+ * lui qui garantit le rattachement, et donc la vidéo chez le client.
+ */
+export async function ajouterExerciceDepuisBibliotheque(
+  templateId: string,
+  nomBibliotheque: string,
+  valeurs: { series: number; reps: string; repos: number; note?: string | null }
+): Promise<{ ok: boolean; erreur?: string }> {
+  if (!templateId || !nomBibliotheque.trim()) {
+    return { ok: false, erreur: "Exercice manquant." };
+  }
+  try {
+    const [{ rang }] = await db.$queryRaw<{ rang: number }[]>`
+      SELECT COALESCE(MAX(order_index) + 1, 0)::int AS rang
+        FROM seance_template_exercises WHERE seance_template_id = ${templateId}::uuid
+    `;
+    await db.$executeRaw`
+      INSERT INTO seance_template_exercises
+        (seance_template_id, exercise_name, sets, reps, rest_seconds, order_index, notes)
+      VALUES (${templateId}::uuid, ${nomBibliotheque}, ${valeurs.series}, ${valeurs.reps},
+              ${valeurs.repos}, ${rang}, ${valeurs.note?.trim() || null})
+    `;
+    revalidatePath(`/templates/seances/${templateId}`);
+    revalidatePath("/templates");
+    return { ok: true };
+  } catch (err) {
+    console.error("[ajouterExerciceDepuisBibliotheque]", err);
+    return { ok: false, erreur: "Ajout impossible." };
   }
 }
