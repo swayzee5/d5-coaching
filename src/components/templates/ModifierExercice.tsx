@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
+import { ChampRepsOuTemps } from "@/components/templates/ChampRepsOuTemps";
 import { ConsignesSuggerees } from "@/components/templates/ConsignesSuggerees";
 import {
   modifierExerciceTemplate,
@@ -179,6 +180,9 @@ export function ModifierExercice({
         </div>
       )}
 
+      {/* Gainage, planche, chaise : « 3 × 12 » n'y veut rien dire. */}
+      <ChampRepsOuTemps valeur={vReps} onChange={setVReps} />
+
       <div className="flex flex-wrap gap-2">
         <label className="flex items-center gap-1.5 text-xs text-gray-400">
           Séries
@@ -187,14 +191,6 @@ export function ModifierExercice({
             onChange={(e) => setVSeries(e.target.value)}
             inputMode="numeric"
             className="w-14 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-center text-sm text-white focus:border-brand-500 focus:outline-none"
-          />
-        </label>
-        <label className="flex items-center gap-1.5 text-xs text-gray-400">
-          Reps
-          <input
-            value={vReps}
-            onChange={(e) => setVReps(e.target.value)}
-            className="w-24 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-center text-sm text-white focus:border-brand-500 focus:outline-none"
           />
         </label>
         <label className="flex items-center gap-1.5 text-xs text-gray-400">
