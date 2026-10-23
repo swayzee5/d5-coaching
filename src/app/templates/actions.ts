@@ -201,6 +201,12 @@ export async function attribuerSeanceAClient(
       });
     }
 
+    // La provenance, pour pouvoir plus tard pousser les corrections du modèle
+    // vers les copies déjà posées. Écrite en SQL direct : la colonne n'est pas
+    // déclarée dans le schéma Prisma, et une colonne absente en base y ferait
+    // échouer toutes les requêtes sur les séances.
+    await marquerProvenance(seance.id, seanceTemplateId);
+
     revalidatePath(`/app-clients/${clientId}`);
     return { ok: true, programmeId: programId };
   } catch (err) {
@@ -526,4 +532,182 @@ export async function seancesTypesDisponibles(): Promise<
      GROUP BY s.id ORDER BY s.category, s.name
   `.catch(() => []);
   return rows.map((r) => ({ ...r, exercices: Number(r.exercices) }));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Pousser les corrections d'un modèle vers les séances attribuées    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * L'attribution copie, elle ne référence pas.
+ *
+ * C'est ce qui permet d'ajuster la séance d'un client sans toucher à celle
+ * des autres — et c'est indispensable : une charge, un exercice retiré pour
+ * une épaule douloureuse ne regardent que lui.
+ *
+ * Mais il manquait le geste inverse. Corriger le modèle ne changeait rien
+ * chez ceux qui l'avaient déjà reçu, et la seule façon de leur transmettre
+ * une correction était de supprimer la séance et de la réattribuer — en
+ * perdant sa place dans le programme, et sans savoir qui était concerné.
+ *
+ * La resynchronisation remplace le contenu d'une copie par celui du modèle.
+ * Elle est explicite, séance par séance : pousser silencieusement écraserait
+ * les ajustements faits pour un client, et personne ne saurait pourquoi.
+ */
+
+let colonneProvenancePrete = false;
+
+async function ensureColonneProvenance(): Promise<void> {
+  if (colonneProvenancePrete) return;
+  await db
+    .$executeRawUnsafe(
+      `ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS seance_template_id UUID`
+    )
+    .catch(() => {});
+  colonneProvenancePrete = true;
+}
+
+async function marquerProvenance(sessionId: string, templateId: string): Promise<void> {
+  await ensureColonneProvenance();
+  await db
+    .$executeRaw`UPDATE training_sessions SET seance_template_id = ${templateId}::uuid WHERE id = ${sessionId}::uuid`
+    .catch(() => {});
+}
+
+export type SeanceAttribuee = {
+  id: string;
+  client: string;
+  programme: string;
+  exercices: number;
+  parLeNom: boolean;
+};
+
+/**
+ * Les séances de clients issues de ce modèle.
+ *
+ * Celles attribuées avant l'existence de la colonne de provenance n'ont aucun
+ * lien : elles sont retrouvées par leur nom, et signalées comme telles. Un
+ * rapprochement par le nom peut se tromper — deux séances différentes peuvent
+ * porter le même —, donc il est montré, jamais présumé.
+ */
+export async function seancesAttribuees(templateId: string): Promise<SeanceAttribuee[]> {
+  await ensureColonneProvenance();
+  try {
+    const rows = await db.$queryRaw<
+      { id: string; client: string; programme: string; exercices: bigint; par_le_nom: boolean }[]
+    >`
+      SELECT ts.id::text,
+             COALESCE(c.first_name || ' ' || c.last_name, '—') AS client,
+             tp.name AS programme,
+             COUNT(e.id) AS exercices,
+             (ts.seance_template_id IS NULL) AS par_le_nom
+        FROM training_sessions ts
+        JOIN training_programs tp ON tp.id = ts.program_id
+        LEFT JOIN clients c ON c.id = tp.client_id
+        LEFT JOIN exercises e ON e.session_id = ts.id
+       WHERE ts.seance_template_id = ${templateId}::uuid
+          OR (ts.seance_template_id IS NULL
+              AND LOWER(BTRIM(ts.name)) = (
+                SELECT LOWER(BTRIM(name)) FROM seance_templates WHERE id = ${templateId}::uuid
+              ))
+       GROUP BY ts.id, c.first_name, c.last_name, tp.name, ts.seance_template_id
+       ORDER BY client
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      client: r.client,
+      programme: r.programme,
+      exercices: Number(r.exercices),
+      parLeNom: r.par_le_nom,
+    }));
+  } catch (err) {
+    console.error("[seancesAttribuees]", err);
+    return [];
+  }
+}
+
+/**
+ * Remplace le contenu des séances choisies par celui du modèle.
+ *
+ * Les exercices sont supprimés puis réinsérés. L'historique des charges n'est
+ * pas perdu pour autant : il est rattaché à l'exercice de bibliothèque, pas à
+ * la ligne de séance, précisément pour survivre à ce genre de remplacement.
+ *
+ * Ce qui est perdu, en revanche, ce sont les ajustements faits pour ce client
+ * sur cette séance. C'est dit avant, et c'est pour ça que rien n'est poussé
+ * sans un choix explicite.
+ */
+export async function resynchroniserSeances(
+  templateId: string,
+  sessionIds: string[]
+): Promise<{ ok: boolean; erreur?: string; faites?: number }> {
+  if (sessionIds.length === 0) return { ok: false, erreur: "Aucune séance choisie." };
+  await ensureColonneProvenance();
+
+  try {
+    const tpl = await db.$queryRaw<{ name: string; duration_minutes: number | null }[]>`
+      SELECT name, duration_minutes FROM seance_templates WHERE id = ${templateId}::uuid
+    `;
+    if (!tpl[0]) return { ok: false, erreur: "Séance type introuvable." };
+
+    const exercices = await db.$queryRaw<ExerciseTpl[]>`
+      SELECT exercise_name, sets, reps, rest_seconds, order_index, notes
+        FROM seance_template_exercises
+       WHERE seance_template_id = ${templateId}::uuid
+       ORDER BY order_index ASC
+    `;
+
+    // Le rattachement à la bibliothèque est résolu une fois pour toutes, et
+    // non par séance : c'est la même réponse pour chacune, et une requête par
+    // exercice et par client finirait par se voir.
+    const liens = new Map<string, string | null>();
+    for (const ex of exercices) {
+      if (liens.has(ex.exercise_name)) continue;
+      const lib = await db.$queryRaw<{ id: string }[]>`
+        SELECT id::text FROM exercise_library
+         WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${ex.exercise_name})) AND is_active = true
+         ORDER BY (vimeo_video_id IS NOT NULL) DESC
+         LIMIT 1
+      `.catch(() => [] as { id: string }[]);
+      liens.set(ex.exercise_name, lib[0]?.id ?? null);
+    }
+
+    let faites = 0;
+    for (const sessionId of sessionIds) {
+      await db.$executeRaw`DELETE FROM exercises WHERE session_id = ${sessionId}::uuid`;
+
+      for (const ex of exercices) {
+        await db.sessionExercise.create({
+          data: {
+            sessionId,
+            libraryExerciseId: liens.get(ex.exercise_name) ?? null,
+            name: ex.exercise_name,
+            sets: ex.sets,
+            reps: ex.reps,
+            restSeconds: ex.rest_seconds,
+            orderIndex: ex.order_index,
+            notes: ex.notes,
+          },
+        });
+      }
+
+      // Le nom et la durée suivent aussi : renommer le modèle sans que la
+      // copie bouge laisserait deux noms pour une même séance.
+      await db.$executeRaw`
+        UPDATE training_sessions
+           SET name = ${tpl[0].name},
+               duration_minutes = ${tpl[0].duration_minutes},
+               seance_template_id = ${templateId}::uuid
+         WHERE id = ${sessionId}::uuid
+      `;
+      faites++;
+    }
+
+    revalidatePath("/app-clients");
+    revalidatePath(`/templates/seances/${templateId}`);
+    return { ok: true, faites };
+  } catch (err) {
+    console.error("[resynchroniserSeances]", err);
+    return { ok: false, erreur: "Mise à jour impossible." };
+  }
 }

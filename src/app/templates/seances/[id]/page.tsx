@@ -4,13 +4,14 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { deleteExerciseFromSeanceTemplate, updateSeanceTemplateName } from "./actions";
-import { clientsAttribuables } from "@/app/templates/actions";
+import { clientsAttribuables, seancesAttribuees } from "@/app/templates/actions";
 import { AttribuerSeance } from "@/components/templates/AttribuerSeance";
 import { DeplacerExercice } from "@/components/templates/DeplacerExercice";
 import { AjouterDepuisBibliotheque } from "@/components/templates/AjouterDepuisBibliotheque";
 import { ApercuExercice } from "@/components/templates/ApercuExercice";
 import { ModifierExercice } from "@/components/templates/ModifierExercice";
 import { BoutonSauvegarde } from "@/components/ui/Confirmation";
+import { MettreAJourSeances } from "@/components/templates/MettreAJourSeances";
 
 type SeanceTemplate = {
   id: string;
@@ -51,6 +52,10 @@ export default async function SeanceTemplateDetailPage({
   `.catch(() => [] as TemplateExercise[]);
 
   const clients = await clientsAttribuables().catch(() => []);
+  // Les copies déjà posées chez des clients. Corriger le modèle ne les
+  // changeait pas, et il fallait supprimer puis réattribuer pour transmettre
+  // une correction — en perdant la place de la séance dans le programme.
+  const attribuees = await seancesAttribuees(params.id).catch(() => []);
 
   return (
     <div className="p-6 max-w-3xl space-y-8">
@@ -79,6 +84,12 @@ export default async function SeanceTemplateDetailPage({
         {exercises.length > 0 && (
           <div className="pt-2">
             <AttribuerSeance seanceTemplateId={template.id} clients={clients} />
+          </div>
+        )}
+
+        {attribuees.length > 0 && (
+          <div className="pt-1">
+            <MettreAJourSeances templateId={template.id} seances={attribuees} />
           </div>
         )}
 
