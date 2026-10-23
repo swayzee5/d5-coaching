@@ -1,5 +1,6 @@
 "use client";
 
+import { ChampRepsOuTemps } from "@/components/templates/ChampRepsOuTemps";
 import { ConsignesSuggerees } from "@/components/templates/ConsignesSuggerees";
 import { useState, useTransition } from "react";
 import {
@@ -347,10 +348,18 @@ function LigneExercice({
       <div className="flex flex-wrap items-center gap-2">
         <Champ label="Séries" value={valeurs.sets} numerique
           onChange={(v) => { setValeurs({ ...valeurs, sets: v }); setEnregistre(false); }} largeur="w-14" />
-        <Champ label="Reps" value={valeurs.reps}
-          onChange={(v) => { setValeurs({ ...valeurs, reps: v }); setEnregistre(false); }} largeur="w-28" />
         <Champ label="Repos (s)" value={valeurs.restSeconds} numerique
           onChange={(v) => { setValeurs({ ...valeurs, restSeconds: v }); setEnregistre(false); }} largeur="w-16" />
+      </div>
+
+      {/* Gainage, planche, chaise : « 3 × 12 » n'y veut rien dire. Même
+          sélecteur que dans les séances types, et même écriture de la durée —
+          c'est elle qui permet au client de lire « Durée » et non « Reps ». */}
+      <div className="mt-2">
+        <ChampRepsOuTemps
+          valeur={valeurs.reps}
+          onChange={(v) => { setValeurs({ ...valeurs, reps: v }); setEnregistre(false); }}
+        />
       </div>
 
       {/* Une zone et non une ligne : la consigne fait souvent trois phrases,
