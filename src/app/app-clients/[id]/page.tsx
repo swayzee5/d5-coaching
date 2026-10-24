@@ -16,6 +16,7 @@ import { modelesDisponibles } from "@/app/templates/actions";
 import { derniereConnexion, etatConnexion } from "@/lib/derniere-connexion";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
+import { SaisirMesure } from "@/components/clients/SaisirMesure";
 
 type ProgressEntry = {
   id: string; weightKg: unknown; waistCm: unknown;
@@ -333,8 +334,16 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h2 className="font-semibold text-white mb-4">Historique des mesures</h2>
+
+          {/* Les mensurations se prennent en séance, mètre en main : c'est le
+              coach qui les a. Attendre que le client les saisisse laissait les
+              fiches vides, donc sans point de départ à montrer. */}
+          <div className="mb-4">
+            <SaisirMesure clientId={client.id} />
+          </div>
+
           {client.progressEntries.length === 0 ? (
-            <p className="text-gray-600 text-sm text-center py-8">Aucune mesure enregistrée par le client</p>
+            <p className="text-gray-600 text-sm text-center py-8">Aucune mesure enregistrée</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

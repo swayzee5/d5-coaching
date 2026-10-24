@@ -210,3 +210,94 @@ export async function setCohorteStartDate(date: string) {
   revalidatePath("/app-clients");
   return { ok: true as const, participants: result.count };
 }
+
+/**
+ * Enregistrer une mesure à la place du client.
+ *
+ * Les mensurations ne pouvaient venir que du client, depuis son application.
+ * Or elles se prennent le plus souvent en séance, mètre en main — et le coach
+ * n'avait aucun moyen de les porter. Résultat : des fiches vides, et une
+ * progression qu'on ne peut pas montrer faute de point de départ.
+ *
+ * La date fait l'unicité : réenregistrer le même jour corrige la saisie au
+ * lieu d'ajouter une seconde ligne. Une faute de frappe sur un poids se
+ * répare donc en resaisissant, sans rien supprimer.
+ *
+ * Les champs vides restent vides. Une mesure partielle — le poids seul — vaut
+ * mieux qu'une mesure complète inventée, et c'est le cas courant.
+ */
+export async function enregistrerMesure(
+  clientId: string,
+  valeurs: {
+    date: string;
+    poids?: string;
+    taille?: string;
+    tourTaille?: string;
+    poitrine?: string;
+    hanches?: string;
+    bras?: string;
+    cuisses?: string;
+    masseGrasse?: string;
+    notes?: string;
+  }
+): Promise<{ ok: boolean; erreur?: string }> {
+  const nombre = (v?: string): number | null => {
+    if (!v?.trim()) return null;
+    // La virgule est ce qu'on tape sur un clavier français, et « 82,5 » doit
+    // valoir 82,5 — pas être refusé.
+    const n = Number(v.replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const date = valeurs.date?.trim();
+  if (!clientId || !date) return { ok: false, erreur: "Date manquante." };
+
+  const champs = {
+    weightKg: nombre(valeurs.poids),
+    heightCm: nombre(valeurs.taille),
+    waistCm: nombre(valeurs.tourTaille),
+    chestCm: nombre(valeurs.poitrine),
+    hipsCm: nombre(valeurs.hanches),
+    armsCm: nombre(valeurs.bras),
+    thighsCm: nombre(valeurs.cuisses),
+    bodyFatPercent: nombre(valeurs.masseGrasse),
+    notes: valeurs.notes?.trim() || null,
+  };
+
+  if (Object.values(champs).every((v) => v === null)) {
+    return { ok: false, erreur: "Aucune valeur saisie." };
+  }
+
+  try {
+    await db.appProgressEntry.upsert({
+      where: { clientId_entryDate: { clientId, entryDate: new Date(date) } },
+      create: { clientId, entryDate: new Date(date), ...champs },
+      // Seuls les champs renseignés écrasent : compléter un tour de taille
+      // deux heures plus tard ne doit pas effacer le poids du matin.
+      update: Object.fromEntries(
+        Object.entries(champs).filter(([, v]) => v !== null)
+      ),
+    });
+
+    revalidatePath(`/app-clients/${clientId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[enregistrerMesure]", err);
+    return { ok: false, erreur: "Enregistrement impossible." };
+  }
+}
+
+/** Supprime une mesure — une saisie faite sur la mauvaise fiche. */
+export async function supprimerMesure(
+  id: string,
+  clientId: string
+): Promise<{ ok: boolean; erreur?: string }> {
+  try {
+    await db.appProgressEntry.delete({ where: { id } });
+    revalidatePath(`/app-clients/${clientId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[supprimerMesure]", err);
+    return { ok: false, erreur: "Suppression impossible." };
+  }
+}
