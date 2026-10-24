@@ -65,17 +65,63 @@ export async function derniereConnexion(clientId: string): Promise<Date | null> 
  */
 export type EtatConnexion = {
   texte: string;
+  /** La date complète, pour une infobulle ou un affichage détaillé. */
+  precis: string | null;
   jours: number | null;
   alerte: boolean;
   jamais: boolean;
 };
 
+/**
+ * L'heure est donnée en heure suisse, pas en heure du serveur.
+ *
+ * Les serveurs tournent en UTC : sans cette précision, une connexion de 23 h
+ * s'afficherait au lendemain pendant la moitié de l'année, et « hier »
+ * deviendrait faux.
+ */
+const FUSEAU = "Europe/Zurich";
+
+const HEURE = new Intl.DateTimeFormat("fr-CH", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: FUSEAU,
+});
+
+const JOUR_HEURE = new Intl.DateTimeFormat("fr-CH", {
+  weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: FUSEAU,
+});
+
+/** Le quantième du jour dans le fuseau d'affichage, pour comparer des jours. */
+function jourLocal(d: Date): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: FUSEAU }).format(d);
+}
+
 export function etatConnexion(date: Date | null): EtatConnexion {
   if (!date) {
-    return { texte: "Jamais connecté", jours: null, alerte: true, jamais: true };
+    return { texte: "Jamais connecté", precis: null, jours: null, alerte: true, jamais: true };
   }
-  const jours = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
+
+  const d = new Date(date);
+  const maintenant = new Date();
+
+  // Les jours sont comptés de minuit à minuit, et non par tranches de vingt-
+  // quatre heures : une connexion à 23 h hier soir doit dire « hier », pas
+  // « aujourd'hui » parce qu'il s'est écoulé moins d'un jour.
+  const minuit = (x: Date) => new Date(`${jourLocal(x)}T00:00:00Z`).getTime();
+  const jours = Math.round((minuit(maintenant) - minuit(d)) / 86_400_000);
+
+  const heure = HEURE.format(d);
   const texte =
-    jours <= 0 ? "Aujourd'hui" : jours === 1 ? "Hier" : `Il y a ${jours} jours`;
-  return { texte, jours, alerte: jours >= 7, jamais: false };
+    jours <= 0
+      ? `Aujourd'hui à ${heure}`
+      : jours === 1
+      ? `Hier à ${heure}`
+      : `Il y a ${jours} jours — ${JOUR_HEURE.format(d)}`;
+
+  return { texte, precis: JOUR_HEURE.format(d), jours, alerte: jours >= 7, jamais: false };
 }
