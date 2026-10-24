@@ -269,21 +269,74 @@ export async function enregistrerMesure(
   }
 
   try {
-    await db.appProgressEntry.upsert({
-      where: { clientId_entryDate: { clientId, entryDate: new Date(date) } },
-      create: { clientId, entryDate: new Date(date), ...champs },
-      // Seuls les champs renseignés écrasent : compléter un tour de taille
-      // deux heures plus tard ne doit pas effacer le poids du matin.
-      update: Object.fromEntries(
-        Object.entries(champs).filter(([, v]) => v !== null)
-      ),
-    });
+    // Écrit en SQL direct, et l'existence de chaque colonne est assurée avant.
+    //
+    // Deux pièges déjà rencontrés sur ce projet se rejoignent ici. Prisma
+    // sélectionne toutes les colonnes qu'il déclare : une seule absente en
+    // base fait échouer la requête entière. Et son `upsert` s'appuie sur un
+    // index unique qui, lui non plus, n'existe pas forcément — les migrations
+    // de ce projet sont documentées mais jamais exécutées.
+    //
+    // Le « une ligne par jour » est donc obtenu à la main : on regarde, puis
+    // on complète ou on insère.
+    for (const colonne of [
+      "height_cm NUMERIC(5,1)",
+      "weight_kg NUMERIC(5,2)",
+      "body_fat_percent NUMERIC(4,1)",
+      "chest_cm NUMERIC(5,1)",
+      "waist_cm NUMERIC(5,1)",
+      "hips_cm NUMERIC(5,1)",
+      "arms_cm NUMERIC(5,1)",
+      "thighs_cm NUMERIC(5,1)",
+      "notes TEXT",
+    ]) {
+      await db
+        .$executeRawUnsafe(`ALTER TABLE progress_entries ADD COLUMN IF NOT EXISTS ${colonne}`)
+        .catch(() => {});
+    }
+
+    const existante = await db.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM progress_entries
+       WHERE client_id = ${clientId}::uuid AND entry_date = ${date}::date
+       LIMIT 1
+    `;
+
+    if (existante[0]) {
+      // COALESCE : un champ laissé vide ne remplace pas ce qui est déjà noté.
+      await db.$executeRaw`
+        UPDATE progress_entries SET
+          weight_kg = COALESCE(${champs.weightKg}::numeric, weight_kg),
+          height_cm = COALESCE(${champs.heightCm}::numeric, height_cm),
+          waist_cm = COALESCE(${champs.waistCm}::numeric, waist_cm),
+          chest_cm = COALESCE(${champs.chestCm}::numeric, chest_cm),
+          hips_cm = COALESCE(${champs.hipsCm}::numeric, hips_cm),
+          arms_cm = COALESCE(${champs.armsCm}::numeric, arms_cm),
+          thighs_cm = COALESCE(${champs.thighsCm}::numeric, thighs_cm),
+          body_fat_percent = COALESCE(${champs.bodyFatPercent}::numeric, body_fat_percent),
+          notes = COALESCE(${champs.notes}, notes)
+        WHERE id = ${existante[0].id}::uuid
+      `;
+    } else {
+      await db.$executeRaw`
+        INSERT INTO progress_entries
+          (client_id, entry_date, weight_kg, height_cm, waist_cm, chest_cm,
+           hips_cm, arms_cm, thighs_cm, body_fat_percent, notes)
+        VALUES (${clientId}::uuid, ${date}::date,
+                ${champs.weightKg}::numeric, ${champs.heightCm}::numeric,
+                ${champs.waistCm}::numeric, ${champs.chestCm}::numeric,
+                ${champs.hipsCm}::numeric, ${champs.armsCm}::numeric,
+                ${champs.thighsCm}::numeric, ${champs.bodyFatPercent}::numeric,
+                ${champs.notes})
+      `;
+    }
 
     revalidatePath(`/app-clients/${clientId}`);
     return { ok: true };
   } catch (err) {
     console.error("[enregistrerMesure]", err);
-    return { ok: false, erreur: "Enregistrement impossible." };
+    // Le message réel plutôt qu'un constat : « impossible » tout court oblige
+    // à deviner, et ce sont toujours les mêmes trois causes.
+    return { ok: false, erreur: `Enregistrement impossible — ${String(err).slice(0, 300)}` };
   }
 }
 
