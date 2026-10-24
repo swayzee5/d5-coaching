@@ -354,3 +354,60 @@ export async function supprimerMesure(
     return { ok: false, erreur: "Suppression impossible." };
   }
 }
+
+/**
+ * La date de naissance d'un client, lue et écrite en SQL direct.
+ *
+ * L'âge était porté par chaque mesure : à ressaisir à chaque fois, et faux
+ * dès l'anniversaire passé. Une date de naissance se donne une fois.
+ *
+ * Hors schéma Prisma, délibérément : une colonne déclarée mais absente en
+ * base fait échouer toutes les requêtes sur les clients, et cette panne-là
+ * vide des pages entières. Elle s'est déjà produite deux fois ici.
+ */
+export async function dateNaissance(clientId: string): Promise<string | null> {
+  try {
+    await db
+      .$executeRawUnsafe(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS birth_date DATE`)
+      .catch(() => {});
+    const rows = await db.$queryRaw<{ birth_date: Date | null }[]>`
+      SELECT birth_date FROM clients WHERE id = ${clientId}::uuid
+    `;
+    const d = rows[0]?.birth_date;
+    return d ? new Date(d).toISOString().slice(0, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function enregistrerNaissance(
+  clientId: string,
+  date: string
+): Promise<{ ok: boolean; erreur?: string }> {
+  const jour = date?.trim();
+  if (!clientId || !jour) return { ok: false, erreur: "Date manquante." };
+
+  const d = new Date(jour);
+  if (Number.isNaN(d.getTime())) return { ok: false, erreur: "Date invalide." };
+
+  // Bornes larges, mais elles écartent les deux fautes courantes : l'année
+  // tapée en deux chiffres, et le jour et le mois inversés.
+  const annees = new Date().getFullYear() - d.getFullYear();
+  if (annees < 14 || annees > 100) {
+    return { ok: false, erreur: "Vérifie l'année : cette date donne un âge improbable." };
+  }
+
+  try {
+    await db
+      .$executeRawUnsafe(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS birth_date DATE`)
+      .catch(() => {});
+    await db.$executeRaw`
+      UPDATE clients SET birth_date = ${jour}::date WHERE id = ${clientId}::uuid
+    `;
+    revalidatePath(`/app-clients/${clientId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[enregistrerNaissance]", err);
+    return { ok: false, erreur: `Enregistrement impossible — ${String(err).slice(0, 200)}` };
+  }
+}

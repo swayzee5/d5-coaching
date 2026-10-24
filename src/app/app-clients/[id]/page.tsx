@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { NutritionUpload } from "@/components/app-clients/NutritionUpload";
-import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleRebootOnly } from "./actions";
+import { archiveClient, unarchiveClient, blockClient, unblockClient, toggleRebootOnly, dateNaissance } from "./actions";
 import { ResetPasswordButton } from "@/components/clients/ResetPasswordButton";
 import { RebootDiagnosticCard, type RebootDiagnostic } from "@/components/reboot/RebootDiagnosticCard";
 import { RebootBilanCard, type BilanRow } from "@/components/reboot/RebootBilanCard";
@@ -17,6 +17,7 @@ import { derniereConnexion, etatConnexion } from "@/lib/derniere-connexion";
 import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton";
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 import { SaisirMesure } from "@/components/clients/SaisirMesure";
+import { DateNaissanceClient } from "@/components/clients/DateNaissanceClient";
 
 type ProgressEntry = {
   id: string; weightKg: unknown; waistCm: unknown;
@@ -225,6 +226,9 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const toggleRebootOnlyAction = toggleRebootOnly.bind(null, client.id, client.isRebootOnly);
 
   const connexion = etatConnexion(await derniereConnexion(client.id).catch(() => null));
+  // La date de naissance plutôt que l'âge : l'âge saisi devenait faux dès
+  // l'anniversaire passé, et il fallait le ressaisir à chaque mesure.
+  const naissance = await dateNaissance(client.id).catch(() => null);
   const modeles = await modelesDisponibles().catch(() => ({ programmes: [], seances: [] }));
   const aUnProgrammeActif = await db.trainingProgram
     .count({ where: { clientId: client.id, isActive: true } })
@@ -300,7 +304,8 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
+        <DateNaissanceClient clientId={client.id} valeur={naissance} />
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider">Poids actuel</p>
           <p className="text-2xl font-black text-white mt-1">{fmt(latest?.weightKg, "kg")}</p>
