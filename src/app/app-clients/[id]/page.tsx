@@ -115,6 +115,36 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     console.error("[client-detail:full]", err);
   }
 
+  /**
+   * Les mesures sont relues en SQL direct, et remplacent celles de Prisma.
+   *
+   * Prisma sélectionne toutes les colonnes qu'il déclare pour
+   * progress_entries — `age_years` notamment, qui n'existe pas forcément en
+   * base. Une seule colonne absente fait échouer la requête avec ses
+   * relations ; le repli charge alors le client SANS ses mesures, et la fiche
+   * affiche « aucune mesure » alors qu'elles sont bien enregistrées. C'est
+   * exactement ce qui se passait après une saisie.
+   *
+   * On ne lit donc que les colonnes dont on s'est assuré l'existence.
+   */
+  let mesures: ProgressEntry[] = [];
+  try {
+    mesures = await db.$queryRaw<ProgressEntry[]>`
+      SELECT id::text, entry_date AS "entryDate",
+             weight_kg AS "weightKg", waist_cm AS "waistCm",
+             chest_cm AS "chestCm", hips_cm AS "hipsCm",
+             arms_cm AS "armsCm", thighs_cm AS "thighsCm",
+             height_cm AS "heightCm", body_fat_percent AS "bodyFatPercent",
+             notes
+        FROM progress_entries
+       WHERE client_id = ${params.id}::uuid
+       ORDER BY entry_date DESC
+       LIMIT 30
+    `;
+  } catch (err) {
+    console.error("[client-detail:mesures]", err);
+  }
+
   // Fallback: load client without relations
   if (!client) {
     try {
@@ -126,6 +156,9 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   }
 
   if (!client) notFound();
+
+  // La lecture directe fait foi : elle aboutit là où celle de Prisma échoue.
+  if (mesures.length) client = { ...client, progressEntries: mesures };
 
   // Load programmes separately so a client query failure doesn't hide them
   try {
@@ -157,9 +190,13 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     completions: [] as RebootCompletion[],
     checkins: [] as RebootCheckin[],
     modules: [] as RebootModule[],
+    // Les messages WhatsApp font partie des dix étapes du challenge côté
+    // client. Les ignorer ici donnait une progression plus basse que celle
+    // que le participant voit chez lui — et c'est la sienne qui compte.
+    whatsapp: 0,
   };
   try {
-    const [completions, checkins, modules] = await Promise.all([
+    const [completions, checkins, modules, whatsapp] = await Promise.all([
       db.$queryRaw<RebootCompletion[]>`
         SELECT rc.session_id::text, rs.muscle_group, rs.name AS session_name, rc.completed_at
         FROM reboot_completions rc
@@ -179,8 +216,19 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         WHERE client_id = ${params.id}
         ORDER BY completed_at ASC
       `.catch(() => [] as RebootModule[]),
+      db.$queryRaw<{ cnt: bigint }[]>`
+        SELECT COUNT(*) AS cnt FROM reboot_whatsapp_completions
+         WHERE client_id = ${params.id}
+      `.catch(() => [{ cnt: BigInt(0) }]),
     ]);
-    rebootActivity = { completions, checkins, modules };
+    rebootActivity = {
+      completions,
+      checkins,
+      modules,
+      // Plafonné à trois comme chez le client : au-delà, poster plus ne fait
+      // pas avancer le challenge.
+      whatsapp: Math.min(Number(whatsapp[0]?.cnt ?? 0), 3),
+    };
   } catch {}
 
   // Diagnostic de départ. Requête séparée et tolérante : la table est créée par
@@ -235,7 +283,13 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     .then((n) => n > 0)
     .catch(() => false);
 
-  const rebootTotal = rebootActivity.completions.length + rebootActivity.modules.length;
+  // Dix étapes, comme chez le client : trois séances, trois messages
+  // WhatsApp, quatre modules. Le CRM n'en comptait que sept.
+  const REBOOT_ETAPES = 10;
+  const rebootTotal =
+    Math.min(rebootActivity.completions.length, 3) +
+    rebootActivity.whatsapp +
+    Math.min(rebootActivity.modules.length, 4);
   const hasRebootActivity = rebootTotal > 0;
 
   return (
@@ -442,18 +496,18 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
               Reboot 40
             </h2>
             <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-              rebootTotal >= 7
+              rebootTotal >= REBOOT_ETAPES
                 ? "bg-brand-500/20 text-brand-400"
                 : "bg-gray-800 text-gray-400"
             }`}>
-              {rebootTotal}/7 étapes
+              {rebootTotal}/{REBOOT_ETAPES} étapes
             </span>
           </div>
           <div className="mb-5">
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-brand-500 rounded-full transition-all"
-                style={{ width: `${Math.round((rebootTotal / 7) * 100)}%` }}
+                style={{ width: `${Math.round((rebootTotal / REBOOT_ETAPES) * 100)}%` }}
               />
             </div>
           </div>
