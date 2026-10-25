@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { jourLocal } from "@/lib/jour-local";
 import { Confirmation, useConfirmation } from "@/components/ui/Confirmation";
 import { enregistrerMesure } from "@/app/app-clients/[id]/actions";
 
@@ -27,7 +28,7 @@ export function SaisirMesure({ clientId }: { clientId: string }) {
   const { message, confirmer } = useConfirmation();
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const aujourdhui = jourLocal();
   const [v, setV] = useState({
     date: aujourdhui,
     poids: "",

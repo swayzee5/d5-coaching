@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { setCohorteStartDate } from "@/app/app-clients/[id]/actions";
+import { jourLocal } from "@/lib/jour-local";
 
 /**
  * Pose la date de départ du challenge sur toute la cohorte.
@@ -75,5 +76,5 @@ function prochainLundi(): string {
   const d = new Date();
   const delta = (8 - d.getDay()) % 7;
   d.setDate(d.getDate() + (delta === 0 ? 0 : delta));
-  return d.toISOString().slice(0, 10);
+  return jourLocal(d);
 }
