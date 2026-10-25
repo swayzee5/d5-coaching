@@ -1,14 +1,19 @@
 import { NextRequest } from "next/server";
 import { get } from "@vercel/blob";
 import { db } from "@/lib/db";
+import { optionsPrivees, priveUtilisable } from "@/lib/blob-token";
 
 /**
  * Sert la photo d'un repas au coach.
  *
- * Les photos sont déposées en accès privé par l'app cliente : elles n'ont pas
- * d'adresse publique, et il faut le jeton du stockage pour les lire. Le CRM a
- * ce jeton, et il est lui-même derrière l'authentification du coach — c'est
- * elle qui protège cette route.
+ * Les photos sont déposées en accès privé par l'app cliente, dans un store
+ * dédié : elles n'ont pas d'adresse publique, et il faut les identifiants de
+ * CE store pour les lire. Le CRM doit donc y être connecté lui aussi — être
+ * connecté au store public ne suffit pas, et c'est ce qui faisait afficher
+ * une image cassée côté coach alors que la photo existait bel et bien.
+ *
+ * La route est protégée par l'authentification du coach, qui couvre tout le
+ * CRM.
  *
  * `private, no-store` : une photo de ce genre n'a rien à faire dans le cache
  * d'un intermédiaire, et le gain d'un cache sur une image regardée une fois
@@ -23,8 +28,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .catch(() => null);
   if (!repas) return new Response("Introuvable", { status: 404 });
 
+  if (!priveUtilisable()) {
+    console.error("[crm/repas/photo] store privé non configuré");
+    return new Response("Stockage privé non configuré", { status: 503 });
+  }
+
   try {
-    const fichier = await get(repas.photoPath, { access: "private" });
+    const fichier = await get(repas.photoPath, { access: "private", ...optionsPrivees() });
     if (!fichier?.stream) return new Response("Introuvable", { status: 404 });
     return new Response(fichier.stream, {
       headers: {
