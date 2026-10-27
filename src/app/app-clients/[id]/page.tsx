@@ -66,6 +66,10 @@ type RebootModule = {
   completed_at: Date;
 };
 
+type RebootWhatsapp = {
+  sent_at: Date;
+};
+
 const REBOOT_MUSCLE_LABELS: Record<string, string> = {
   pecs: "💪 Pectoraux",
   dos: "🏋️ Dos & Biceps",
@@ -193,7 +197,10 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     // Les messages WhatsApp font partie des dix étapes du challenge côté
     // client. Les ignorer ici donnait une progression plus basse que celle
     // que le participant voit chez lui — et c'est la sienne qui compte.
-    whatsapp: 0,
+    //
+    // On garde les dates, et pas seulement le nombre : trois messages comptés
+    // sans rien à montrer, c'est un total que le coach ne peut pas vérifier.
+    whatsapp: [] as RebootWhatsapp[],
   };
   try {
     const [completions, checkins, modules, whatsapp] = await Promise.all([
@@ -216,19 +223,13 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         WHERE client_id = ${params.id}
         ORDER BY completed_at ASC
       `.catch(() => [] as RebootModule[]),
-      db.$queryRaw<{ cnt: bigint }[]>`
-        SELECT COUNT(*) AS cnt FROM reboot_whatsapp_completions
+      db.$queryRaw<RebootWhatsapp[]>`
+        SELECT sent_at FROM reboot_whatsapp_completions
          WHERE client_id = ${params.id}
-      `.catch(() => [{ cnt: BigInt(0) }]),
+         ORDER BY sent_at ASC
+      `.catch(() => [] as RebootWhatsapp[]),
     ]);
-    rebootActivity = {
-      completions,
-      checkins,
-      modules,
-      // Plafonné à trois comme chez le client : au-delà, poster plus ne fait
-      // pas avancer le challenge.
-      whatsapp: Math.min(Number(whatsapp[0]?.cnt ?? 0), 3),
-    };
+    rebootActivity = { completions, checkins, modules, whatsapp };
   } catch {}
 
   // Diagnostic de départ. Requête séparée et tolérante : la table est créée par
@@ -288,7 +289,9 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   const REBOOT_ETAPES = 10;
   const rebootTotal =
     Math.min(rebootActivity.completions.length, 3) +
-    rebootActivity.whatsapp +
+    // Plafonné à trois comme chez le client : au-delà, poster plus ne fait pas
+    // avancer le challenge.
+    Math.min(rebootActivity.whatsapp.length, 3) +
     Math.min(rebootActivity.modules.length, 4);
   const hasRebootActivity = rebootTotal > 0;
 
@@ -602,6 +605,47 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
                     );
                   })}
                 </div>
+              </div>
+              {/* Les trois messages du groupe. Ils comptent dans les dix
+                  étapes, et jusqu'ici ils gonflaient le total sans rien
+                  afficher : le coach lisait 6/10 sans pouvoir dire d'où
+                  venaient les points. Les cases vides sont montrées aussi,
+                  parce qu'un message manquant est précisément ce qui se
+                  relance. */}
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5">
+                  Messages WhatsApp — {Math.min(rebootActivity.whatsapp.length, 3)}/3 envoyés
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[0, 1, 2].map((i) => {
+                    const envoye = rebootActivity.whatsapp[i];
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-lg px-3 py-2.5 ${
+                          envoye
+                            ? "bg-green-500/5 border border-green-500/15"
+                            : "bg-gray-800/40 border border-gray-800"
+                        }`}
+                      >
+                        <p className={`text-sm ${envoye ? "text-white" : "text-gray-600"}`}>
+                          {envoye ? "✓" : "○"} Message {i + 1}
+                        </p>
+                        {envoye && (
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {formatShort(envoye.sent_at)}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Déclaratif par nature : personne ne peut vérifier un envoi
+                    WhatsApp depuis une page web. Le dire évite de prendre une
+                    case cochée pour une preuve. */}
+                <p className="mt-2 text-xs text-gray-600">
+                  Déclaré par le client — à vérifier dans le groupe.
+                </p>
               </div>
               {rebootActivity.modules.length > 0 && (
                 <div>
