@@ -22,6 +22,13 @@ export default async function ParametresPage() {
     rebootMessage = rows.find((r) => r.key === "reboot_welcome_message")?.value ?? "";
     introVideo = rows.find((r) => r.key === "reboot_intro_video_id")?.value ?? "";
     whatsapp = rows.find((r) => r.key === "coach_whatsapp")?.value ?? "";
+    // Ces trois-là étaient demandés à la base et jamais relus : les champs
+    // revenaient vides à chaque ouverture de la page, alors que la valeur
+    // était bien enregistrée. De quoi croire que rien n'a été sauvegardé, et
+    // recoller la même chose indéfiniment.
+    videoFin = rows.find((r) => r.key === "reboot_video_fin")?.value ?? "";
+    lienReservation = rows.find((r) => r.key === "lien_reservation")?.value ?? "";
+    prix = rows.find((r) => r.key === "prix_accompagnement")?.value ?? "";
   } catch {}
 
   return (
