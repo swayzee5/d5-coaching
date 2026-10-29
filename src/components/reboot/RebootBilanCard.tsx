@@ -35,6 +35,35 @@ export type BilanRow = {
   temoignage: string | null;
   temoignage_publiable: boolean;
   submitted_at: Date;
+  /** Réponse à « souhaites-tu être accompagné ? », posée après la vidéo. */
+  intention: string | null;
+  intention_texte: string | null;
+};
+
+/**
+ * Les trois réponses possibles, et ce qu'elles valent pour le coach.
+ *
+ * « J'hésite » est volontairement traité comme une intention positive : c'est
+ * la réponse de la majorité, elle mène au même rendez-vous, et la ranger
+ * visuellement du côté des refus ferait passer à côté de la plupart des
+ * appels à passer.
+ */
+const INTENTIONS: Record<string, { texte: string; classe: string; question: string }> = {
+  oui: {
+    texte: "Veut être accompagné",
+    classe: "border-green-500/30 bg-green-500/10 text-green-400",
+    question: "Ce qu'il veut changer en priorité",
+  },
+  hesite: {
+    texte: "Hésite — veut en discuter",
+    classe: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",
+    question: "Ce qu'il veut changer en priorité",
+  },
+  non: {
+    texte: "Pas pour le moment",
+    classe: "border-gray-700 bg-gray-800 text-gray-400",
+    question: "Ce qui le freine",
+  },
 };
 
 export function RebootBilanCard({
@@ -104,6 +133,30 @@ export function RebootBilanCard({
         <p className="text-xs text-gray-400">
           Recommanderait le challenge : <span className="font-semibold text-white">{bilan.satisfaction}/5</span>
         </p>
+      )}
+
+      {/* Ce qu'il a répondu après la vidéo : c'est ce qui décide de l'appel,
+          donc ça se lit avant de décrocher, pas après. */}
+      {bilan.intention && INTENTIONS[bilan.intention] && (
+        <div className="space-y-2">
+          <span
+            className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${
+              INTENTIONS[bilan.intention].classe
+            }`}
+          >
+            {INTENTIONS[bilan.intention].texte}
+          </span>
+          {bilan.intention_texte && (
+            <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+              <p className="text-xs uppercase tracking-wider text-gray-500">
+                {INTENTIONS[bilan.intention].question}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-300">
+                {bilan.intention_texte}
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {bilan.temoignage && (

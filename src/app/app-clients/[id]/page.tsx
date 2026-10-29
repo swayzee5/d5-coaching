@@ -249,10 +249,24 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   `.catch(() => [] as RebootDiagnostic[]);
 
   // Le bilan de fin, s'il existe. Même jointure en texte, même raison.
+  //
+  // Les colonnes d'intention sont créées par l'app cliente, qui les écrit.
+  // Tant qu'aucun participant n'a répondu, elles peuvent manquer ici — et une
+  // colonne absente ne fait pas échouer une seule valeur, elle fait échouer
+  // toute la requête : le bilan entier disparaîtrait de la fiche. L'ordre est
+  // idempotent et ne coûte rien.
+  await db.$executeRaw`
+    ALTER TABLE reboot_bilans
+      ADD COLUMN IF NOT EXISTS intention       TEXT,
+      ADD COLUMN IF NOT EXISTS intention_texte TEXT,
+      ADD COLUMN IF NOT EXISTS intention_at    TIMESTAMPTZ
+  `.catch(() => {});
+
   const rebootBilan = await db.$queryRaw<BilanRow[]>`
     SELECT score_global, score_sommeil, score_energie, score_recuperation,
            score_stress, score_motivation, score_confiance,
-           satisfaction, temoignage, temoignage_publiable, submitted_at
+           satisfaction, temoignage, temoignage_publiable, submitted_at,
+           intention, intention_texte
     FROM reboot_bilans
     WHERE client_id::text = ${params.id}
     LIMIT 1
