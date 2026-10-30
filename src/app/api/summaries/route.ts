@@ -16,11 +16,6 @@ export async function POST(req: NextRequest) {
     const prospect = await db.prospect.findUnique({
       where: { id: prospectId },
       include: {
-        challengeParticipants: {
-          include: { group: true },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
       },
     });
 

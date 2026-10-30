@@ -9,7 +9,6 @@ export async function GET(
     where: { id: params.id },
     include: {
       summaries: { orderBy: { createdAt: "desc" } },
-      challengeParticipants: { include: { group: true } },
       coachingClient: true,
     },
   });

@@ -20,7 +20,6 @@ async function getProspects(status?: ProspectStatus) {
     orderBy: { createdAt: "desc" },
     include: {
       summaries: { orderBy: { createdAt: "desc" }, take: 1 },
-      challengeParticipants: { include: { group: true } },
     },
   });
 }
@@ -125,11 +124,6 @@ export default async function ProspectsPage({
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
                       <p className="text-sm text-gray-500">{p.phone}</p>
-                      {p.challengeParticipants.length > 0 && (
-                        <p className="text-xs text-purple-400">
-                          ⚡ {p.challengeParticipants[0].group.name}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>

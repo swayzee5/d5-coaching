@@ -1,16 +1,21 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { Prospect, ChallengeParticipant, ChallengeGroup } from "@prisma/client";
+import { Prospect } from "@prisma/client";
 import { parseAvailableDays } from "./utils";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-type ProspectWithRelations = Prospect & {
-  challengeParticipants?: (ChallengeParticipant & {
-    group: ChallengeGroup;
-  })[];
-};
+/**
+ * Le suivi de challenge se lisait ici dans les groupes du CRM, cochés jour
+ * par jour à la main. Ces groupes n'existent plus : l'application cliente
+ * mesure d'elle-même les séances, les messages et le bilan, et une saisie
+ * manuelle à côté finissait par contredire ce qu'elle sait.
+ *
+ * La fiche de briefing se passe donc de cette ligne. Le jour où on la
+ * rebranche, elle viendra des vraies données du participant.
+ */
+type ProspectWithRelations = Prospect;
 
 export async function generateOnboardingSummary(
   prospect: ProspectWithRelations
@@ -69,23 +74,8 @@ Sois direct, concis, utile. Pas de fluff.`;
 export async function generatePreCallSummary(
   prospect: ProspectWithRelations
 ): Promise<string> {
-  const participation = prospect.challengeParticipants?.[0];
   const days = parseAvailableDays(prospect.availableDays);
-
-  let challengeInfo = "N'a pas encore fait le challenge";
-  if (participation) {
-    const daysCompleted = [
-      participation.day1Done,
-      participation.day2Done,
-      participation.day3Done,
-      participation.day4Done,
-      participation.day5Done,
-      participation.day6Done,
-      participation.day7Done,
-    ].filter(Boolean).length;
-
-    challengeInfo = `Challenge ${participation.group.name} — ${daysCompleted}/7 jours complétés | Score engagement : ${participation.engagementScore ?? "non noté"}/10 | Profil sérieux : ${participation.isSerious ? "OUI" : "Non"} | Notes : ${participation.coachNotes ?? "aucune"}`;
-  }
+  const challengeInfo = "À lire sur la fiche du participant dans l'app.";
 
   const prompt = `Tu es l'assistant de Daye Kaba, coach physique D5 Coaching spécialisé hommes 40+.
 
@@ -124,54 +114,3 @@ Direct, actionnable, pas de jargon.`;
   return content.type === "text" ? content.text : "";
 }
 
-export async function generateChallengeWeekSummary(
-  group: ChallengeGroup & {
-    participants: (ChallengeParticipant & { prospect: Prospect })[];
-  }
-): Promise<string> {
-  const participantLines = group.participants
-    .map((p) => {
-      const daysCompleted = [
-        p.day1Done,
-        p.day2Done,
-        p.day3Done,
-        p.day4Done,
-        p.day5Done,
-        p.day6Done,
-        p.day7Done,
-      ].filter(Boolean).length;
-      return `- ${p.prospect.name} : ${daysCompleted}/7 jours | Engagement : ${p.engagementScore ?? "?"}/10 | Sérieux : ${p.isSerious ? "✅" : "❌"} | Notes : ${p.coachNotes ?? "—"}`;
-    })
-    .join("\n");
-
-  const prompt = `Tu es l'assistant de Daye Kaba, coach D5 Coaching.
-
-Voici le bilan du groupe challenge Reboot 40+ de la semaine.
-
-**Groupe :** ${group.name}
-**Période :** du ${group.startDate.toLocaleDateString("fr-FR")} au ${group.endDate.toLocaleDateString("fr-FR")}
-**Participants :**
-${participantLines}
-
-**Notes coach sur la semaine :** ${group.coachNotes ?? "aucune"}
-
-Génère un rapport de semaine en 200 mots avec :
-1. **Vue d'ensemble** (taux de complétion global, ambiance du groupe)
-2. **Top performers** (nommer les 2-3 meilleurs profils avec raison)
-3. **Profils à relancer** (qui contacter en DM et pourquoi)
-4. **Profils pour appel de sélection** (recommandations directes)
-5. **Insights** pour la prochaine session (ajustements à faire)
-
-Sois direct et concis.`;
-
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 700,
-    system:
-      "Tu es un assistant coach sportif expert. Tu génères des rapports de suivi hebdomadaires pour un coach physique.",
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const content = message.content[0];
-  return content.type === "text" ? content.text : "";
-}

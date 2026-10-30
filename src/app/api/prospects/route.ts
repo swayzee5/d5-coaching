@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
     include: {
       summaries: { orderBy: { createdAt: "desc" }, take: 1 },
-      _count: { select: { challengeParticipants: true } },
     },
   });
 

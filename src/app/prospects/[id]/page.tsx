@@ -7,7 +7,6 @@ import {
   statusLabel,
   statusColor,
   parseAvailableDays,
-  challengeProgress,
 } from "@/lib/utils";
 import Link from "next/link";
 import ProspectActions from "@/components/prospects/ProspectActions";
@@ -18,10 +17,6 @@ async function getProspect(id: string) {
     where: { id },
     include: {
       summaries: { orderBy: { createdAt: "desc" } },
-      challengeParticipants: {
-        include: { group: true },
-        orderBy: { createdAt: "desc" },
-      },
       coachingClient: true,
     },
   });
@@ -129,70 +124,6 @@ export default async function ProspectDetailPage({
               ]}
             />
           </Section>
-
-          {/* Challenges */}
-          {prospect.challengeParticipants.length > 0 && (
-            <Section title="Participations au challenge">
-              <div className="space-y-3">
-                {prospect.challengeParticipants.map((part) => {
-                  const done = challengeProgress(part);
-                  return (
-                    <div
-                      key={part.id}
-                      className="bg-gray-800 rounded-lg p-4 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <Link
-                          href={`/groups/${part.groupId}`}
-                          className="font-medium text-white hover:text-brand-400"
-                        >
-                          {part.group.name}
-                        </Link>
-                        <div className="flex items-center gap-2">
-                          {part.isSerious && (
-                            <span className="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">
-                              Profil sérieux
-                            </span>
-                          )}
-                          <span className="text-sm text-gray-400">
-                            {done}/7 jours
-                          </span>
-                        </div>
-                      </div>
-                      {/* Checklist jours */}
-                      <div className="flex gap-1.5">
-                        {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-                          const key = `day${d}Done` as keyof typeof part;
-                          const completed = part[key] as boolean;
-                          return (
-                            <div
-                              key={d}
-                              className={`flex-1 h-2 rounded-full ${completed ? "bg-brand-500" : "bg-gray-700"}`}
-                              title={`Jour ${d}`}
-                            />
-                          );
-                        })}
-                      </div>
-                      {part.engagementScore != null && (
-                        <p className="text-sm text-gray-400">
-                          Engagement :{" "}
-                          <span className="text-white font-medium">
-                            {part.engagementScore}/10
-                          </span>
-                        </p>
-                      )}
-                      {part.coachNotes && (
-                        <p className="text-sm text-gray-400">
-                          Notes :{" "}
-                          <span className="text-gray-200">{part.coachNotes}</span>
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </Section>
-          )}
 
           {/* Client actif */}
           {prospect.coachingClient && (
