@@ -50,24 +50,17 @@ const nav = [
       </svg>
     ),
   },
-  {
-    href: "/prospects",
-    label: "Prospects",
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/groups",
-    label: "Groupes Reboot 40+",
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
+  // « Prospects » et « Groupes Reboot 40+ » ne figurent plus ici.
+  //
+  // Prospects n'est rempli que par ManyChat, qui n'est pas branché : la
+  // section est en sommeil, pas supprimée. Elle reste atteignable par son
+  // adresse, /prospects, et le webhook continue de fonctionner — le jour où
+  // le flux repart, il n'y a qu'à remettre l'entrée.
+  //
+  // Groupes Reboot 40+ demandait de cocher J1 à J7 à la main. Ça datait
+  // d'avant l'application cliente : aujourd'hui elle sait d'elle-même qui a
+  // fait sa séance, posté son message et rempli son bilan. Une case à cocher
+  // qui refait un travail déjà fait finit par contredire la vérité.
   {
     href: "/clients",
     label: "Clients actifs",
