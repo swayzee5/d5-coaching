@@ -7,6 +7,7 @@ import Link from "next/link";
 import ReplyButton from "./ReplyButton";
 import { RebootDiagnosticsOverview, type RebootParticipant } from "@/components/reboot/RebootDiagnosticsOverview";
 import { DateDepartCohorte } from "@/components/reboot/DateDepartCohorte";
+import { RebootTermines } from "@/components/dashboard/RebootTermines";
 
 type GroupWithParticipants = {
   id: string; name: string; status: string; maxSize: number;
@@ -109,10 +110,31 @@ async function getDashboardData() {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS coach_notifications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id TEXT NOT NULL, type TEXT NOT NULL, is_read BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT now(), UNIQUE(client_id, type))`.catch(() => {});
     type NRow = { client_id: string; created_at: Date };
     const nRows = await db.$queryRaw<NRow[]>`SELECT client_id, created_at FROM coach_notifications WHERE type = 'reboot_completed' AND is_read = false ORDER BY created_at DESC LIMIT 10`.catch(() => [] as NRow[]);
-    completedRebootClients = await Promise.all(nRows.map(async (row) => {
-      const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { client_id: row.client_id, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé", created_at: row.created_at };
+    // Un compte supprimé — un compte de test, le plus souvent — laissait sa
+    // notification derrière lui, affichée comme « Client supprimé ». Six
+    // lignes mortes au-dessus de la liste des appels à passer, et un lien qui
+    // ne mène nulle part. On les retire de l'affichage et de la base : ce sont
+    // des rappels pour une personne qui n'existe plus.
+    const resolues = await Promise.all(nRows.map(async (row) => {
+      const c = await db.appClient
+        .findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } })
+        .catch(() => null);
+      return c
+        ? { client_id: row.client_id, clientName: `${c.firstName} ${c.lastName}`, created_at: row.created_at }
+        : null;
     }));
+
+    const orphelines = nRows
+      .filter((row, i) => resolues[i] === null)
+      .map((row) => row.client_id);
+    if (orphelines.length > 0) {
+      await db.$executeRaw`
+        DELETE FROM coach_notifications
+         WHERE type = 'reboot_completed' AND client_id = ANY(${orphelines})
+      `.catch(() => {});
+    }
+
+    completedRebootClients = resolues.filter((r): r is CompletedRebootClient => r !== null);
   } catch {}
 
   try {
@@ -247,26 +269,7 @@ export default async function DashboardPage() {
       </div>
 
       {data.completedRebootClients.length > 0 && (
-        <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-400" /></span>
-            <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide">🏆 Challenge Reboot terminé ({data.completedRebootClients.length})</h2>
-          </div>
-          <div className="space-y-2">
-            {data.completedRebootClients.map((n, i) => (
-              <Link key={i} href={`/app-clients/${n.client_id}`} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center shrink-0">
-                  <span className="text-yellow-400 font-bold text-xs">{n.clientName.split(" ").map((w: string) => w[0]).join("").slice(0,2).toUpperCase()}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white font-medium">{n.clientName}</p>
-                  <p className="text-xs text-gray-500">A terminé le Reboot 40+ — moment idéal pour l&apos;appel découverte 🎯</p>
-                </div>
-                <span className="text-xs text-yellow-400 font-semibold shrink-0">Contacter →</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <RebootTermines entrees={data.completedRebootClients} />
       )}
 
       {/* Avant tout le reste du tableau de bord quand il y a du retard : un
