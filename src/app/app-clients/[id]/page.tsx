@@ -18,6 +18,9 @@ import { DeleteClientButton } from "@/components/app-clients/DeleteClientButton"
 import CreateProgramForm from "@/components/app-clients/CreateProgramForm";
 import { SaisirMesure } from "@/components/clients/SaisirMesure";
 import { DateNaissanceClient } from "@/components/clients/DateNaissanceClient";
+import { ContactEtConsentements } from "@/components/clients/ContactEtConsentements";
+import { consentements } from "@/lib/consentements";
+import { prospectDuParticipant } from "@/lib/personnes";
 
 type ProgressEntry = {
   id: string; weightKg: unknown; waistCm: unknown;
@@ -38,6 +41,7 @@ type ClientDetail = {
   id: string; email: string; firstName: string; lastName: string;
   isActive: boolean; isBlocked: boolean; isRebootOnly: boolean;
   objectives: string | null;
+  phone: string | null;
   progressEntries: ProgressEntry[];
   nutritionFiles: NutritionFile[];
 };
@@ -292,6 +296,11 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   // La date de naissance plutôt que l'âge : l'âge saisi devenait faux dès
   // l'anniversaire passé, et il fallait le ressaisir à chaque mesure.
   const naissance = await dateNaissance(client.id).catch(() => null);
+  // De quoi joindre la personne, et le droit de le faire. Ces deux-là
+  // conditionnent toute automatisation future : sans numéro normalisé et sans
+  // accord tracé, aucun message ne part.
+  const etatsConsentement = await consentements(client.id).catch(() => []);
+  const prospectLie = await prospectDuParticipant(client.id).catch(() => null);
   const modeles = await modelesDisponibles().catch(() => ({ programmes: [], seances: [] }));
   const aUnProgrammeActif = await db.trainingProgram
     .count({ where: { clientId: client.id, isActive: true } })
@@ -374,6 +383,16 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           />
         </div>
       </div>
+
+      {/* Avant les mesures : c'est ce qui conditionne la suite. Un
+          participant qu'on ne peut pas joindre ne recevra jamais rien,
+          quelle que soit la qualité du reste. */}
+      <ContactEtConsentements
+        clientId={client.id}
+        telephone={client.phone ?? null}
+        etats={etatsConsentement}
+        prospect={prospectLie}
+      />
 
       <div className="grid grid-cols-5 gap-3">
         <DateNaissanceClient clientId={client.id} valeur={naissance} />
