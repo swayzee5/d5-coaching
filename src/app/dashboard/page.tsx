@@ -2,23 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
 import { ensureSchemaReboot } from "@/lib/ensure-schema";
-import { formatDateShort, statusLabel, statusColor, challengeProgress, ProspectStatus } from "@/lib/utils";
 import Link from "next/link";
 import ReplyButton from "./ReplyButton";
 import { RebootDiagnosticsOverview, type RebootParticipant } from "@/components/reboot/RebootDiagnosticsOverview";
 import { DateDepartCohorte } from "@/components/reboot/DateDepartCohorte";
 import { RebootTermines } from "@/components/dashboard/RebootTermines";
 
-type GroupWithParticipants = {
-  id: string; name: string; status: string; maxSize: number;
-  coachNotes: string | null; startDate: Date; endDate: Date; createdAt: Date;
-  participants: {
-    day1Done: boolean; day2Done: boolean; day3Done: boolean;
-    day4Done: boolean; day5Done: boolean; day6Done: boolean; day7Done: boolean;
-    prospect: { name: string };
-  }[];
-};
-type ProspectWithSummary = { id: string; name: string; status: string; createdAt: Date; summaries: { id: string; createdAt: Date }[] };
 type RecentCompletion = {
   id: string; initiatedBy: string; completedAt: Date;
   setResults: { completed: boolean }[];
@@ -39,10 +28,7 @@ const SLEEP_EMOJIS  = ["😴","😪","🙂","😊","⭐"];
 const STRESS_EMOJIS = ["😰","😟","😐","🙂","🙌"];
 
 async function getDashboardData() {
-  let totalProspects = 0, activeClients = 0;
-  let byStatus: Record<string, number> = {};
-  let activeGroups: GroupWithParticipants[] = [];
-  let recentProspects: ProspectWithSummary[] = [];
+  let activeClients = 0;
   let recentCompletions: RecentCompletion[] = [];
   // Seances validees par les clients dans l'app. Elles vont dans
   // workout_sessions, que le dashboard ne lisait pas du tout.
@@ -55,18 +41,10 @@ async function getDashboardData() {
   let dateCohorte: string | null = null;
 
   try {
-    const [counts, statusCounts, groups, prospects, clients] = await Promise.all([
-      db.prospect.count(),
-      db.prospect.groupBy({ by: ["status"], _count: { id: true } }),
-      db.challengeGroup.findMany({ where: { status: { in: ["ACTIVE","UPCOMING"] } }, include: { participants: { include: { prospect: { select: { name: true } } } } }, orderBy: { startDate: "asc" }, take: 4 }),
-      db.prospect.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { summaries: { orderBy: { createdAt: "desc" }, take: 1 } } }),
-      db.coachingClient.count({ where: { isActive: true } }),
-    ]);
-    totalProspects = counts;
-    byStatus = Object.fromEntries(statusCounts.map((s) => [s.status, s._count.id]));
-    activeGroups = groups as GroupWithParticipants[];
-    recentProspects = prospects as ProspectWithSummary[];
-    activeClients = clients;
+    // Quatre requêtes de prospects et de groupes partaient à chaque
+    // ouverture pour alimenter des blocs qui affichaient zéro. Elles sont
+    // retirées avec eux.
+    activeClients = await db.coachingClient.count({ where: { isActive: true } });
   } catch (err) { console.error("[dashboard:main]", err); }
 
   try {
@@ -239,12 +217,8 @@ async function getDashboardData() {
     repasEnRetard = retard;
   } catch {}
 
-  return { totalProspects, byStatus, activeGroups, recentProspects, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte, repasEnAttente, repasEnRetard };
+  return { activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte, repasEnAttente, repasEnRetard };
 }
-
-const PIPELINE_STAGES: { status: ProspectStatus; emoji: string }[] = [
-  { status: "LEAD", emoji: "📥" }, { status: "ONBOARDING", emoji: "🔄" }, { status: "CHALLENGE", emoji: "⚡" }, { status: "CALL_SCHEDULED", emoji: "📞" }, { status: "CLIENT", emoji: "✅" },
-];
 
 export default async function DashboardPage() {
   // Le schéma d'abord : une colonne manquante ferait échouer toute la
@@ -262,8 +236,11 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Prospects total" value={data.totalProspects} sub="dans le pipeline" accent="blue" />
-        <StatCard label="En challenge" value={data.byStatus.CHALLENGE ?? 0} sub="Reboot 40+ actifs" accent="purple" />
+        {/* Les deux premières comptaient des prospects ManyChat — zéro en
+            permanence, puisque les participants sont créés directement dans
+            l'application. Elles comptent maintenant les vraies personnes. */}
+        <StatCard label="Participants Reboot" value={data.rebootParticipants.length} sub="cohorte en cours" accent="blue" />
+        <StatCard label="Ont terminé" value={data.completedRebootClients.length} sub="à appeler" accent="purple" />
         <StatCard label="Clients actifs" value={data.activeClients} sub="/ 15 max" accent="green" />
         <StatCard label="CA mensuel" value={`${(data.revenue / 1000).toFixed(0)}k€`} sub="accompagnements" accent="orange" />
       </div>
@@ -419,45 +396,16 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-4">Pipeline d&apos;acquisition</h2>
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          {PIPELINE_STAGES.map((stage, i) => (
-            <div key={stage.status} className="flex items-center gap-2 shrink-0">
-              <Link href={`/prospects?status=${stage.status}`} className="flex flex-col items-center bg-gray-800 hover:bg-gray-700 rounded-xl px-5 py-3 transition-colors min-w-[100px]">
-                <span className="text-xl mb-1">{stage.emoji}</span><span className="text-2xl font-bold text-white">{data.byStatus[stage.status] ?? 0}</span><span className="text-xs text-gray-400 mt-1 text-center">{statusLabel(stage.status)}</span>
-              </Link>
-              {i < PIPELINE_STAGES.length - 1 && <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Le pipeline d'acquisition, les groupes de challenge et les derniers
+          prospects vivaient ici. Ils comptent des « prospects » — la table que
+          remplit ManyChat — et ce parcours n'est pas celui d'aujourd'hui : les
+          participants sont créés directement comme comptes de l'application.
+          Les trois blocs affichaient donc zéro en permanence, en haut d'un
+          tableau de bord consulté sur un téléphone.
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Groupes Reboot 40+</h2><Link href="/groups/new" className="text-xs text-brand-400 hover:text-brand-300">+ Nouveau</Link></div>
-          {data.activeGroups.length === 0 ? <p className="text-gray-500 text-sm text-center py-6">Aucun groupe actif</p> : (
-            <div className="space-y-3">{data.activeGroups.map((group) => { const total = group.participants.reduce((acc,p) => acc+challengeProgress(p),0); const max = group.participants.length*7; const pct = max>0?Math.round((total/max)*100):0; return (
-              <Link key={group.id} href={`/groups/${group.id}`} className="block bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors">
-                <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-white">{group.name}</span><span className={`text-xs px-2 py-0.5 rounded-full border ${group.status==="ACTIVE"?"bg-green-500/10 text-green-400 border-green-500/20":"bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}`}>{group.status==="ACTIVE"?"En cours":"À venir"}</span></div>
-                <div className="flex justify-between text-xs text-gray-400 mb-2"><span>{group.participants.length}/{group.maxSize} participants</span><span>{pct}% complété</span></div>
-                <div className="w-full bg-gray-700 rounded-full h-1.5"><div className="bg-brand-500 rounded-full h-1.5" style={{width:`${pct}%`}} /></div>
-              </Link>
-            ); })}</div>
-          )}
-        </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Derniers prospects</h2><Link href="/prospects/new" className="text-xs text-brand-400 hover:text-brand-300">+ Ajouter</Link></div>
-          {data.recentProspects.length === 0 ? <p className="text-gray-500 text-sm text-center py-6">Aucun prospect pour l&apos;instant</p> : (
-            <div className="space-y-2">{data.recentProspects.map((p) => (
-              <Link key={p.id} href={`/prospects/${p.id}`} className="flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
-                <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center shrink-0"><span className="text-xs font-medium text-gray-300">{p.name.charAt(0).toUpperCase()}</span></div><div><p className="text-sm font-medium text-white">{p.name}</p><p className="text-xs text-gray-500">{formatDateShort(p.createdAt)}</p></div></div>
-                <span className={`text-xs px-2 py-1 rounded-full border ${statusColor(p.status)}`}>{statusLabel(p.status)}</span>
-              </Link>
-            ))}</div>
-          )}
-        </div>
-      </div>
+          Rien n'est supprimé : les pages Prospects et Groupes restent
+          accessibles par le menu, et le webhook ManyChat continue de
+          fonctionner. Seul l'affichage part, le jour où il ne dit plus rien. */}
     </div>
   );
 }
