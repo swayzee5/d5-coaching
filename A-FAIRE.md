@@ -80,22 +80,27 @@ Plan en sept étapes, audit du 30 octobre.
       l'inscription, écran de désinscription. C'est elle qui transformera
       « saisi par le coach » en vrai consentement.
 
-      **Décision du 31 octobre : deux lignes, une seule obligatoire.**
-      Les quatre canaux techniques (WhatsApp, vocaux, notifications, e-mails)
-      deviennent deux finalités : `challenge` et `apres`. Ce n'est pas le
-      tuyau qui compte, c'est ce qu'on envoie dedans.
+      **Décision du 31 octobre : une seule ligne, obligatoire.**
+      Les quatre canaux techniques disparaissent. Montrer l'offre dans
+      l'application à quelqu'un qui s'y connecte ne demande aucun
+      consentement — c'est son contenu, il est venu le chercher. Et le
+      challenge est gratuit parce qu'il fait découvrir l'accompagnement :
+      en faire une case séparée reviendrait à cacher le modèle économique
+      que la vidéo annonce de toute façon.
 
-      - **Obligatoire** — les messages du challenge. Un challenge coaché de
-        sept jours *est* un échange de messages ; les rendre obligatoires est
-        légitime parce qu'ils sont le service, pas de la publicité. Le texte
-        doit nommer WhatsApp, que la politique de WhatsApp l'exige.
-      - **Facultatif** — la suite commerciale. La mettre dans la même case
-        que la première en ferait un consentement conditionné à l'accès à un
-        service gratuit : non librement donné, donc sans valeur. Une case
-        cochée par tout le monde et qui ne protège de rien.
+      > J'accepte de recevoir les messages de Daye. Pendant le challenge :
+      > rappels de séance, point à mi-parcours, bilan. Et à la fin, sa
+      > proposition d'accompagnement. Les messages arrivent par WhatsApp et
+      > par notification. Je peux dire stop à tout moment en répondant STOP.
 
-      Le retrait reste possible en cours de challenge, même sur la ligne
-      obligatoire. Il retire le droit d'écrire, pas l'accès à l'application.
+      WhatsApp doit être nommé : leur politique l'exige, « être recontacté »
+      ne suffit pas.
+
+      Le STOP remplace la seconde case, et vaut mieux qu'elle : personne ne
+      refuse à l'avance ce qu'il n'a pas encore reçu, alors que tout le monde
+      sait dire stop quand ça l'agace. Il est automatique — une ligne en base,
+      vérifiée avant chaque envoi. Aucune intervention humaine.
+
 - [ ] **Enregistrer le consentement du formulaire publicitaire Meta** comme
       origine, avec sa date et son texte exact. *En attente : le texte de la
       case.* Vérifier au passage que WhatsApp y est nommé — « être
