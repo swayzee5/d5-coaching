@@ -79,6 +79,23 @@ Plan en sept étapes, audit du 30 octobre.
 - [ ] **Étape 0 bis — la collecte côté application.** Case de consentement à
       l'inscription, écran de désinscription. C'est elle qui transformera
       « saisi par le coach » en vrai consentement.
+
+      **Décision du 31 octobre : deux lignes, une seule obligatoire.**
+      Les quatre canaux techniques (WhatsApp, vocaux, notifications, e-mails)
+      deviennent deux finalités : `challenge` et `apres`. Ce n'est pas le
+      tuyau qui compte, c'est ce qu'on envoie dedans.
+
+      - **Obligatoire** — les messages du challenge. Un challenge coaché de
+        sept jours *est* un échange de messages ; les rendre obligatoires est
+        légitime parce qu'ils sont le service, pas de la publicité. Le texte
+        doit nommer WhatsApp, que la politique de WhatsApp l'exige.
+      - **Facultatif** — la suite commerciale. La mettre dans la même case
+        que la première en ferait un consentement conditionné à l'accès à un
+        service gratuit : non librement donné, donc sans valeur. Une case
+        cochée par tout le monde et qui ne protège de rien.
+
+      Le retrait reste possible en cours de challenge, même sur la ligne
+      obligatoire. Il retire le droit d'écrire, pas l'accès à l'application.
 - [ ] **Enregistrer le consentement du formulaire publicitaire Meta** comme
       origine, avec sa date et son texte exact. *En attente : le texte de la
       case.* Vérifier au passage que WhatsApp y est nommé — « être
