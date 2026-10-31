@@ -110,6 +110,22 @@ Plan en sept étapes, audit du 30 octobre.
       c'est ce qui les rend testables sans envoyer un seul message.
 - [ ] **Étape 2 — agent Animation** (push seul, canal déjà en place).
 - [ ] **Étape 3 — agent Suivi** + vocaux ElevenLabs.
+- [ ] **Le STOP.** N'existe nulle part aujourd'hui : WhatsApp ne fait rien
+      tout seul. Trois morceaux, à faire avec les étapes correspondantes.
+
+      - *Dans l'application* (étape 0 bis) : un interrupteur dans Profil,
+        « Recevoir les messages de Daye ». On ne répond pas à une
+        notification, il faut donc un endroit où l'éteindre.
+      - *Sur WhatsApp* (étape 4) : le webhook des messages entrants, la
+        détection du mot, l'écriture en base. Une demi-journée.
+      - *Dans le moteur* (étape 1) : la vérification avant chaque envoi, pas
+        à l'entrée du parcours — quelqu'un peut se désinscrire entre-temps,
+        et c'est précisément là qu'un envoi fait du dégât.
+
+      Ce n'est pas une mesure de conformité, c'est ce qui protège le numéro :
+      qui ne trouve pas comment arrêter ne s'arrête pas, il signale. Et Meta
+      coupe sans prévenir ni discuter.
+
 - [ ] **Étape 4 — WhatsApp Cloud API.** Validation Meta : 1 à 3 semaines, hors
       de notre contrôle. Demande un numéro dédié, perdu pour l'app WhatsApp
       classique.
