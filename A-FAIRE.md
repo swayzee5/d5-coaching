@@ -110,6 +110,15 @@ Plan en sept étapes, audit du 30 octobre.
       c'est ce qui les rend testables sans envoyer un seul message.
 - [ ] **Étape 2 — agent Animation** (push seul, canal déjà en place).
 - [ ] **Étape 3 — agent Suivi** + vocaux ElevenLabs.
+
+      *Décision ouverte, à prendre au moment de la construction :* faut-il
+      signaler qu'un message est préparé automatiquement ? Arbitrage du
+      31 octobre : **non pour les messages écrits**, à rediscuter pour les
+      vocaux. L'argument contraire, pour mémoire — les participants sont
+      dans un même groupe WhatsApp et se comparent, et ce qui se découvre
+      entre eux se raconte autrement que ce qui est dit d'avance. Le
+      règlement européen demande par ailleurs qu'un audio généré soit
+      signalé. À réexaminer : l'état de l'IA et des règles aura changé.
 - [ ] **Le STOP.** N'existe nulle part aujourd'hui : WhatsApp ne fait rien
       tout seul. Trois morceaux, à faire avec les étapes correspondantes.
 
