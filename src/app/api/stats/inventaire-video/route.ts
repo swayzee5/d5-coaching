@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { jsonUtf8 } from "@/lib/json-utf8";
 import { db } from "@/lib/db";
 
 /**
@@ -27,7 +28,7 @@ type Ligne = {
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    return jsonUtf8({ error: "Non autorisé" }, { status: 401 });
   }
 
   try {
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     const filmes = lignes.filter(aVideo);
     const manquants = lignes.filter((l) => !aVideo(l));
 
-    return NextResponse.json({
+    return jsonUtf8({
       resume: {
         total: lignes.length,
         filmes: filmes.length,
@@ -74,6 +75,6 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err).slice(0, 300) }, { status: 500 });
+    return jsonUtf8({ error: String(err).slice(0, 300) }, { status: 500 });
   }
 }

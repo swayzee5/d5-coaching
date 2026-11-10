@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { jsonUtf8 } from "@/lib/json-utf8";
 import { db } from "@/lib/db";
 
 /**
@@ -35,7 +36,7 @@ function nettoyer(rows: { prenom: string; texte: string | null; quand: Date | nu
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    return jsonUtf8({ error: "Non autorisé" }, { status: 401 });
   }
 
   // Chaque source est interrogée séparément et tolère son propre échec : une
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
      WHERE b.temoignage IS NOT NULL AND b.temoignage_publiable = true
   `.catch(() => []);
 
-  return NextResponse.json({
+  return jsonUtf8({
     avertissement:
       "Mots bruts de clients réels. Rien n'est publiable sans accord, sauf la section « témoignagesPubliables ».",
     diagnosticsDeDepart: nettoyer(diagnostics, "diagnostic"),
