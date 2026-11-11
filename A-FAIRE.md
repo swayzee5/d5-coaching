@@ -148,6 +148,32 @@ très vite quand plus personne n'est derrière.
 
 ---
 
+## Section Média dans le CRM
+
+**Décision du 11 novembre : pas de troisième application.** La séparation
+voulue est celle des écrans, pas celle des déploiements — et deux
+applications partageant une base sans outil de migration commun sont déjà la
+cause de la moitié des pannes. Une section « Média » avec son entrée au menu
+donne la même séparation sans un troisième projet Vercel, un troisième jeu de
+variables et un troisième endroit où une colonne peut manquer.
+
+Ce qui ferait changer d'avis : donner cet accès à quelqu'un d'extérieur —
+monteur, communication. Le CRM contient le diabète de l'un, l'alcool de
+l'autre, les photos de corps des clients ; ça ne se confie pas à un
+prestataire vidéo. Daye ne prévoit d'embaucher que pour les appels, donc la
+section suffit.
+
+- [ ] **Voix des clients** — thèmes, citations exactes, nombre de personnes,
+      avec un bouton pour relancer l'analyse. La route `/api/stats/voix-clients`
+      existe déjà.
+- [ ] **Inventaire vidéo** — ce qui est filmé, ce qui manque, par priorité
+      d'usage réel. La route `/api/stats/inventaire-video` existe déjà.
+      Utile immédiatement, même sans contenu de marque.
+- [ ] **Plan de tournage** — la seule qui mérite vraiment d'être une page
+      plutôt qu'un document : des cases à cocher, lisibles sur le téléphone
+      pendant le tournage, qui gardent où l'on en est si l'on s'interrompt.
+- [ ] **Stats réseaux** — plus tard, quand les API seront connectées.
+
 ## Structurel, non résolu
 
 - La branche `main` du CRM et `claude/d5-coaching-app-ssQsr` n'ont aucun
