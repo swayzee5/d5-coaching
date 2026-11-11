@@ -46,6 +46,7 @@ type ExerciseRow = {
   description: string | null;
   muscles: string[];
   vimeo_video_id: string | null;
+  thumbnail_url: string | null;
   generated_video_url: string | null;
   is_active: boolean;
 };
@@ -64,13 +65,13 @@ export default async function ExercicesPage({
 
   const exercises = cat && cat !== "Tous"
     ? await db.$queryRaw<ExerciseRow[]>`
-        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, thumbnail_url, is_active
         FROM exercise_library
         WHERE is_active = true AND ${cat} = ANY(muscles)
         ORDER BY name ASC
       `.catch(() => [] as ExerciseRow[])
     : await db.$queryRaw<ExerciseRow[]>`
-        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, is_active
+        SELECT id::text, name, description, muscles, vimeo_video_id, generated_video_url, thumbnail_url, is_active
         FROM exercise_library
         WHERE is_active = true
         ORDER BY name ASC

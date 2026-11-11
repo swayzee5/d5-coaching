@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateExercise } from "@/app/exercices/actions";
+import { PhotoExercice } from "@/components/exercices/PhotoExercice";
 
 export type ExerciseForEdit = {
   id: string;
@@ -11,6 +12,7 @@ export type ExerciseForEdit = {
   muscles: string[];
   vimeo_video_id: string | null;
   generated_video_url: string | null;
+  thumbnail_url: string | null;
 };
 
 // Le nom devient un bouton qui deplie, sous lui, la description, la video et le
@@ -146,6 +148,11 @@ export function ExerciseDetails({
               ) : (
                 <p className="text-gray-600 text-xs">Aucune description.</p>
               )}
+
+              {/* Tous les exercices n'ont pas à être filmés : une marche sur
+                  tapis se comprend d'un coup d'œil. La photo prend alors la
+                  place de la vidéo sur la tuile du client. */}
+              <PhotoExercice id={ex.id} nom={ex.name} photoActuelle={ex.thumbnail_url} />
 
               {ex.vimeo_video_id && (
                 <div className="rounded-xl overflow-hidden" style={{ maxWidth: 420 }}>
