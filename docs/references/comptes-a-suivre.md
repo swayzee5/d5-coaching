@@ -76,6 +76,42 @@ clients de plus de 40 ans.
 
 ---
 
+## Comptes envoyés par Daye — 11 novembre 2026
+
+Aucun n'a pu être consulté : Instagram est hors du réseau des sessions et
+demande une connexion. Ce qui suit vient de Daye ou de la presse, jamais
+d'une lecture directe. À compléter avec ses captures.
+
+### @therealbrianmark — Brian Mark
+Ce que Daye en retient : **sa technique pour provoquer des commentaires**.
+Documenté par la presse : un mot-clé en appel à l'action sous chaque
+publication, le commentaire déclenche un message privé, le message privé
+qualifie, et la conversation mène à un appel. Environ 770 000 abonnés.
+
+**Attention à la transposition : il vend à des coachs, pas à des quadras.**
+Son public est en mode « business », déjà habitué aux tunnels. Celui de Daye
+se méfie du marketing. La mécanique tient, le vocabulaire non.
+
+### @thebeastwithin9, @theptboss, @allen_strong70, @millionaire.mindsetspod
+Envoyés sans commentaire. En attente des captures pour savoir ce que Daye y
+trouve d'intéressant.
+
+### Reel de référence
+`instagram.com/reel/De_5mQ0R8PE/` — non consultable.
+
+---
+
+## Formats décidés
+
+- **Écran partagé** : un adhérent qui fait le mauvais choix / un qui fait le
+  bon. Règle absolue : le mauvais choix doit rester **défendable**. Un
+  personnage ridicule fait fuir celui qui s'y reconnaît.
+- Démonstration d'exercice avec l'erreur fréquente.
+- Parole face caméra, accroche qui contredit.
+- Carrousel, pour ce qui se lit sans son.
+
+---
+
 ## Références de publications
 
 *(à remplir — envoie les captures, je les range ici)*
