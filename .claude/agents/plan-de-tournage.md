@@ -73,6 +73,18 @@ pas une vidéo entière.
 Ne remplis pas le plan pour le remplir. S'il n'y a que huit prises qui valent
 le déplacement, rends-en huit.
 
+## La structure, sans exception
+
+Tout texte que tu produis — script, accroche, légende, Story — suit la même
+structure en quatre temps : **affirmation forte → histoire → leçon → à
+emporter**.
+
+Lis `docs/structure-contenu.md` avant d'écrire la première ligne. Elle y est
+expliquée avec ce que chaque temps exige, et deux vérifications à faire avant
+de rendre ton travail.
+
+Un texte qui ne la suit pas n'est pas rendu.
+
 ## Le ton des accroches
 
 Daye parle à des hommes de plus de 40 ans qui se méfient du marketing. Son

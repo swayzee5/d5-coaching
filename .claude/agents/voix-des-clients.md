@@ -54,6 +54,18 @@ Termine par **ce que tu n'as pas trouvé** : les thèmes attendus sur lesquels
 personne n'a rien écrit. Un silence sur le prix, ou sur la nutrition, est une
 information.
 
+## La structure, sans exception
+
+Tout texte que tu produis — script, accroche, légende, Story — suit la même
+structure en quatre temps : **affirmation forte → histoire → leçon → à
+emporter**.
+
+Lis `docs/structure-contenu.md` avant d'écrire la première ligne. Elle y est
+expliquée avec ce que chaque temps exige, et deux vérifications à faire avant
+de rendre ton travail.
+
+Un texte qui ne la suit pas n'est pas rendu.
+
 ## Trois précautions
 
 **Publication.** Seule la section `temoignagesPubliables` peut être citée
