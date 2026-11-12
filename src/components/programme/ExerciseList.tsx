@@ -10,6 +10,8 @@ type ExerciseWithActions = {
   restSeconds: number | null;
   notes: string | null;
   vimeoVideoId?: string | null;
+  /** Vignette de la bibliothèque, pour les exercices illustrés par une photo. */
+  thumbnailUrl?: string | null;
   updateAction: (formData: FormData) => Promise<void>;
   removeAction: () => Promise<void>;
 };
@@ -58,6 +60,7 @@ function ExerciseItem({
   isDragging: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [aConfirmer, setAConfirmer] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [vimeoValue, setVimeoValue] = useState(exercise.vimeoVideoId ?? "");
 
@@ -71,9 +74,26 @@ function ExerciseItem({
 
   function autoSave() { formRef.current?.requestSubmit(); }
 
+  /**
+   * Retirer, en deux appuis, sans `confirm()`.
+   *
+   * Safari sur iPhone propose « ne plus afficher de boîtes de dialogue » dès
+   * la deuxième, et une fois coché, `confirm()` renvoie faux sans rien
+   * montrer : le bouton paraît mort alors que le code va bien. Une
+   * confirmation dans la page ne dépend de rien.
+   */
   function handleRemove() {
-    if (!confirm(`Retirer « ${exercise.name} » ?`)) return;
-    startTransition(() => exercise.removeAction());
+    if (!aConfirmer) {
+      setAConfirmer(true);
+      // Si l'appui était involontaire, l'état se défait tout seul plutôt que
+      // de laisser un bouton rouge en embuscade.
+      setTimeout(() => setAConfirmer(false), 4000);
+      return;
+    }
+    setAConfirmer(false);
+    startTransition(async () => {
+      await exercise.removeAction();
+    });
   }
 
   return (
@@ -94,8 +114,18 @@ function ExerciseItem({
           </svg>
         </div>
 
+        {/* Une photo de bibliothèque vaut une vidéo : certains exercices
+            n'ont rien à démontrer, et la pastille caméra grise laissait
+            croire qu'il manquait quelque chose. */}
         {vimeoValue ? (
           <VimeoThumb videoId={vimeoValue} />
+        ) : exercise.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={exercise.thumbnailUrl}
+            alt=""
+            className="w-14 h-10 rounded object-cover shrink-0"
+          />
         ) : (
           <div className="w-14 h-10 rounded bg-gray-800 flex items-center justify-center shrink-0">
             <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,12 +139,19 @@ function ExerciseItem({
           {exercise.notes && <p className="text-xs text-gray-500 truncate">{exercise.notes}</p>}
         </div>
 
-        <button type="button" onClick={handleRemove} disabled={isPending}
-          className="shrink-0 p-2 text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors rounded" title="Retirer">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {aConfirmer ? (
+          <button type="button" onClick={handleRemove} disabled={isPending}
+            className="shrink-0 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 disabled:opacity-40">
+            {isPending ? "…" : "Confirmer"}
+          </button>
+        ) : (
+          <button type="button" onClick={handleRemove} disabled={isPending}
+            className="shrink-0 p-2 text-gray-600 hover:text-red-400 disabled:opacity-40 transition-colors rounded" title="Retirer">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Ligne 2 : champs éditables (scroll horizontal sur mobile) */}

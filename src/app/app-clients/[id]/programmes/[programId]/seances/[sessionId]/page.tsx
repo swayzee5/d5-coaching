@@ -43,6 +43,23 @@ export default async function SessionBuilderPage({
   const renameAction = renameSession.bind(null, sessionId, clientId, programId);
   const reorderAction = reorderExercises.bind(null, sessionId, clientId, programId);
 
+  // Les vignettes de la bibliothèque, rapprochées par nom : un exercice de
+  // séance ne porte pas toujours `library_exercise_id`, et c'est par le nom
+  // que tout le reste du projet les relie. Lecture en SQL direct, parce que
+  // `thumbnail_url` est une colonne ajoutée à la main que Prisma ne déclare
+  // pas — la demander au schéma ferait échouer la requête entière.
+  const vignettes = new Map<string, string>();
+  try {
+    const rows = await db.$queryRaw<{ name: string; thumbnail_url: string | null }[]>`
+      SELECT name, thumbnail_url FROM exercise_library WHERE thumbnail_url IS NOT NULL
+    `;
+    for (const r of rows) {
+      if (r.thumbnail_url) vignettes.set(r.name.trim().toLowerCase(), r.thumbnail_url);
+    }
+  } catch {
+    // Pas de vignette plutôt qu'une page vide.
+  }
+
   const exercises = session.exercises.map((ex) => ({
     id: ex.id,
     name: ex.name,
@@ -51,6 +68,7 @@ export default async function SessionBuilderPage({
     restSeconds: ex.restSeconds,
     notes: ex.notes,
     vimeoVideoId: (ex as any).vimeoVideoId ?? null,
+    thumbnailUrl: vignettes.get(ex.name.trim().toLowerCase()) ?? null,
     updateAction: updateExercise.bind(null, ex.id, clientId, programId, sessionId),
     removeAction: removeExercise.bind(null, ex.id, clientId, programId, sessionId),
   }));
