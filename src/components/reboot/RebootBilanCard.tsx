@@ -38,6 +38,8 @@ export type BilanRow = {
   /** Réponse à « souhaites-tu être accompagné ? », posée après la vidéo. */
   intention: string | null;
   intention_texte: string | null;
+  /** Ce qu'il faudrait changer pour le groupe suivant. */
+  amelioration: string | null;
 };
 
 /**
@@ -133,6 +135,17 @@ export function RebootBilanCard({
         <p className="text-xs text-gray-400">
           Recommanderait le challenge : <span className="font-semibold text-white">{bilan.satisfaction}/5</span>
         </p>
+      )}
+
+      {/* Ce qu'il voudrait voir changer. Demandé avant de lui montrer son
+          score, parce que demandé après, personne ne répondait. */}
+      {bilan.amelioration && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+          <p className="text-xs uppercase tracking-wider text-blue-400">
+            À améliorer pour le prochain groupe
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-gray-300">{bilan.amelioration}</p>
+        </div>
       )}
 
       {/* Ce qu'il a répondu après la vidéo : c'est ce qui décide de l'appel,

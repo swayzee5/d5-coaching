@@ -263,14 +263,15 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
     ALTER TABLE reboot_bilans
       ADD COLUMN IF NOT EXISTS intention       TEXT,
       ADD COLUMN IF NOT EXISTS intention_texte TEXT,
-      ADD COLUMN IF NOT EXISTS intention_at    TIMESTAMPTZ
+      ADD COLUMN IF NOT EXISTS intention_at    TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS amelioration    TEXT
   `.catch(() => {});
 
   const rebootBilan = await db.$queryRaw<BilanRow[]>`
     SELECT score_global, score_sommeil, score_energie, score_recuperation,
            score_stress, score_motivation, score_confiance,
            satisfaction, temoignage, temoignage_publiable, submitted_at,
-           intention, intention_texte
+           intention, intention_texte, amelioration
     FROM reboot_bilans
     WHERE client_id::text = ${params.id}
     LIMIT 1
