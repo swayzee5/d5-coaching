@@ -37,6 +37,8 @@ export type FinParcoursLigne = {
   scoreFin: number | null;
   satisfaction: number | null;
   temoignage: string | null;
+  /** Ce qu'il voudrait voir changer pour le groupe suivant. */
+  amelioration: string | null;
   bilanLe: string | null;
   videoVue: boolean;
   ctaClique: boolean;
@@ -174,6 +176,17 @@ export function LigneFinParcours({
         <p className="mt-3 border-l-2 border-gray-700 pl-3 text-sm italic text-gray-400">
           « {ligne.temoignage} »
         </p>
+      )}
+
+      {/* L'amélioration est affichée ici et pas seulement sur la fiche : c'est
+          cette page qu'on ouvre pour balayer une cohorte, et trois personnes
+          qui disent la même chose ne se repèrent qu'en les lisant à la
+          suite. */}
+      {ligne.amelioration && (
+        <div className="mt-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] uppercase tracking-wider text-blue-400">À améliorer</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-gray-300">{ligne.amelioration}</p>
+        </div>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -45,6 +45,7 @@ type Ligne = {
   score_fin: number | null;
   satisfaction: number | null;
   temoignage: string | null;
+  amelioration: string | null;
   bilan_le: Date | null;
   video_fin_vue_at: Date | null;
   cta_clique_at: Date | null;
@@ -56,6 +57,12 @@ export default async function FinParcoursPage() {
   // Le schéma d'abord : une colonne manquante ferait échouer toute la
   // requête Prisma, et la page n'afficherait plus rien.
   await ensureSchemaReboot().catch(() => {});
+  // La colonne est créée par l'application cliente, qui l'écrit. Si elle
+  // manque ici, ce n'est pas une valeur qui s'absente : c'est toute la
+  // requête qui échoue, et la page affiche « personne n'a terminé ».
+  await db.$executeRaw`
+    ALTER TABLE reboot_bilans ADD COLUMN IF NOT EXISTS amelioration TEXT
+  `.catch(() => {});
   let lignes: Ligne[] = [];
   // L'erreur est retenue et affichée. Avalée, elle transformait une panne en
   // « personne n'a terminé » — un message faux, rassurant, et impossible à
@@ -94,7 +101,7 @@ export default async function FinParcoursPage() {
               + LEAST(COALESCE(mo.n, 0), 4))::int AS etapes,
              d.score_global AS score_depart,
              b.score_global AS score_fin,
-             b.satisfaction, b.temoignage,
+             b.satisfaction, b.temoignage, b.amelioration,
              b.submitted_at AS bilan_le,
              b.video_fin_vue_at, b.cta_clique_at, b.rdv_confirme_at, b.relance_at
         FROM participants p
@@ -133,6 +140,7 @@ export default async function FinParcoursPage() {
     etapesTotal: ETAPES_TOTAL,
     scoreDepart: l.score_depart,
     scoreFin: l.score_fin,
+    amelioration: l.amelioration,
     satisfaction: l.satisfaction,
     temoignage: l.temoignage,
     bilanLe: l.bilan_le ? l.bilan_le.toISOString() : null,
