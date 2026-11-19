@@ -215,21 +215,26 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
         WHERE rc.client_id = ${params.id}::uuid
         ORDER BY rc.completed_at ASC
       `.catch(() => [] as RebootCompletion[]),
+      // Le cast en texte des deux côtés, partout : selon laquelle des deux
+      // applications a créé la table, `client_id` est en UUID ou en TEXT, et
+      // une comparaison sans cast fait échouer toute la requête — pas une
+      // valeur, la requête. C'est ce qui vidait les conversations et les
+      // check-ins hebdomadaires sans rien dire.
       db.$queryRaw<RebootCheckin[]>`
         SELECT session_id::text, energy, difficulty, feeling
         FROM reboot_session_checkins
-        WHERE client_id = ${params.id}
+        WHERE client_id::text = ${params.id}
         ORDER BY submitted_at ASC
       `.catch(() => [] as RebootCheckin[]),
       db.$queryRaw<RebootModule[]>`
         SELECT task_key, completed_at
         FROM reboot_task_completions
-        WHERE client_id = ${params.id}
+        WHERE client_id::text = ${params.id}
         ORDER BY completed_at ASC
       `.catch(() => [] as RebootModule[]),
       db.$queryRaw<RebootWhatsapp[]>`
         SELECT sent_at FROM reboot_whatsapp_completions
-         WHERE client_id = ${params.id}
+         WHERE client_id::text = ${params.id}
          ORDER BY sent_at ASC
       `.catch(() => [] as RebootWhatsapp[]),
     ]);

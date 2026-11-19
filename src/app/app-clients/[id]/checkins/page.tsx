@@ -65,10 +65,15 @@ export default async function ClientCheckinsPage({
     )
   `.catch(() => {});
 
+  // La table est créée par l'application cliente avec un `client_id` en
+  // UUID ; le CRM, lui, la déclare en TEXT, et c'est celle des deux qui
+  // écrit en premier qui gagne. Comparer sans caster fait échouer la
+  // requête : le marquage ne passait pas, et un check-in de septembre
+  // apparaissait encore comme non lu deux mois plus tard.
   await db.$executeRaw`
     UPDATE weekly_checkins
     SET is_read = true
-    WHERE client_id = ${id} AND is_read = false
+    WHERE client_id::text = ${id} AND is_read = false
   `.catch(() => {});
 
   const client = await db.appClient
@@ -78,12 +83,21 @@ export default async function ClientCheckinsPage({
     })
     .catch(() => null);
 
-  const checkins = await db.$queryRaw<Checkin[]>`
-    SELECT id, client_id, energy, sleep, stress, weight, note, submitted_at
-    FROM weekly_checkins
-    WHERE client_id = ${id}
-    ORDER BY submitted_at DESC
-  `.catch(() => [] as Checkin[]);
+  // Même raison, et même conséquence : la liste revenait vide, donc « aucun
+  // check-in reçu » s'affichait sur un client qui en avait envoyé.
+  let checkins: Checkin[] = [];
+  let panne: string | null = null;
+  try {
+    checkins = await db.$queryRaw<Checkin[]>`
+      SELECT id, client_id, energy, sleep, stress, weight, note, submitted_at
+      FROM weekly_checkins
+      WHERE client_id::text = ${id}
+      ORDER BY submitted_at DESC
+    `;
+  } catch (err) {
+    console.error("[checkins] lecture en échec", err);
+    panne = String(err).slice(0, 200);
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
@@ -98,7 +112,11 @@ export default async function ClientCheckinsPage({
         <h1 className="text-xl font-bold text-white">Check-ins hebdomadaires</h1>
       </div>
 
-      {checkins.length === 0 ? (
+      {panne ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">
+          Les check-ins n&apos;ont pas pu être lus : {panne}
+        </div>
+      ) : checkins.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
           <p className="text-gray-500">Aucun check-in reçu pour l&apos;instant.</p>
         </div>
