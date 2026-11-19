@@ -44,15 +44,27 @@ export default async function ClientMessagesPage({
     })
     .catch(() => null);
 
-  const messages = await db.$queryRaw<Message[]>`
-    SELECT id, sender_role, content, created_at
-    FROM messages
-    WHERE client_id = ${id}
-    ORDER BY created_at ASC
-  `.catch((err) => {
+  // `client_id` est de type UUID : comparer la colonne à un paramètre texte
+  // fait échouer la requête entière, et l'erreur avalée affichait « aucun
+  // message » sur une conversation qui en contenait. Le cast en texte marche
+  // quel que soit le type de la colonne, comme partout ailleurs dans ce
+  // projet où les deux applications ne l'ont pas créée pareil.
+  let messages: Message[] = [];
+  let panne: string | null = null;
+  try {
+    messages = await db.$queryRaw<Message[]>`
+      SELECT id, sender_role, content, created_at
+      FROM messages
+      WHERE client_id::text = ${id}
+      ORDER BY created_at ASC
+    `;
+  } catch (err) {
     console.error("[messages] lecture de la conversation en échec", err);
-    return [] as Message[];
-  });
+    // Une panne ne se déguise pas en conversation vide : « aucun message »
+    // est un message rassurant et faux, impossible à distinguer de la
+    // vérité.
+    panne = String(err).slice(0, 200);
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
@@ -68,7 +80,11 @@ export default async function ClientMessagesPage({
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col">
         <div className="p-5 space-y-4 min-h-[300px] max-h-[60vh] overflow-y-auto">
-          {messages.length === 0 ? (
+          {panne ? (
+            <p className="py-8 text-center text-sm text-red-400">
+              Les messages n&apos;ont pas pu être lus : {panne}
+            </p>
+          ) : messages.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
               Aucun message pour l&apos;instant.
             </p>

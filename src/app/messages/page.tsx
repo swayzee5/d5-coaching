@@ -80,9 +80,12 @@ export default async function MessagesPage() {
                     conv.unread > 0 ? "text-white" : "text-gray-300"
                   }`}
                 >
+                  {/* Un compte supprimé affichait son identifiant brut, qui
+                      ne dit rien à personne et occupe deux lignes sur un
+                      téléphone. */}
                   {conv.client
                     ? `${conv.client.firstName} ${conv.client.lastName}`
-                    : conv.client_id}
+                    : "Client supprimé"}
                 </p>
                 <p className="text-sm text-gray-500 truncate">{conv.last_message}</p>
               </div>
