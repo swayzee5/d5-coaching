@@ -8,6 +8,7 @@ import { RebootDiagnosticsOverview, type RebootParticipant } from "@/components/
 import { DateDepartCohorte } from "@/components/reboot/DateDepartCohorte";
 import { RebootTermines } from "@/components/dashboard/RebootTermines";
 import { SectionDepliante } from "@/components/dashboard/SectionDepliante";
+import { MarquerLu } from "./MarquerLu";
 
 type RecentCompletion = {
   id: string; initiatedBy: string; completedAt: Date;
@@ -84,10 +85,21 @@ async function getDashboardData() {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS weekly_checkins (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id TEXT NOT NULL, energy INT NOT NULL, sleep INT NOT NULL, stress INT NOT NULL, weight DECIMAL(5,2), note TEXT, is_read BOOLEAN DEFAULT false, submitted_at TIMESTAMPTZ DEFAULT now())`.catch(() => {});
     type CRow = { id: string; client_id: string; energy: number; sleep: number; stress: number; weight: number | null; note: string | null; submitted_at: Date };
     const cRows = await db.$queryRaw<CRow[]>`SELECT id, client_id, energy, sleep, stress, weight, note, submitted_at FROM weekly_checkins WHERE is_read = false ORDER BY submitted_at DESC LIMIT 10`.catch(() => [] as CRow[]);
-    unreadCheckins = await Promise.all(cRows.map(async (row) => {
+    // Un check-in dont le compte a été supprimé ne peut plus jamais être
+    // marqué lu : il n'y a plus de fiche à ouvrir. Il restait donc en haut
+    // du tableau de bord indéfiniment, et une liste qui ne se vide jamais
+    // finit par ne plus rien signaler. On le retire, et on efface la ligne.
+    const resolus = await Promise.all(cRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé" };
+      return c ? { ...row, clientName: `${c.firstName} ${c.lastName}` } : null;
     }));
+    const orphelins = cRows.filter((_, i) => resolus[i] === null).map((r) => r.id);
+    if (orphelins.length > 0) {
+      await db.$executeRaw`
+        DELETE FROM weekly_checkins WHERE id = ANY(${orphelins}::uuid[])
+      `.catch(() => {});
+    }
+    unreadCheckins = resolus.filter((r): r is UnreadCheckin & { clientName: string } => r !== null);
   } catch {}
 
   try {
@@ -356,6 +368,10 @@ export default async function DashboardPage() {
                       quote={c.note ? `Check-in — « ${c.note} »` : `Check-in du ${new Date(c.submitted_at).toLocaleDateString("fr-FR")}`}
                       markRead={{ kind: "weekly_checkin", id: c.id }}
                     />
+                    {/* Lire ne devrait pas obliger à répondre : « énergie 🙂,
+                        rien à signaler » n'appelle aucune réponse, et sans ce
+                        geste la liste ne se vide jamais. */}
+                    <span className="ml-3"><MarquerLu id={c.id} /></span>
                   </div>
                   <p className="text-xs text-gray-400 shrink-0">{new Date(c.submitted_at).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</p>
                 </div>

@@ -44,3 +44,24 @@ export async function replyToActivity({
   revalidatePath("/messages");
   return {};
 }
+
+/**
+ * Marquer un check-in lu, sans répondre.
+ *
+ * Jusqu'ici, un check-in ne sortait des « non lus » qu'en répondant ou en
+ * ouvrant la fiche du client. Beaucoup n'appellent ni l'un ni l'autre : on
+ * lit « énergie 🙂, sommeil 🙂, rien à signaler », et c'est tout. Sans ce
+ * geste, la liste ne se vide jamais et finit par ne plus rien signaler.
+ */
+export async function marquerCheckinLu(id: string): Promise<{ ok: boolean }> {
+  try {
+    await db.$executeRaw`
+      UPDATE weekly_checkins SET is_read = true WHERE id = ${id}::uuid
+    `;
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (err) {
+    console.error("[marquerCheckinLu]", err);
+    return { ok: false };
+  }
+}
