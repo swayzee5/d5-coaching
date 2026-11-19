@@ -7,6 +7,7 @@ import ReplyButton from "./ReplyButton";
 import { RebootDiagnosticsOverview, type RebootParticipant } from "@/components/reboot/RebootDiagnosticsOverview";
 import { DateDepartCohorte } from "@/components/reboot/DateDepartCohorte";
 import { RebootTermines } from "@/components/dashboard/RebootTermines";
+import { SectionDepliante } from "@/components/dashboard/SectionDepliante";
 
 type RecentCompletion = {
   id: string; initiatedBy: string; completedAt: Date;
@@ -18,7 +19,7 @@ type ClientSession = {
   rpe: number | null; durationSeconds: number | null; sets: number; note: string | null; noteId: string | null;
   clientId: string; clientName: string; href: string;
 };
-type UnreadMessage  = { client_id: string; content: string; created_at: Date };
+type UnreadMessage  = { client_id: string; content: string; created_at: Date; is_read: boolean };
 type UnreadCheckin  = { id: string; client_id: string; energy: number; sleep: number; stress: number; weight: number | null; note: string | null; submitted_at: Date };
 type RebootCheckin  = { id: string; client_id: string; energy: number | null; sleep_quality: number | null; weight: number | null; feeling: string | null; submitted_at: Date };
 type CompletedRebootClient = { client_id: string; clientName: string; created_at: Date };
@@ -56,8 +57,23 @@ async function getDashboardData() {
 
   try {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id TEXT NOT NULL, sender_role TEXT NOT NULL, content TEXT NOT NULL, is_read BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT now())`.catch(() => {});
-    type MsgRow = { client_id: string; content: string; created_at: Date };
-    const msgRows = await db.$queryRaw<MsgRow[]>`SELECT DISTINCT ON (client_id) client_id, content, created_at FROM messages WHERE sender_role = 'client' AND is_read = false ORDER BY client_id, created_at DESC LIMIT 5`.catch(() => [] as MsgRow[]);
+    // Les messages récents, lus ou non — et pas seulement les non-lus.
+    //
+    // Un message disparaissait du tableau de bord dès qu'il était marqué lu,
+    // y compris quand il l'avait été à tort : le fil de conversation
+    // marquait lu puis échouait à afficher, et le message devenait
+    // introuvable. Un coach qui ouvre son tableau de bord veut savoir qui
+    // lui a écrit cette semaine, pas seulement ce qu'il n'a pas encore
+    // ouvert.
+    type MsgRow = { client_id: string; content: string; created_at: Date; is_read: boolean };
+    const msgRows = await db.$queryRaw<MsgRow[]>`
+      SELECT DISTINCT ON (client_id) client_id, content, created_at, is_read
+        FROM messages
+       WHERE sender_role = 'client'
+         AND created_at > now() - interval '14 days'
+       ORDER BY client_id, created_at DESC
+       LIMIT 6
+    `.catch(() => [] as MsgRow[]);
     unreadMessages = await Promise.all(msgRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
       return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé" };
@@ -288,18 +304,24 @@ export default async function DashboardPage() {
       <RebootDiagnosticsOverview participants={data.rebootParticipants} />
 
       {data.unreadMessages.length > 0 && (
-        <div className="bg-gray-900 rounded-xl border border-blue-500/30 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" /></span><h2 className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Messages non lus ({data.unreadMessages.length})</h2></div>
-            <Link href="/messages" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Voir tout →</Link>
-          </div>
+        <SectionDepliante
+          cle="messages"
+          titre="Messages clients"
+          compte={data.unreadMessages.filter((m) => !m.is_read).length}
+          couleur="bleu"
+          urgent={data.unreadMessages.some((m) => !m.is_read)}
+          action={<Link href="/messages" className="text-xs font-medium text-blue-400 hover:text-blue-300">Voir tout →</Link>}
+        >
           <div className="space-y-2">
             {data.unreadMessages.map((msg, i) => (
               <div key={i} className="bg-gray-800 rounded-lg px-4 py-3">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0"><span className="text-blue-400 font-bold text-xs">{msg.clientName.split(" ").map((n) => n[0]).join("").slice(0,2)}</span></div>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/app-clients/${msg.client_id}/messages`} className="text-sm text-white font-medium hover:text-brand-400 transition-colors">{msg.clientName}</Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/app-clients/${msg.client_id}/messages`} className="text-sm text-white font-medium hover:text-brand-400 transition-colors">{msg.clientName}</Link>
+                      {!msg.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
+                    </div>
                     <p className="text-xs text-gray-500 truncate">{msg.content}</p>
                     <ReplyButton clientId={msg.client_id} clientName={msg.clientName} quote="" />
                   </div>
@@ -308,12 +330,17 @@ export default async function DashboardPage() {
               </div>
             ))}
           </div>
-        </div>
+        </SectionDepliante>
       )}
 
       {data.unreadCheckins.length > 0 && (
-        <div className="bg-gray-900 rounded-xl border border-purple-500/30 p-5">
-          <div className="flex items-center gap-2 mb-4"><span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500" /></span><h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wide">Check-ins non lus ({data.unreadCheckins.length})</h2></div>
+        <SectionDepliante
+          cle="checkins"
+          titre="Check-ins non lus"
+          compte={data.unreadCheckins.length}
+          couleur="violet"
+          urgent
+        >
           <div className="space-y-2">
             {data.unreadCheckins.map((c) => (
               <div key={c.id} className="bg-gray-800 rounded-lg px-4 py-3">
@@ -335,15 +362,18 @@ export default async function DashboardPage() {
               </div>
             ))}
           </div>
-        </div>
+        </SectionDepliante>
       )}
 
       {data.rebootCheckins.length > 0 && (
-        <div className="bg-gray-900 rounded-xl border border-amber-500/30 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" /><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" /></span><h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide">Check-ins Reboot ({data.rebootCheckins.length})</h2></div>
-            <span className="text-xs text-amber-500/60 font-medium">🏆 Mi-challenge</span>
-          </div>
+        <SectionDepliante
+          cle="checkins-reboot"
+          titre="Check-ins Reboot"
+          compte={data.rebootCheckins.length}
+          couleur="ambre"
+          urgent
+          action={<span className="text-xs font-medium text-amber-500/60">🏆 Mi-challenge</span>}
+        >
           <div className="space-y-2">
             {data.rebootCheckins.map((c) => (
               <Link key={c.id} href={`/app-clients/${c.client_id}/checkins`} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors">
@@ -353,11 +383,18 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-        </div>
+        </SectionDepliante>
       )}
 
-      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-        <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Activités récentes</h2><Link href="/activites" className="text-xs text-brand-400 hover:text-brand-300 font-medium">Voir tout →</Link></div>
+      {/* Repliée par défaut : c'est de la consultation, pas une file
+          d'attente. Elle occupait le bas de l'écran et obligeait à faire
+          défiler tout le reste. */}
+      <SectionDepliante
+        cle="activites"
+        titre="Activités récentes"
+        defautOuvert={false}
+        action={<Link href="/activites" className="text-xs font-medium text-brand-400 hover:text-brand-300">Voir tout →</Link>}
+      >
         {data.clientSessions.length > 0 && (
           <div className="space-y-2 mb-3">
             {data.clientSessions.map((ws) => (
@@ -394,7 +431,7 @@ export default async function DashboardPage() {
             </Link>
           ); })}</div>
         )}
-      </div>
+      </SectionDepliante>
 
       {/* Le pipeline d'acquisition, les groupes de challenge et les derniers
           prospects vivaient ici. Ils comptent des « prospects » — la table que
