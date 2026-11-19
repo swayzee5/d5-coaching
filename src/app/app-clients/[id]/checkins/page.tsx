@@ -14,6 +14,21 @@ type Checkin = {
   submitted_at: Date;
 };
 
+/**
+ * Le mini-point de mi-challenge.
+ *
+ * Posé au troisième jour, une seule fois, et il ne s'affichait nulle part :
+ * le tableau de bord renvoyait vers cette page, qui ne montrait que les
+ * check-ins hebdomadaires. C'est pourtant le seul moment où un participant
+ * dit ce qui le bloque pendant qu'il est encore temps d'agir.
+ */
+type MiniPoint = {
+  seance_faite: boolean | null;
+  frein: string | null;
+  besoin_aide: string | null;
+  submitted_at: Date;
+};
+
 const ENERGY_EMOJIS = ["😴", "😪", "🙂", "😊", "💪"];
 const SLEEP_EMOJIS = ["😴", "😪", "🙂", "😊", "⭐"];
 const STRESS_EMOJIS = ["😰", "😟", "😐", "🙂", "😌"];
@@ -99,6 +114,17 @@ export default async function ClientCheckinsPage({
     panne = String(err).slice(0, 200);
   }
 
+  // `feeling` porte la réponse à « qu'est-ce qui te freine ? » : le nom de la
+  // colonne vient d'une version antérieure du formulaire, et le renommer en
+  // base demanderait de toucher à l'application cliente pour rien. On le
+  // renomme ici, à l'affichage, là où ça compte.
+  const miniPoints = await db.$queryRaw<MiniPoint[]>`
+    SELECT seance_faite, feeling AS frein, besoin_aide, submitted_at
+      FROM reboot_mid_checkins
+     WHERE client_id::text = ${id}
+     ORDER BY submitted_at DESC
+  `.catch(() => [] as MiniPoint[]);
+
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
@@ -109,18 +135,79 @@ export default async function ClientCheckinsPage({
           ← {client ? `${client.firstName} ${client.lastName}` : "Client"}
         </Link>
         <span className="text-gray-700">/</span>
-        <h1 className="text-xl font-bold text-white">Check-ins hebdomadaires</h1>
+        <h1 className="text-xl font-bold text-white">Check-ins</h1>
       </div>
+
+      {/* Le mini-point d'abord : il date du troisième jour du challenge et
+          dit ce qui bloque, là où un check-in hebdomadaire raconte une
+          semaine déjà passée. */}
+      {miniPoints.map((p) => (
+        <div
+          key={String(p.submitted_at)}
+          className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-amber-400">
+              🏆 Mini-point de mi-challenge
+            </p>
+            <p className="text-xs text-gray-500">
+              {new Date(p.submitted_at).toLocaleDateString("fr-FR", {
+                day: "2-digit",
+                month: "long",
+              })}
+            </p>
+          </div>
+
+          {p.seance_faite !== null && (
+            <p className="text-sm text-gray-300">
+              Première séance :{" "}
+              <span className={p.seance_faite ? "text-green-400" : "text-orange-400"}>
+                {p.seance_faite ? "faite" : "pas encore faite"}
+              </span>
+            </p>
+          )}
+
+          {p.frein && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-500">
+                Qu&apos;est-ce qui te freine ?
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-200">{p.frein}</p>
+            </div>
+          )}
+
+          {p.besoin_aide && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-500">
+                Tu as besoin de quelque chose de ma part ?
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-200">{p.besoin_aide}</p>
+            </div>
+          )}
+
+          {!p.frein && !p.besoin_aide && (
+            <p className="text-sm text-gray-500">Aucun commentaire laissé.</p>
+          )}
+        </div>
+      ))}
 
       {panne ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">
           Les check-ins n&apos;ont pas pu être lus : {panne}
         </div>
       ) : checkins.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
-          <p className="text-gray-500">Aucun check-in reçu pour l&apos;instant.</p>
+        <div className="rounded-xl border border-gray-800 bg-gray-900 p-8 text-center">
+          <p className="text-gray-500">
+            {miniPoints.length > 0
+              ? "Aucun check-in hebdomadaire — seulement le mini-point ci-dessus."
+              : "Aucun check-in reçu pour l'instant."}
+          </p>
         </div>
       ) : (
+        <>
+        <p className="text-xs uppercase tracking-wider text-gray-500">
+          Check-ins hebdomadaires
+        </p>
         <div className="space-y-4">
           {checkins.map((c) => (
             <div
@@ -158,6 +245,7 @@ export default async function ClientCheckinsPage({
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
