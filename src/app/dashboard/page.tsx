@@ -105,11 +105,26 @@ async function getDashboardData() {
   try {
     await db.$executeRaw`CREATE TABLE IF NOT EXISTS reboot_mid_checkins (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id TEXT NOT NULL UNIQUE, energy INT, sleep_quality INT, weight DECIMAL(5,2), feeling TEXT, submitted_at TIMESTAMPTZ DEFAULT now())`.catch(() => {});
     type RRow = { id: string; client_id: string; energy: number | null; sleep_quality: number | null; weight: number | null; feeling: string | null; submitted_at: Date };
-    const rRows = await db.$queryRaw<RRow[]>`SELECT id, client_id, energy, sleep_quality, weight, feeling, submitted_at FROM reboot_mid_checkins ORDER BY submitted_at DESC LIMIT 5`.catch(() => [] as RRow[]);
-    rebootCheckins = await Promise.all(rRows.map(async (row) => {
+    // Les mini-points de la cohorte en cours, et eux seuls.
+    //
+    // Il n'y a pas de notion de « lu » sur cette table : le bloc affichait
+    // donc les cinq derniers pour toujours, et restait en haut du tableau de
+    // bord des semaines après la fin du challenge. Un mini-point parle d'une
+    // semaine en cours ; passé dix jours, il appartient à l'historique du
+    // participant, où il s'affiche désormais sur sa fiche.
+    const rRows = await db.$queryRaw<RRow[]>`
+      SELECT id, client_id, energy, sleep_quality, weight, feeling, submitted_at
+        FROM reboot_mid_checkins
+       WHERE submitted_at > now() - interval '10 days'
+       ORDER BY submitted_at DESC
+       LIMIT 5
+    `.catch(() => [] as RRow[]);
+    const resolusReboot = await Promise.all(rRows.map(async (row) => {
       const c = await db.appClient.findUnique({ where: { id: row.client_id }, select: { firstName: true, lastName: true } }).catch(() => null);
-      return { ...row, clientName: c ? `${c.firstName} ${c.lastName}` : "Client supprimé" };
+      // Un compte supprimé n'a plus de mini-point à lire.
+      return c ? { ...row, clientName: `${c.firstName} ${c.lastName}` } : null;
     }));
+    rebootCheckins = resolusReboot.filter((r): r is RebootCheckin & { clientName: string } => r !== null);
   } catch {}
 
   try {
