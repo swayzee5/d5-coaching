@@ -305,6 +305,20 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
   // De quoi joindre la personne, et le droit de le faire. Ces deux-là
   // conditionnent toute automatisation future : sans numéro normalisé et sans
   // accord tracé, aucun message ne part.
+  // Ce que le client a demandé avant d'avoir un programme. La table est
+  // créée par l'application cliente : son absence ne doit pas vider la fiche.
+  const demande = await db.$queryRaw<{
+    objectif: string; seances_semaine: number | null; lieu: string | null;
+    materiel: string | null; creneau: string | null; experience: string | null;
+    blessures: string | null; remarque: string | null; submitted_at: Date;
+  }[]>`
+    SELECT objectif, seances_semaine, lieu, materiel, creneau, experience,
+           blessures, remarque, submitted_at
+      FROM programme_demandes
+     WHERE client_id::text = ${params.id}
+     LIMIT 1
+  `.catch(() => []);
+
   const etatsConsentement = await consentements(client.id).catch(() => []);
   const prospectLie = await prospectDuParticipant(client.id).catch(() => null);
   const modeles = await modelesDisponibles().catch(() => ({ programmes: [], seances: [] }));
@@ -393,6 +407,54 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
       {/* Avant les mesures : c'est ce qui conditionne la suite. Un
           participant qu'on ne peut pas joindre ne recevra jamais rien,
           quelle que soit la qualité du reste. */}
+      {/* Sa demande de programme. Affichée avant tout le reste quand elle
+          existe : c'est elle qui dit quoi construire, et elle arrivait
+          jusqu'ici par WhatsApp en morceaux. */}
+      {demande[0] && (
+        <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-brand-400">
+              Demande de programme
+            </h2>
+            <span className="text-xs text-gray-500">
+              {new Date(demande[0].submitted_at).toLocaleDateString("fr-FR", {
+                day: "numeric", month: "long", year: "numeric",
+              })}
+            </span>
+          </div>
+
+          <p className="text-base font-semibold text-white">{demande[0].objectif}</p>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            {demande[0].seances_semaine !== null && (
+              <Etiquette>{demande[0].seances_semaine} séances / semaine</Etiquette>
+            )}
+            {demande[0].lieu && <Etiquette>{demande[0].lieu}</Etiquette>}
+            {demande[0].creneau && <Etiquette>{demande[0].creneau}</Etiquette>}
+            {demande[0].experience && <Etiquette>{demande[0].experience}</Etiquette>}
+          </div>
+
+          {demande[0].materiel && (
+            <Champ titre="Matériel à la maison">{demande[0].materiel}</Champ>
+          )}
+
+          {/* En orange : c'est ce qui change le plus le programme, et le
+              rater coûte trois semaines. */}
+          {demande[0].blessures && (
+            <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3">
+              <p className="text-xs uppercase tracking-wider text-orange-400">
+                Blessures et limitations
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-200">
+                {demande[0].blessures}
+              </p>
+            </div>
+          )}
+
+          {demande[0].remarque && <Champ titre="Autre chose">{demande[0].remarque}</Champ>}
+        </div>
+      )}
+
       <ContactEtConsentements
         clientId={client.id}
         telephone={client.phone ?? null}
@@ -719,6 +781,23 @@ export default async function AppClientDetailPage({ params }: { params: { id: st
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function Etiquette({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-gray-300">
+      {children}
+    </span>
+  );
+}
+
+function Champ({ titre, children }: { titre: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wider text-gray-500">{titre}</p>
+      <p className="mt-1 text-sm leading-relaxed text-gray-300">{children}</p>
     </div>
   );
 }
