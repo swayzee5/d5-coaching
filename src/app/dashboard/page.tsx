@@ -39,6 +39,7 @@ async function getDashboardData() {
   let unreadCheckins: (UnreadCheckin & { clientName: string })[] = [];
   let rebootCheckins: (RebootCheckin & { clientName: string })[] = [];
   let completedRebootClients: CompletedRebootClient[] = [];
+  let demandesProgramme: { client_id: string; clientName: string; objectif: string; blessures: string | null; submitted_at: Date }[] = [];
   let rebootParticipants: RebootParticipant[] = [];
   let dateCohorte: string | null = null;
 
@@ -260,7 +261,7 @@ async function getDashboardData() {
     repasEnRetard = retard;
   } catch {}
 
-  return { activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte, repasEnAttente, repasEnRetard };
+  return { demandesProgramme, activeClients, revenue: activeClients * 3000, recentCompletions, clientSessions, unreadMessages, unreadCheckins, rebootCheckins, completedRebootClients, rebootParticipants, dateCohorte, repasEnAttente, repasEnRetard };
 }
 
 export default async function DashboardPage() {
@@ -287,6 +288,50 @@ export default async function DashboardPage() {
         <StatCard label="Clients actifs" value={data.activeClients} sub="/ 15 max" accent="green" />
         <StatCard label="CA mensuel" value={`${(data.revenue / 1000).toFixed(0)}k€`} sub="accompagnements" accent="orange" />
       </div>
+
+      {/* Avant tout le reste : un client qui vient de payer attend son
+          programme, et c'est la seule chose ici qu'un retard d'une semaine
+          rend irrattrapable — la première impression ne se refait pas. */}
+      {data.demandesProgramme.length > 0 && (
+        <div className="rounded-xl border border-brand-500/40 bg-brand-500/5 p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-500" />
+            </span>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-brand-400">
+              Programmes à construire ({data.demandesProgramme.length})
+            </h2>
+          </div>
+          <div className="space-y-2">
+            {data.demandesProgramme.map((d) => {
+              const jours = Math.floor(
+                (Date.now() - new Date(d.submitted_at).getTime()) / 86_400_000
+              );
+              return (
+                <Link
+                  key={d.client_id}
+                  href={`/app-clients/${d.client_id}`}
+                  className="block rounded-lg bg-gray-800 px-4 py-3 transition-colors hover:bg-gray-750"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-white">{d.clientName}</p>
+                    {/* L'attente est dite en clair : « il y a 6 jours » pèse
+                        autrement qu'une date. */}
+                    <span className={`text-xs ${jours >= 3 ? "text-orange-400" : "text-gray-500"}`}>
+                      {jours === 0 ? "aujourd'hui" : `il y a ${jours} jour${jours > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-400">{d.objectif}</p>
+                  {d.blessures && (
+                    <p className="mt-1 text-xs text-orange-400">⚠ {d.blessures}</p>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {data.completedRebootClients.length > 0 && (
         <RebootTermines entrees={data.completedRebootClients} />
