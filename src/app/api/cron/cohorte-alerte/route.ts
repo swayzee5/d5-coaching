@@ -5,12 +5,17 @@ import { jsonUtf8 } from "@/lib/json-utf8";
 import { cohorteEnCours, cequiManque, type Participant } from "@/lib/cohorte";
 
 /**
- * L'alerte de décrochage, une fois par jour, sans que personne n'ouvre rien.
+ * Ce qui attend une action de Daye, une fois par jour, sans qu'il ouvre rien.
  *
  * C'est le point du système qui n'attend aucun geste du coach. Une requête,
  * un seuil, un e-mail — pas d'intelligence, et c'est voulu : comparer des
  * dates ne demande pas un modèle, et en mettre un là ajouterait un endroit
  * où ça peut se tromper.
+ *
+ * Deux choses y figurent : les participants qui ont décroché, et les
+ * demandes de programme sans réponse. Un seul e-mail par jour plutôt que
+ * deux alertes séparées — deux messages quotidiens finissent par n'en valoir
+ * aucun.
  *
  * Une seule alerte par personne et par décrochage. Sans ce verrou, un
  * participant arrêté depuis six jours produirait six e-mails identiques, et
@@ -63,6 +68,25 @@ function ligne(p: Participant): string {
   </td></tr>`;
 }
 
+/** Une demande dans l'e-mail. L'attente est dite en jours, pas en date. */
+function ligneDemande(d: {
+  prenom: string;
+  objectif: string;
+  blessures: string | null;
+  jours: number;
+}): string {
+  const attente =
+    d.jours === 0 ? "aujourd'hui" : `il y a ${d.jours} jour${d.jours > 1 ? "s" : ""}`;
+  return `
+  <tr><td style="padding:12px 0;border-bottom:1px solid #1f1f1f;">
+    <p style="margin:0;font-size:15px;font-weight:700;color:#fff;">${d.prenom}</p>
+    <p style="margin:4px 0 0;font-size:13px;color:#888;">
+      ${d.objectif} — demandé ${attente}
+    </p>
+    ${d.blessures ? `<p style="margin:4px 0 0;font-size:13px;color:#ff9f45;">⚠ ${d.blessures}</p>` : ""}
+  </td></tr>`;
+}
+
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const parUrl = req.nextUrl.searchParams.get("secret");
@@ -80,6 +104,36 @@ export async function GET(req: NextRequest) {
     const aRelancer = participants.filter(
       (p) => p.etat === "decroche" || p.etat === "jamais_commence"
     );
+
+    // Les demandes de programme sans programme actif. Annoncées une fois à
+    // leur arrivée, puis une seconde fois au troisième jour d'attente : une
+    // alerte unique se perd si elle tombe un jour chargé, et trois jours de
+    // silence après un paiement se voient.
+    type Demande = { client_id: string; prenom: string; objectif: string; blessures: string | null; submitted_at: Date };
+    const demandes = await db.$queryRaw<Demande[]>`
+      SELECT d.client_id::text AS client_id, c.first_name AS prenom,
+             d.objectif, d.blessures, d.submitted_at
+        FROM programme_demandes d
+        JOIN clients c ON c.id::text = d.client_id::text
+       WHERE c.is_active = true
+         AND NOT EXISTS (
+           SELECT 1 FROM training_programs p
+            WHERE p.client_id::text = d.client_id::text AND p.is_active = true
+         )
+       ORDER BY d.submitted_at ASC
+    `.catch(() => [] as Demande[]);
+
+    const demandesASignaler: (Demande & { jours: number })[] = [];
+    for (const d of demandes) {
+      const jours = Math.floor((Date.now() - new Date(d.submitted_at).getTime()) / 86_400_000);
+      const envoye = new Date(d.submitted_at).toISOString().slice(0, 10);
+      const cle = jours >= 3 ? `demande_relance_${d.client_id}_${envoye}` : `demande_${d.client_id}_${envoye}`;
+      if (essai) {
+        demandesASignaler.push({ ...d, jours });
+        continue;
+      }
+      if (await verrou(cle)) demandesASignaler.push({ ...d, jours });
+    }
 
     const jour = new Date().toISOString().slice(0, 10);
     const nouveaux: Participant[] = [];
@@ -101,10 +155,11 @@ export async function GET(req: NextRequest) {
       else deja.push(p.prenom);
     }
 
-    if (nouveaux.length === 0) {
+    if (nouveaux.length === 0 && demandesASignaler.length === 0) {
       return jsonUtf8({
         jour,
         aRelancer: aRelancer.length,
+        demandesEnAttente: demandes.length,
         nouvelles: 0,
         déjàSignalés: deja,
         message: "Rien de neuf, aucun e-mail envoyé.",
@@ -121,18 +176,33 @@ export async function GET(req: NextRequest) {
     <p style="margin:0;font-size:20px;font-weight:900;color:#ff6a00;">D5 COACHING</p>
   </td></tr>
   <tr><td style="padding:28px 36px;">
+    ${demandesASignaler.length > 0 ? `
+    <h1 style="margin:0 0 6px;font-size:21px;font-weight:800;color:#fff;">
+      ${demandesASignaler.length} programme${demandesASignaler.length > 1 ? "s" : ""} à construire
+    </h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#888;line-height:1.6;">
+      Ils ont rempli leur formulaire et attendent.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0">${demandesASignaler.map(ligneDemande).join("")}</table>
+    <a href="${CRM}/dashboard"
+       style="display:inline-block;margin:20px 0 28px;padding:13px 22px;background:#ff6a00;border-radius:10px;
+              color:#fff;font-size:14px;font-weight:700;text-decoration:none;">
+      Ouvrir le tableau de bord →
+    </a>` : ""}
+
+    ${nouveaux.length > 0 ? `
     <h1 style="margin:0 0 6px;font-size:21px;font-weight:800;color:#fff;">
       ${nouveaux.length} participant${nouveaux.length > 1 ? "s" : ""} à relancer
     </h1>
-    <p style="margin:0 0 20px;font-size:14px;color:#888;line-height:1.6;">
+    <p style="margin:0 0 16px;font-size:14px;color:#888;line-height:1.6;">
       Un message aujourd'hui vaut mieux qu'un bilan dans six jours.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0">${nouveaux.map(ligne).join("")}</table>
     <a href="${CRM}/cohorte"
-       style="display:inline-block;margin-top:24px;padding:13px 22px;background:#ff6a00;border-radius:10px;
+       style="display:inline-block;margin-top:20px;padding:13px 22px;background:#ff6a00;border-radius:10px;
               color:#fff;font-size:14px;font-weight:700;text-decoration:none;">
       Ouvrir la cohorte →
-    </a>
+    </a>` : ""}
   </td></tr>
 </table>
 </td></tr></table></body></html>`;
@@ -151,7 +221,18 @@ export async function GET(req: NextRequest) {
       await resend.emails.send({
         from: FROM,
         to: DESTINATAIRE,
-        subject: `${nouveaux.length} participant${nouveaux.length > 1 ? "s" : ""} à relancer — REBOOT 40`,
+        // Le sujet dit ce qu'il y a dedans : un objet toujours identique
+        // finit par ne plus être ouvert.
+        subject: [
+          demandesASignaler.length > 0
+            ? `${demandesASignaler.length} programme${demandesASignaler.length > 1 ? "s" : ""} à construire`
+            : null,
+          nouveaux.length > 0
+            ? `${nouveaux.length} participant${nouveaux.length > 1 ? "s" : ""} à relancer`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") + " — D5",
         html,
       });
     }
@@ -161,6 +242,7 @@ export async function GET(req: NextRequest) {
       essai,
       envoyé: !essai,
       destinataire: DESTINATAIRE,
+      programmesÀConstruire: demandesASignaler.map((d) => `${d.prenom} (${d.jours} j)`),
       signalés: nouveaux.map((p) => `${p.prenom} (${p.etapes}/10)`),
       déjàSignalés: deja,
     });
